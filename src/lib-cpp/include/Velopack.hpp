@@ -739,6 +739,40 @@ public:
     };
 
     /**
+     * This hook is triggered when the operating system opens this app to handle a file whose extension was
+     * registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
+     * On Windows the hook runs once during Run(), after the regular startup logic. On macOS files arrive as
+     * Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the
+     * main thread, and replaces the UI framework's own open-file handling. When a pending update is auto-applied
+     * at startup on macOS the process exits before that launch's Apple Event is delivered, so the file is lost;
+     * macOS apps using associations should call SetAutoApplyOnStartup(false) and apply updates at a moment of
+     * their choosing. Not supported on Linux.
+     * @param cbFileAssociation The callback to run with the path of the file to open.
+     * @returns A reference to the builder.
+     */
+    VelopackApp& OnFileAssociation(vpkc_association_callback_t cbFileAssociation) {
+        vpkc_app_set_hook_file_association(cbFileAssociation);
+        return *this;
+    };
+
+    /**
+     * This hook is triggered when the operating system opens this app to handle a URL whose scheme was
+     * registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
+     * On Windows the hook runs once during Run(), after the regular startup logic. On macOS URLs arrive as
+     * Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the
+     * main thread, and replaces the UI framework's own open-URL handling. When a pending update is auto-applied
+     * at startup on macOS the process exits before that launch's Apple Event is delivered, so the URL is lost;
+     * macOS apps using associations should call SetAutoApplyOnStartup(false) and apply updates at a moment of
+     * their choosing. Not supported on Linux.
+     * @param cbUrlAssociation The callback to run with the URL to open.
+     * @returns A reference to the builder.
+     */
+    VelopackApp& OnUrlAssociation(vpkc_association_callback_t cbUrlAssociation) {
+        vpkc_app_set_hook_url_association(cbUrlAssociation);
+        return *this;
+    };
+
+    /**
      * Runs the Velopack startup logic. This should be the first thing to run in your app.
      * In some circumstances it may terminate/restart the process to perform tasks.
      * @param pUserData A pointer to user data that will be passed to any hooks that are executed.

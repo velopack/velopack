@@ -12,6 +12,8 @@ public class OsxBundleOptionsValidator<T> : OptionsValidator<T> where T : OsxBun
         RuleFor(x => x.PackDirectory).NotEmpty();
         RuleFor(x => x.Icon).MustBeExistingFile().MustHaveExtension(".icns");
         RuleFor(x => x.InfoPlistPath).MustBeExistingFile();
+        RuleFor(x => x.FileAssociations).MustBeValidFileAssociations();
+        RuleFor(x => x.UrlProtocols).MustBeValidUrlProtocols();
         RuleFor(x => x.BundleId)
             .Must((opt, bundleId) => string.IsNullOrEmpty(bundleId) || string.IsNullOrEmpty(opt.InfoPlistPath))
             .WithMessage("Cannot use 'bundleId' and 'plist' options together, please choose one.");

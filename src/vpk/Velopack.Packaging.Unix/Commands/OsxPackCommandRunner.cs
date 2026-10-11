@@ -35,6 +35,11 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         if (!packDir.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
             appBundlePath = new OsxBundleCommandRunner(Log).Bundle(Options);
             deleteAppBundle = true;
+        } else if (!string.IsNullOrWhiteSpace(Options.FileAssociations) || !string.IsNullOrWhiteSpace(Options.UrlProtocols)) {
+            // a prebuilt .app is used as-is; editing its Info.plist would invalidate the user's signature
+            Log.Warn(
+                "--fileAssociations / --urlProtocols are ignored when packing a prebuilt .app bundle. " +
+                "Declare CFBundleDocumentTypes / CFBundleURLTypes in the bundle's Info.plist instead.");
         }
 
         CopyFiles(new DirectoryInfo(appBundlePath), dir, progress, true);

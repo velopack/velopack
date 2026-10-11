@@ -62,6 +62,28 @@ class App:
         r"""
         Fast callback hook for before uninstall (Windows only)
         """
+    def on_file_association(self, callback: typing.Any) -> App:
+        r"""
+        This hook is triggered when the operating system opens this app to handle a file whose extension was
+        registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
+        On Windows the path arrives as `--veloapp-file-association <path>` on the command line and the callback runs
+        once during run(), after the regular startup logic. On macOS files arrive as Apple Events, which requires a
+        Cocoa (NSApplication) run loop: the callback may then run at any time, on the main thread, and replaces the
+        UI framework's own open-file handling. When a pending update is auto-applied at startup on macOS the process
+        exits before that launch's Apple Event is delivered, so the file is lost; macOS apps using associations should
+        call set_auto_apply_on_startup(False) and apply updates at a moment of their choosing. Not supported on Linux.
+        """
+    def on_url_association(self, callback: typing.Any) -> App:
+        r"""
+        This hook is triggered when the operating system opens this app to handle a URL whose scheme was
+        registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
+        On Windows the URL arrives as `--veloapp-url-association <url>` on the command line and the callback runs
+        once during run(), after the regular startup logic. On macOS URLs arrive as Apple Events, which requires a
+        Cocoa (NSApplication) run loop: the callback may then run at any time, on the main thread, and replaces the
+        UI framework's own open-URL handling. When a pending update is auto-applied at startup on macOS the process
+        exits before that launch's Apple Event is delivered, so the URL is lost; macOS apps using associations should
+        call set_auto_apply_on_startup(False) and apply updates at a moment of their choosing. Not supported on Linux.
+        """
     def run(self) -> None:
         r"""
         Runs the Velopack startup logic

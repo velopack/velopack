@@ -63,6 +63,25 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             ExtraNuspecMetadata["splashProgressColor"] = Options.SplashProgressColor;
         }
 
+        // file / url associations are registered by Update.exe at install time from these keys
+        var fileAssociations = AppAssociations.ParseFileAssociations(Options.FileAssociations);
+        if (fileAssociations.Length > 0) {
+            ExtraNuspecMetadata["fileAssociations"] = AppAssociations.Join(fileAssociations);
+            Log.Info($"File associations: {ExtraNuspecMetadata["fileAssociations"]}");
+        }
+
+        var urlProtocols = AppAssociations.ParseUrlProtocols(Options.UrlProtocols);
+        if (urlProtocols.Length > 0) {
+            ExtraNuspecMetadata["urlProtocols"] = AppAssociations.Join(urlProtocols);
+            Log.Info($"URL protocols: {ExtraNuspecMetadata["urlProtocols"]}");
+        }
+
+        if (Options.BuildMsi && (fileAssociations.Length > 0 || urlProtocols.Length > 0)) {
+            Log.Warn(
+                "MSI installs do not register file associations or URL protocols yet. " +
+                "They will only be registered for Setup.exe installs.");
+        }
+
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);

@@ -32,6 +32,9 @@ pub type vpkc_log_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, ps
 /// VelopackApp startup hook callback function.
 pub type vpkc_hook_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_app_version: *const c_char)>;
 
+/// VelopackApp file / URL association callback function. `psz_value` is the file path or URL the OS asked the app to open.
+pub type vpkc_association_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_value: *const c_char)>;
+
 /// User delegate for to fetch a release feed. This function should return the raw JSON string of the release.json feed.
 pub type vpkc_release_feed_delegate_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_releases_name: *const c_char) -> *mut c_char>;
 

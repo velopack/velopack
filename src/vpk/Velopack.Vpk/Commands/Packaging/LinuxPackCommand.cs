@@ -13,6 +13,9 @@ public class LinuxPackCommand : PackCommand
     {
         this.RemoveOption(NoPortableOption);
         this.RemoveOption(NoInstOption);
+        // file / url associations are not supported on Linux (no registration is performed)
+        this.RemoveOption(FileAssociationsOption);
+        this.RemoveOption(UrlProtocolsOption);
 
         AddOption<string>((v) => Categories = v, ["--categories"])
             .SetDescription("Categories from the freedesktop.org Desktop Menu spec")

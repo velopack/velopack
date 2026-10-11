@@ -118,6 +118,39 @@ test("VelopackApp should handle before-update hook", async () => {
   expect(tester.version).toBe("1.2.3-test.4");
 });
 
+test("VelopackApp should invoke association hooks with the opened value", async () => {
+  let locator: VelopackLocatorConfig = {
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+    PackagesDir: "",
+    RootAppDir: "",
+    UpdateExePath: updateExe(),
+    CurrentBinaryDir: "",
+    IsPortable: true,
+  };
+  let received: string[] = [];
+  VelopackApp.build()
+    .onFileAssociation((path) => received.push("file:" + path))
+    .onUrlAssociation((url) => received.push("url:" + url))
+    .setArgs(["--veloapp-url-association", "myapp://open?a=1"])
+    .setLocator(locator)
+    .run();
+
+  await vi.waitFor(() => {
+    expect(received).toEqual(["url:myapp://open?a=1"]);
+  });
+
+  received = [];
+  VelopackApp.build()
+    .onFileAssociation((path) => received.push("file:" + path))
+    .setArgs(["--veloapp-file-association", "C:\\docs\\my file.myproj"])
+    .setLocator(locator)
+    .run();
+
+  await vi.waitFor(() => {
+    expect(received).toEqual(["file:C:\\docs\\my file.myproj"]);
+  });
+});
+
 test("VelopackApp should forward library logs to the logger callback", async () => {
   let messages: string[] = [];
   let locator: VelopackLocatorConfig = {

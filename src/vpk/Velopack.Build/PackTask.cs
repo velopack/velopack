@@ -112,6 +112,10 @@ public class PackTask : MSBuildAsyncTask
 
     public string? MsiVersionOverride { get; set; }
 
+    public string? FileAssociations { get; set; }
+
+    public string? UrlProtocols { get; set; }
+
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         //System.Diagnostics.Debugger.Launch();

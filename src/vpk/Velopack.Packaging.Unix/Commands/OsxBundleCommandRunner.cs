@@ -47,6 +47,15 @@ public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBund
         var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");
         var appleSafeVersion = SemanticVersion.Parse(packVersion).Version.ToString();
 
+        var fileAssociations = AppAssociations.ParseFileAssociations(options.FileAssociations);
+        var urlProtocols = AppAssociations.ParseUrlProtocols(options.UrlProtocols);
+        if (options.InfoPlistPath != null && (fileAssociations.Length > 0 || urlProtocols.Length > 0)) {
+            // editing a user supplied plist would break their signing / expectations, so leave it alone
+            _logger.Warn(
+                "--fileAssociations / --urlProtocols are ignored when a custom Info.plist is provided (--plist). " +
+                "Declare CFBundleDocumentTypes / CFBundleURLTypes in your own Info.plist instead.");
+        }
+
         var info = new OsxAppInfo {
             // SQPackId = packId,
             // SQPackAuthors = packAuthors,
@@ -61,6 +70,8 @@ public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBund
             NSPrincipalClass = "NSApplication",
             NSHighResolutionCapable = true,
             CFBundleIconFile = Path.GetFileName(icon),
+            DocumentExtensions = fileAssociations,
+            UrlSchemes = urlProtocols,
         };
 
         _logger.Debug("Creating '.app' directory structure");

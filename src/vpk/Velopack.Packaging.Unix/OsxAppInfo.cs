@@ -1,6 +1,6 @@
 ﻿namespace Velopack.Packaging.Unix;
 
-internal class OsxAppInfo
+public class OsxAppInfo
 {
     public string CFBundleName { get; set; }
 
@@ -26,4 +26,13 @@ internal class OsxAppInfo
 
     public bool? NSRequiresAquaSystemAppearance { get; private set; }
 
+    /// <summary>
+    /// Normalized file extensions (with leading dot, eg. ".myproj") emitted as CFBundleDocumentTypes.
+    /// </summary>
+    public string[] DocumentExtensions { get; set; } = [];
+
+    /// <summary>
+    /// Normalized URL schemes (eg. "myapp") emitted as CFBundleURLTypes.
+    /// </summary>
+    public string[] UrlSchemes { get; set; } = [];
 }

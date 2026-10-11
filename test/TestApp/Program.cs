@@ -57,6 +57,18 @@ try {
                 Console.WriteLine("app just restarted");
                 shouldExit = true;
             })
+        .OnFileAssociation(
+            (path) => {
+                debugFile("file-association", path, "OnFileAssociation");
+                Console.WriteLine("opened file: " + path);
+                shouldExit = true;
+            })
+        .OnUrlAssociation(
+            (url) => {
+                debugFile("url-association", url, "OnUrlAssociation");
+                Console.WriteLine("opened url: " + url);
+                shouldExit = true;
+            })
         .SetLocator(locator)
         .OnAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterInstallFastCallback"))
         .OnBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUpdateFastCallback"))

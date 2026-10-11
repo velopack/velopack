@@ -87,6 +87,9 @@ mod file_rotate;
 mod app;
 pub use app::*;
 
+#[cfg(target_os = "macos")]
+mod apple_events;
+
 mod manager;
 pub use manager::*;
 

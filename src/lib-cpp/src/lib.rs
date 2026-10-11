@@ -679,6 +679,34 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
         });
     }
 
+    // Association hooks must be Send + Sync + 'static (on macOS they are invoked later, from the Cocoa run loop),
+    // so the user data pointer travels inside a wrapper; the callback itself is a plain C function pointer.
+    #[derive(Clone, Copy)]
+    struct UserData(*mut c_void);
+    unsafe impl Send for UserData {}
+    unsafe impl Sync for UserData {}
+    impl UserData {
+        // A method (rather than `.0`) so closures capture the whole wrapper, not the bare pointer field.
+        fn ptr(self) -> *mut c_void {
+            self.0
+        }
+    }
+    let user_data = UserData(p_user_data);
+
+    if let Some(hook) = app_options.file_association_hook {
+        app = app.on_file_association(move |path| {
+            let c_string = CString::new(path.replace('\0', "")).unwrap();
+            hook(user_data.ptr(), c_string.as_ptr());
+        });
+    }
+
+    if let Some(hook) = app_options.url_association_hook {
+        app = app.on_url_association(move |url| {
+            let c_string = CString::new(url.replace('\0', "")).unwrap();
+            hook(user_data.ptr(), c_string.as_ptr());
+        });
+    }
+
     // init logging
     let log_file = if let Some(locator) = &app_options.locator {
         default_logfile_path(locator)
@@ -785,6 +813,38 @@ pub extern "C" fn vpkc_app_set_hook_first_run(cb_first_run: vpkc_hook_callback_t
 pub extern "C" fn vpkc_app_set_hook_restarted(cb_restarted: vpkc_hook_callback_t) {
     update_app_options(|opt| {
         opt.restarted_hook = cb_restarted;
+    });
+}
+
+/// This hook is triggered when the operating system opens this app to handle a file whose extension was registered
+/// with `vpk pack --fileAssociations`. On Windows the path arrives as `--veloapp-file-association <path>` on the command
+/// line and the hook runs once during `vpkc_app_run`, after the regular startup logic. On macOS files arrive as Apple
+/// Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the main thread, and
+/// replaces the UI framework's own open-file handling. When a pending update is auto-applied at startup on macOS the
+/// process exits before that launch's Apple Event is delivered, so the file is lost; macOS apps using associations
+/// should call `vpkc_app_set_auto_apply_on_startup(false)` and apply updates at a moment of their choosing.
+/// Not supported on Linux.
+/// @param cb_file_association The callback to run with the user data pointer and the full path of the file to open.
+#[no_mangle]
+pub extern "C" fn vpkc_app_set_hook_file_association(cb_file_association: vpkc_association_callback_t) {
+    update_app_options(|opt| {
+        opt.file_association_hook = cb_file_association;
+    });
+}
+
+/// This hook is triggered when the operating system opens this app to handle a URL whose scheme was registered with
+/// `vpk pack --urlProtocols`. On Windows the URL arrives as `--veloapp-url-association <url>` on the command line and
+/// the hook runs once during `vpkc_app_run`, after the regular startup logic. On macOS URLs arrive as Apple Events,
+/// which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the main thread, and
+/// replaces the UI framework's own open-URL handling. When a pending update is auto-applied at startup on macOS the
+/// process exits before that launch's Apple Event is delivered, so the URL is lost; macOS apps using associations
+/// should call `vpkc_app_set_auto_apply_on_startup(false)` and apply updates at a moment of their choosing.
+/// Not supported on Linux.
+/// @param cb_url_association The callback to run with the user data pointer and the full URL to open.
+#[no_mangle]
+pub extern "C" fn vpkc_app_set_hook_url_association(cb_url_association: vpkc_association_callback_t) {
+    update_app_options(|opt| {
+        opt.url_association_hook = cb_url_association;
     });
 }
 

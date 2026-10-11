@@ -26,18 +26,31 @@ declare module "./load" {
   function js_wait_exit_then_apply_update(um: UpdateManagerOpaque, update: string, silent?: boolean, restart?: boolean, restartArgs?: string[]): void;
 
   function js_appbuilder_run(
-    cb: (hook_name: string, current_version: string) => void,
+    cb: (hook_name: string, value: string) => void,
     customArgs: string[] | null,
     locator: string | null,
     autoApply: boolean,
+    hasFileAssociation: boolean,
+    hasUrlAssociation: boolean,
   ): void;
 
   function js_set_logger_callback(cb: (loglevel: LogLevel, msg: string) => void): void;
 }
 
-type VelopackHookType = "after-install" | "before-uninstall" | "before-update" | "after-update" | "restarted" | "first-run";
+type VelopackHookType =
+  | "after-install"
+  | "before-uninstall"
+  | "before-update"
+  | "after-update"
+  | "restarted"
+  | "first-run"
+  | "file-association"
+  | "url-association";
 
 type VelopackHook = (version: string) => void;
+
+/** Receives the file path or URL the operating system asked this app to open. */
+type VelopackAssociationHook = (value: string) => void;
 
 type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 
@@ -120,6 +133,38 @@ export class VelopackApp {
   }
 
   /**
+   * This hook is triggered when the operating system opens this app to handle a file whose extension was
+   * registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
+   * On Windows the path arrives as `--veloapp-file-association <path>` on the command line and the callback runs
+   * on the next event-loop tick after run(). On macOS files arrive as Apple Events, which requires a Cocoa
+   * (NSApplication) run loop such as Electron's main process: the callback may then fire at any time and
+   * replaces the framework's own open-file handling. When a pending update is auto-applied at startup on macOS
+   * the process exits before that launch's Apple Event is delivered, so the file is lost; macOS apps using
+   * associations should call setAutoApplyOnStartup(false) and apply updates at a moment of their choosing.
+   * Not supported on Linux.
+   */
+  onFileAssociation(callback: VelopackAssociationHook): VelopackApp {
+    this._hooks.set("file-association", callback);
+    return this;
+  }
+
+  /**
+   * This hook is triggered when the operating system opens this app to handle a URL whose scheme was
+   * registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
+   * On Windows the URL arrives as `--veloapp-url-association <url>` on the command line and the callback runs
+   * on the next event-loop tick after run(). On macOS URLs arrive as Apple Events, which requires a Cocoa
+   * (NSApplication) run loop such as Electron's main process: the callback may then fire at any time and
+   * replaces the framework's own open-url handling. When a pending update is auto-applied at startup on macOS
+   * the process exits before that launch's Apple Event is delivered, so the URL is lost; macOS apps using
+   * associations should call setAutoApplyOnStartup(false) and apply updates at a moment of their choosing.
+   * Not supported on Linux.
+   */
+  onUrlAssociation(callback: VelopackAssociationHook): VelopackApp {
+    this._hooks.set("url-association", callback);
+    return this;
+  }
+
+  /**
    * Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
    */
   setArgs(args: string[]): VelopackApp {
@@ -159,15 +204,17 @@ export class VelopackApp {
    */
   run(): void {
     addon.js_appbuilder_run(
-      (hook_name: string, current_version: string) => {
+      (hook_name: string, value: string) => {
         let hook = this._hooks.get(hook_name as VelopackHookType);
         if (hook) {
-          hook(current_version);
+          hook(value);
         }
       },
       this._customArgs,
       this._customLocator ? JSON.stringify(this._customLocator) : null,
       this._autoApply,
+      this._hooks.has("file-association"),
+      this._hooks.has("url-association"),
     );
   }
 }

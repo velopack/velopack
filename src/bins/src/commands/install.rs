@@ -90,12 +90,14 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     }
 
     let mut root_path_renamed: Option<PathBuf> = None;
+    // the existing install (if any): shown in the overwrite dialog, and its associations which this package
+    // no longer declares are removed. Its manifest is held in memory, so it survives the directory rename below.
+    let mut previous: Option<VelopackLocator> = None;
     // does the target directory exist and have files? (eg. already installed)
     if !shared::is_dir_empty(&root_path) {
         // the target directory is not empty, and not dead
-        let installed_version = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.clone(), None))
-            .ok()
-            .map(|loc| loc.get_manifest_version().clone());
+        previous = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.clone(), None)).ok();
+        let installed_version = previous.as_ref().map(|loc| loc.get_manifest_version());
         if !dialogs::show_overwrite_repair_dialog(&app.title, &app.version, &root_path, installed_version.as_ref()) {
             // user cancelled overwrite prompt
             error!("Directory already exists, and user cancelled overwrite.");
@@ -144,7 +146,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         )
     };
 
-    let install_result = install_impl(pkg, &locator, &tx, start_args, channel_override);
+    let install_result = install_impl(pkg, &locator, previous.as_ref(), &tx, start_args, channel_override);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 
     if install_result.is_ok() {
@@ -189,6 +191,7 @@ mod tests {
 fn install_impl(
     pkg: &mut BundleZip,
     locator: &VelopackLocator,
+    previous: Option<&VelopackLocator>,
     tx: &std::sync::mpsc::Sender<i16>,
     start_args: Option<Vec<OsString>>,
     channel_override: Option<&str>,
@@ -240,6 +243,9 @@ fn install_impl(
         info!("Creating shortcuts...");
         windows::create_or_update_manifest_lnks(locator, None);
     }
+
+    // an overwrite/repair install also drops the associations the previous version declared but this one does not
+    windows::associations::sync(locator, previous);
 
     info!("Starting process install hook");
     if !windows::run_hook(locator, constants::HOOK_CLI_INSTALL, 30) {

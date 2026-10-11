@@ -7,6 +7,8 @@ pub const HOOK_CLI_INSTALL: &str = "--veloapp-install";
 pub const HOOK_CLI_UPDATED: &str = "--veloapp-updated";
 pub const HOOK_CLI_OBSOLETE: &str = "--veloapp-obsolete";
 pub const HOOK_CLI_UNINSTALL: &str = "--veloapp-uninstall";
+pub const HOOK_CLI_FILE_ASSOCIATION: &str = "--veloapp-file-association";
+pub const HOOK_CLI_URL_ASSOCIATION: &str = "--veloapp-url-association";
 
 #[cfg(target_os = "windows")]
 pub const DEFAULT_CHANNEL_NAME: &str = "win";

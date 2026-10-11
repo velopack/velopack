@@ -25,6 +25,7 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
 
     // remove all shortcuts pointing to the app
     windows::remove_all_shortcuts_for_root_dir(&root_path);
+    windows::associations::remove_all(locator);
 
     info!("Removing directory '{:?}'", root_path);
     let _ = remove_dir_all::remove_dir_contents(&root_path);

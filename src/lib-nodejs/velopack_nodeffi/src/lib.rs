@@ -352,6 +352,31 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let locator = args_get_locator(&mut cx, 2)?;
 
     let auto_apply = cx.argument::<JsBoolean>(3)?.value(&mut cx);
+    let has_file_association = cx.argument::<JsBoolean>(4)?.value(&mut cx);
+    let has_url_association = cx.argument::<JsBoolean>(5)?.value(&mut cx);
+
+    // Association hooks must be Send + 'static (on macOS they fire later from the Cocoa run loop), so they reach JS
+    // through a rooted callback and a Channel. On macOS the Apple Event handler holds the hooks (and this channel)
+    // for the life of the process, so it is unref'd up front or it would pin the event loop forever. Elsewhere the
+    // hook fires synchronously inside run() and only queues the JS call: the channel must stay referenced until that
+    // call has been delivered or a script which ends right after run() would exit with it still queued. The channel
+    // clones are dropped with `builder` at the end of this function, and neon's `Drop for Channel` then unrefs it
+    // behind the pending closure.
+    let association_cb = Arc::new(arg_cb.root(&mut cx));
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
+    let mut association_channel = cx.channel();
+    #[cfg(target_os = "macos")]
+    association_channel.unref(&mut cx);
+    let association_handler = move |hook_name: &'static str, value: String| {
+        let cb = association_cb.clone();
+        association_channel.send(move |mut cx| {
+            let cb = cb.to_inner(&mut cx);
+            let this = cx.undefined();
+            let args = vec![cx.string(hook_name).upcast(), cx.string(value).upcast()];
+            cb.call(&mut cx, this, args)?;
+            Ok(())
+        });
+    };
 
     let undefined = cx.undefined();
     let cx_ref = Rc::new(RefCell::new(cx));
@@ -377,6 +402,16 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
             .on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver))
             .on_before_update_fast_callback(|semver| hook_handler("before-update", semver))
             .on_after_update_fast_callback(|semver| hook_handler("after-update", semver));
+    }
+
+    if has_file_association {
+        let handler = association_handler.clone();
+        builder = builder.on_file_association(move |path| handler("file-association", path));
+    }
+
+    if has_url_association {
+        let handler = association_handler.clone();
+        builder = builder.on_url_association(move |url| handler("url-association", url));
     }
 
     if let Some(locator) = &locator {

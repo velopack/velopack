@@ -384,7 +384,8 @@ public class WindowsPackTests
     }
 
     internal static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null)
+        bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null,
+        string fileAssociations = null, string urlProtocols = null)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
@@ -422,6 +423,8 @@ public class WindowsPackTests
                 PackVersion = version,
                 TargetRuntime = RID.Parse("win-x64"),
                 PackDirectory = publishDir,
+                FileAssociations = fileAssociations,
+                UrlProtocols = urlProtocols,
             };
 
             var runner = WindowsTestHelper.GetPackRunner(logger);

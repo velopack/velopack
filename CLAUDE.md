@@ -139,6 +139,48 @@ Setup.exe/Update.exe and rebuilds an `.ico`; Linux reads `{AppImage root}/.DirIc
 Info, progress and question dialogs use `XDialogIcon::Custom` (via `general_icon`, which falls back to a stock
 icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
 
+## File & URL associations
+
+`vpk pack --fileAssociations ".myproj,.mytpl" --urlProtocols "myapp"` (Windows pack, macOS pack/bundle; removed from
+Linux pack; MSBuild `VelopackFileAssociations` / `VelopackUrlProtocols`). Lists are normalized in
+`Velopack.Packaging/AppAssociations.cs` (trim, lowercase, distinct, leading `.`, RFC 3986 schemes, both capped at 64
+characters, reserved schemes like http/mailto/ms-* rejected).
+
+- **Windows**: the lists are written to the nuspec (`fileAssociations` / `urlProtocols`), read back through the
+  `Manifest`/locator (`get_manifest_file_associations()` etc., which filter empty entries) and registered by Update.exe in
+  `src/bins/src/windows/associations.rs` under `HKCU\Software\Classes` on install, synced on apply and on an
+  overwrite/repair install (writes all of next, removes prev-minus-next; install passes the located previous install
+  as prev) and removed on uninstall. Skipped for portable and MSI installs (vpk warns for `--msi`).
+  Command target is `{root}\current\{mainExe}` with the flags `--veloapp-file-association "%1"` /
+  `--veloapp-url-association "%1"`. Every key we create (ProgId `{AppId}.{ext}`, protocol key) carries a
+  `VelopackRootDir` string value; we only ever delete/modify keys whose marker equals our root dir, never touch
+  `UserChoice`, and only take the `.ext` default when it is empty in both HKCU and HKLM (HKCR merges HKCU over HKLM,
+  so a per-user default would shadow a machine-wide handler) or already ours. Association failures are logged
+  as warnings and never fail install/apply/uninstall. Registry functions take the Classes base key (plus an optional
+  read-only machine Classes key) so unit tests run against scratch `HKCU\Software\VelopackTests\<random>\Classes` keys.
+- **VelopackApp** (`OnFileAssociation` / `OnUrlAssociation`, Rust `on_file_association` / `on_url_association`): not
+  fast-exit hooks. On Windows, when args[0] is one of the flags and a callback is registered, the value is recovered
+  from the raw command line (`GetCommandLineW`: first token (program path) skipped, text after the flag, trimmed, one
+  pair of quotes stripped) unless args were overridden (`SetArgs`) or `VELOPACK_RESTART` is set (Update.exe re-quotes
+  args, so argv is exact there); a restart to auto-apply forwards exactly `[flag, value]`. The callback fires after the
+  first-run/restarted hooks and startup continues, also when the app is not installed (dev build: the locator/manager
+  cannot be created, the installed-startup part is skipped). No callback registered: args are left to the app. The
+  value is never written to the log (only its length). Rust reads argv lossily (`args_os`), never panicking on
+  non-Unicode file names. Node: the callback runs on the next event-loop tick after `run()`; the neon channel is only
+  unref'd eagerly on macOS (where the hooks live for the process lifetime), elsewhere it is unref'd when the builder
+  drops, after the queued callback.
+- **macOS**: LaunchServices ignores argv. vpk adds `CFBundleURLTypes` / `CFBundleDocumentTypes` to the Info.plist it
+  generates (not to a user-supplied `--plist` or prebuilt `.app`; it warns instead). If a callback is registered,
+  `Run()` installs `NSAppleEventManager` handlers for `GURL` and `odoc` (`src/lib-rust/src/apple_events.rs`,
+  `src/lib-csharp/Osx/AppleEventHandler.cs`, the latter only in the net8.0+ builds of the package: netstandard2.0/net472
+  consumers, including net6/net7, get a logged warning) and re-installs them on
+  `NSApplicationWillFinishLaunchingNotification` because AppKit overwrites them. Requires a Cocoa run loop; replaces the
+  UI framework's own open-file/open-URL handling; callbacks may fire many times over the process lifetime.
+  Known limitation: when a pending update is auto-applied at startup the process exits before the launch Apple Event
+  is delivered, so that launch's URL/file is lost; the docs tell macOS apps using associations to
+  `SetAutoApplyOnStartup(false)` and apply updates themselves.
+- **Linux**: not supported, nothing is registered and the callbacks never fire.
+
 ## Windows 7 support
 
 The Windows x86/x64 binaries are built for the `*-win7-windows-msvc` targets and must keep loading on Windows 7:

@@ -234,6 +234,11 @@ typedef void (*vpkc_progress_callback_t)(void *p_user_data, size_t progress);
 typedef void (*vpkc_hook_callback_t)(void *p_user_data, const char *psz_app_version);
 
 /**
+ * VelopackApp file / URL association callback function. `psz_value` is the file path or URL the OS asked the app to open.
+ */
+typedef void (*vpkc_association_callback_t)(void *p_user_data, const char *psz_value);
+
+/**
  * Log callback function.
  */
 typedef void (*vpkc_log_callback_t)(void *p_user_data,
@@ -605,6 +610,32 @@ void vpkc_app_set_hook_first_run(vpkc_hook_callback_t cb_first_run);
  * @param cb_restarted The callback to run after the app is restarted. The callback takes a user data pointer and the version of the app as a string.
  */
 void vpkc_app_set_hook_restarted(vpkc_hook_callback_t cb_restarted);
+
+/**
+ * This hook is triggered when the operating system opens this app to handle a file whose extension was registered
+ * with `vpk pack --fileAssociations`. On Windows the path arrives as `--veloapp-file-association <path>` on the command
+ * line and the hook runs once during `vpkc_app_run`, after the regular startup logic. On macOS files arrive as Apple
+ * Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the main thread, and
+ * replaces the UI framework's own open-file handling. When a pending update is auto-applied at startup on macOS the
+ * process exits before that launch's Apple Event is delivered, so the file is lost; macOS apps using associations
+ * should call `vpkc_app_set_auto_apply_on_startup(false)` and apply updates at a moment of their choosing.
+ * Not supported on Linux.
+ * @param cb_file_association The callback to run with the user data pointer and the full path of the file to open.
+ */
+void vpkc_app_set_hook_file_association(vpkc_association_callback_t cb_file_association);
+
+/**
+ * This hook is triggered when the operating system opens this app to handle a URL whose scheme was registered with
+ * `vpk pack --urlProtocols`. On Windows the URL arrives as `--veloapp-url-association <url>` on the command line and
+ * the hook runs once during `vpkc_app_run`, after the regular startup logic. On macOS URLs arrive as Apple Events,
+ * which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the main thread, and
+ * replaces the UI framework's own open-URL handling. When a pending update is auto-applied at startup on macOS the
+ * process exits before that launch's Apple Event is delivered, so the URL is lost; macOS apps using associations
+ * should call `vpkc_app_set_auto_apply_on_startup(false)` and apply updates at a moment of their choosing.
+ * Not supported on Linux.
+ * @param cb_url_association The callback to run with the user data pointer and the full URL to open.
+ */
+void vpkc_app_set_hook_url_association(vpkc_association_callback_t cb_url_association);
 
 /**
  * Get the last error message that occurred in the Velopack library.
