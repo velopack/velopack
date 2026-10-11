@@ -142,10 +142,10 @@ icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
 
 The Windows x86/x64 binaries are built for the `*-win7-windows-msvc` targets and must keep loading on Windows 7:
 - Never statically import Windows 8+ APIs; resolve them at runtime with `libloading` (see `splash.rs`/`mitigate.rs`).
-- Dependencies that import them anyway (windows-core's `combase.dll`, xdialog's `SetThreadDpiAwarenessContext`) are
-  handled by delay-loading `user32`/`combase` (`src/bins/build.rs`) plus the delay-load failure hook in
-  `src/bins/src/windows/delay_load.rs`, which redirects/stubs them. A new missing import shows up as setup/update
-  exiting with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) on Windows 7 — extend the hook or fix the caller.
+- windows-core links COM functions from `combase.dll` (Windows 8+); it is delay-loaded (`src/bins/build.rs`) and the
+  delay-load failure hook in `src/bins/src/windows/delay_load.rs` substitutes `ole32.dll`. A new missing import shows
+  up as setup/update exiting with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) on Windows 7 — fix the caller (for our
+  own crates like xdialog, fix it there) rather than working around it here.
 - CI covers this with the `win7` job in `build-tests.yml`: it boots a Win7 SP1 qcow2 under QEMU/KVM and runs
   `CrossCompile.RunCrossAppWindows7` over SSH (`VELOPACK_WIN7_SSH=user:password@host:port`). The .NET 8 TestApp
   can't run on Win7, so it uses the rust testapp packages (`-rust` artifact ids). Commands run through a scheduled
