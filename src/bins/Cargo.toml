@@ -115,4 +115,4 @@ serial_test.workspace = true
 semver.workspace = true
 
 [target.'cfg(windows)'.build-dependencies]
-winres.workspace = true
+embed-resource.workspace = true
