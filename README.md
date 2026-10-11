@@ -60,12 +60,4 @@ Huge thanks to everyone who provides the project with free tools, services, or d
     <source media="(prefers-color-scheme: dark)" srcset="https://velopack.github.io/velopack.sponsorkit/sponsors-white.svg">
     <img alt="Sponsors Cloud" src="https://velopack.github.io/velopack.sponsorkit/sponsors-black.svg">
   </picture>
-
-  <span>Free tools provided by<br/></span>
-  <a href="https://jb.gg/OpenSource">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://www.jetbrains.com/company/brand/img/logo_jb_dos_3.svg">
-    <img alt="Jetbrains Logo" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" width="160">
-  </picture>
-  </a>
 </div>
