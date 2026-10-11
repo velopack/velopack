@@ -58,6 +58,23 @@ fn download_success() {
 }
 
 #[test]
+fn download_from_subfolder() {
+    // the feed may point at packages in a sub-folder next to releases.{channel}.json (velopack/velopack#596)
+    let dir = tempfile::tempdir().unwrap();
+    let content = b"package in a sub folder";
+    std::fs::create_dir_all(dir.path().join("2.0.0")).unwrap();
+    std::fs::write(dir.path().join("2.0.0").join("TestApp-2.0.0-full.nupkg"), content).unwrap();
+
+    let source = FileSource::new(dir.path());
+    let mut asset = sample_asset();
+    asset.FileName = "2.0.0/TestApp-2.0.0-full.nupkg".to_string();
+
+    let dest = dir.path().join("downloaded.nupkg");
+    source.download_release_entry(&asset, &dest, None).unwrap();
+    assert_eq!(std::fs::read(&dest).unwrap(), content);
+}
+
+#[test]
 fn download_reports_progress() {
     let dir = tempfile::tempdir().unwrap();
     let content = b"test data";
