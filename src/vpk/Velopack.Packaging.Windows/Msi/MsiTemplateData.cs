@@ -44,6 +44,10 @@ public class MsiTemplateData
     public string RuntimeDependencies;
     public bool HasRuntimeDependencies => !string.IsNullOrWhiteSpace(RuntimeDependencies);
 
+    // The package declares file associations / URL protocols, so the MSI gets the custom actions
+    // which register them from current\sq.version (and remove them again on uninstall/upgrade).
+    public bool HasAssociations;
+
     
     public bool InstallLocationEither => InstallForAllUsers && InstallForCurrentUser;
     public bool InstallLocationAllUsersOnly => InstallForAllUsers && !InstallForCurrentUser;

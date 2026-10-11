@@ -13,8 +13,8 @@ pub struct VelopackAppWrapper {
     uninstall_hook: Option<Py<PyAny>>,
     firstrun_hook: Option<Py<PyAny>>,
     restarted_hook: Option<Py<PyAny>>,
-    file_association_hook: Option<Py<PyAny>>,
-    url_association_hook: Option<Py<PyAny>>,
+    file_assoc_hook: Option<Py<PyAny>>,
+    url_proto_hook: Option<Py<PyAny>>,
     auto_apply: bool,
     args: Option<Vec<String>>,
 }
@@ -32,8 +32,8 @@ impl VelopackAppWrapper {
             uninstall_hook: None,
             firstrun_hook: None,
             restarted_hook: None,
-            file_association_hook: None,
-            url_association_hook: None,
+            file_assoc_hook: None,
+            url_proto_hook: None,
             auto_apply: true,
             args: None,
         }
@@ -89,27 +89,28 @@ impl VelopackAppWrapper {
 
     /// This hook is triggered when the operating system opens this app to handle a file whose extension was
     /// registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
-    /// On Windows the path arrives as `--veloapp-file-association <path>` on the command line and the callback runs
-    /// once during run(), after the regular startup logic. On macOS files arrive as Apple Events, which requires a
+    /// On Windows the path arrives as `--veloapp-fileassoc <path>` on the command line and the callback runs
+    /// during run(), after the regular startup logic. On macOS files arrive as Apple Events, which requires a
     /// Cocoa (NSApplication) run loop: the callback may then run at any time, on the main thread, and replaces the
-    /// UI framework's own open-file handling. When a pending update is auto-applied at startup on macOS the process
-    /// exits before that launch's Apple Event is delivered, so the file is lost; macOS apps using associations should
-    /// call set_auto_apply_on_startup(False) and apply updates at a moment of their choosing. Not supported on Linux.
-    pub fn on_file_association(mut slf: PyRefMut<Self>, callback: Py<PyAny>) -> PyRefMut<Self> {
-        slf.file_association_hook = Some(callback);
+    /// UI framework's own open-file handling. The launch is never lost to an update: when run() restarts the app to
+    /// apply a pending update the file(s) are forwarded to the new version, which invokes the callback once per
+    /// file (on macOS run() first waits up to about 2 seconds for the launch Apple Event, only in that case).
+    /// Not supported on Linux.
+    pub fn on_file_assoc(mut slf: PyRefMut<Self>, callback: Py<PyAny>) -> PyRefMut<Self> {
+        slf.file_assoc_hook = Some(callback);
         slf
     }
 
     /// This hook is triggered when the operating system opens this app to handle a URL whose scheme was
     /// registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
-    /// On Windows the URL arrives as `--veloapp-url-association <url>` on the command line and the callback runs
-    /// once during run(), after the regular startup logic. On macOS URLs arrive as Apple Events, which requires a
+    /// On Windows the URL arrives as `--veloapp-urlproto <url>` on the command line and the callback runs
+    /// during run(), after the regular startup logic. On macOS URLs arrive as Apple Events, which requires a
     /// Cocoa (NSApplication) run loop: the callback may then run at any time, on the main thread, and replaces the
-    /// UI framework's own open-URL handling. When a pending update is auto-applied at startup on macOS the process
-    /// exits before that launch's Apple Event is delivered, so the URL is lost; macOS apps using associations should
-    /// call set_auto_apply_on_startup(False) and apply updates at a moment of their choosing. Not supported on Linux.
-    pub fn on_url_association(mut slf: PyRefMut<Self>, callback: Py<PyAny>) -> PyRefMut<Self> {
-        slf.url_association_hook = Some(callback);
+    /// UI framework's own open-URL handling. The launch is never lost to an update: when run() restarts the app to
+    /// apply a pending update the URL is forwarded to the new version, which invokes the callback (on macOS run()
+    /// first waits up to about 2 seconds for the launch Apple Event, only in that case). Not supported on Linux.
+    pub fn on_url_proto(mut slf: PyRefMut<Self>, callback: Py<PyAny>) -> PyRefMut<Self> {
+        slf.url_proto_hook = Some(callback);
         slf
     }
 
@@ -125,23 +126,23 @@ impl VelopackAppWrapper {
 
         // Association hooks must be 'static (on macOS they are invoked later, from the Cocoa run loop), so they
         // get their own reference to the Python callable.
-        if let Some(ref hook) = self.file_association_hook {
+        if let Some(ref hook) = self.file_assoc_hook {
             let hook = hook.clone_ref(py);
-            app = app.on_file_association(move |path| {
+            app = app.on_file_assoc(move |path| {
                 Python::try_attach(|py| {
                     if let Err(e) = hook.call1(py, (path,)) {
-                        eprintln!("Error calling file_association hook: {:?}", e);
+                        eprintln!("Error calling file_assoc hook: {:?}", e);
                     }
                 });
             });
         }
 
-        if let Some(ref hook) = self.url_association_hook {
+        if let Some(ref hook) = self.url_proto_hook {
             let hook = hook.clone_ref(py);
-            app = app.on_url_association(move |url| {
+            app = app.on_url_proto(move |url| {
                 Python::try_attach(|py| {
                     if let Err(e) = hook.call1(py, (url,)) {
-                        eprintln!("Error calling url_association hook: {:?}", e);
+                        eprintln!("Error calling url_proto hook: {:?}", e);
                     }
                 });
             });

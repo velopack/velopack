@@ -352,8 +352,8 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let locator = args_get_locator(&mut cx, 2)?;
 
     let auto_apply = cx.argument::<JsBoolean>(3)?.value(&mut cx);
-    let has_file_association = cx.argument::<JsBoolean>(4)?.value(&mut cx);
-    let has_url_association = cx.argument::<JsBoolean>(5)?.value(&mut cx);
+    let has_file_assoc = cx.argument::<JsBoolean>(4)?.value(&mut cx);
+    let has_url_proto = cx.argument::<JsBoolean>(5)?.value(&mut cx);
 
     // Association hooks must be Send + 'static (on macOS they fire later from the Cocoa run loop), so they reach JS
     // through a rooted callback and a Channel. On macOS the Apple Event handler holds the hooks (and this channel)
@@ -404,14 +404,14 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
             .on_after_update_fast_callback(|semver| hook_handler("after-update", semver));
     }
 
-    if has_file_association {
+    if has_file_assoc {
         let handler = association_handler.clone();
-        builder = builder.on_file_association(move |path| handler("file-association", path));
+        builder = builder.on_file_assoc(move |path| handler("file-assoc", path));
     }
 
-    if has_url_association {
+    if has_url_proto {
         let handler = association_handler.clone();
-        builder = builder.on_url_association(move |url| handler("url-association", url));
+        builder = builder.on_url_proto(move |url| handler("url-proto", url));
     }
 
     if let Some(locator) = &locator {

@@ -741,34 +741,34 @@ public:
     /**
      * This hook is triggered when the operating system opens this app to handle a file whose extension was
      * registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
-     * On Windows the hook runs once during Run(), after the regular startup logic. On macOS files arrive as
+     * On Windows the hook runs during Run(), after the regular startup logic. On macOS files arrive as
      * Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the
-     * main thread, and replaces the UI framework's own open-file handling. When a pending update is auto-applied
-     * at startup on macOS the process exits before that launch's Apple Event is delivered, so the file is lost;
-     * macOS apps using associations should call SetAutoApplyOnStartup(false) and apply updates at a moment of
-     * their choosing. Not supported on Linux.
-     * @param cbFileAssociation The callback to run with the path of the file to open.
+     * main thread, and replaces the UI framework's own open-file handling. The launch is never lost to an update:
+     * when Run() restarts the app to apply a pending update the file(s) are forwarded to the new version, which
+     * runs the hook once per file (on macOS Run() first waits up to about 2 seconds for the launch Apple Event,
+     * only in that case). Not supported on Linux.
+     * @param cbFileAssoc The callback to run with the path of the file to open.
      * @returns A reference to the builder.
      */
-    VelopackApp& OnFileAssociation(vpkc_association_callback_t cbFileAssociation) {
-        vpkc_app_set_hook_file_association(cbFileAssociation);
+    VelopackApp& OnFileAssoc(vpkc_association_callback_t cbFileAssoc) {
+        vpkc_app_set_hook_file_assoc(cbFileAssoc);
         return *this;
     };
 
     /**
      * This hook is triggered when the operating system opens this app to handle a URL whose scheme was
      * registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
-     * On Windows the hook runs once during Run(), after the regular startup logic. On macOS URLs arrive as
+     * On Windows the hook runs during Run(), after the regular startup logic. On macOS URLs arrive as
      * Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the
-     * main thread, and replaces the UI framework's own open-URL handling. When a pending update is auto-applied
-     * at startup on macOS the process exits before that launch's Apple Event is delivered, so the URL is lost;
-     * macOS apps using associations should call SetAutoApplyOnStartup(false) and apply updates at a moment of
-     * their choosing. Not supported on Linux.
-     * @param cbUrlAssociation The callback to run with the URL to open.
+     * main thread, and replaces the UI framework's own open-URL handling. The launch is never lost to an update:
+     * when Run() restarts the app to apply a pending update the URL is forwarded to the new version, which runs
+     * the hook (on macOS Run() first waits up to about 2 seconds for the launch Apple Event, only in that case).
+     * Not supported on Linux.
+     * @param cbUrlProto The callback to run with the URL to open.
      * @returns A reference to the builder.
      */
-    VelopackApp& OnUrlAssociation(vpkc_association_callback_t cbUrlAssociation) {
-        vpkc_app_set_hook_url_association(cbUrlAssociation);
+    VelopackApp& OnUrlProto(vpkc_association_callback_t cbUrlProto) {
+        vpkc_app_set_hook_url_proto(cbUrlProto);
         return *this;
     };
 

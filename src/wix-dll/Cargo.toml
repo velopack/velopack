@@ -20,6 +20,7 @@ crate-type = ["cdylib"]
 [target.'cfg(windows)'.dependencies]
 anyhow.workspace = true
 cfb.workspace = true
+log.workspace = true
 velopack.workspace = true
 velopack_bins.workspace = true
 velopack_l18n.workspace = true

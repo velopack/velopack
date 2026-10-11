@@ -13,13 +13,13 @@ namespace Velopack.Pack.Tests;
 
 // End-to-end coverage of file association / URL protocol registration: vpk writes the nuspec metadata, Update.exe
 // registers HKCU\Software\Classes keys on install, syncs them on update and removes them on uninstall, and
-// VelopackApp recovers the opened value from the raw command line and invokes the OnFileAssociation /
-// OnUrlAssociation callbacks (TestApp writes the value it received to a file next to the install dir).
+// VelopackApp recovers the opened value from the raw command line and invokes the OnFileAssoc /
+// OnUrlProto callbacks (TestApp writes the value it received to a file next to the install dir).
 [SupportedOSPlatform("windows")]
 public class WindowsAssociationTests
 {
-    private const string FileAssociationFlag = "--veloapp-file-association";
-    private const string UrlAssociationFlag = "--veloapp-url-association";
+    private const string FileAssocFlag = "--veloapp-fileassoc";
+    private const string UrlProtoFlag = "--veloapp-urlproto";
     private const string RootDirValue = "VelopackRootDir";
 
     private readonly ITestOutputHelper _output;
@@ -84,16 +84,16 @@ public class WindowsAssociationTests
             // mangle, so an exact match proves VelopackApp recovered it from the raw command line.
             var url = $"{schemeKeep}://open?title=\"hi there\"&id=1";
             LaunchRegisteredCommand(classes, $@"{schemeKeep}\shell\open\command", url, logger);
-            var urlFile = Path.Combine(installDir, "url-association");
-            TestHelper.WaitUntil(() => Assert.Equal($"OnUrlAssociation: {url}", TestHelper.ReadAllTextShared(urlFile).Trim()));
+            var urlFile = Path.Combine(installDir, "url-proto");
+            TestHelper.WaitUntil(() => Assert.Equal($"OnUrlProto: {url}", TestHelper.ReadAllTextShared(urlFile).Trim()));
             logger.Info("TEST: url callback verified");
 
             // open a file (path with spaces) via the ProgId command
             var docPath = Path.Combine(installDir, $"my document{extKeep}");
             File.WriteAllText(docPath, "hello");
             LaunchRegisteredCommand(classes, $@"{ProgId(id, extKeep)}\shell\open\command", docPath, logger);
-            var fileFile = Path.Combine(installDir, "file-association");
-            TestHelper.WaitUntil(() => Assert.Equal($"OnFileAssociation: {docPath}", TestHelper.ReadAllTextShared(fileFile).Trim()));
+            var fileFile = Path.Combine(installDir, "file-assoc");
+            TestHelper.WaitUntil(() => Assert.Equal($"OnFileAssoc: {docPath}", TestHelper.ReadAllTextShared(fileFile).Trim()));
             logger.Info("TEST: file callback verified");
 
             // pack v2 with a changed set and update to it
@@ -146,6 +146,57 @@ public class WindowsAssociationTests
         }
     }
 
+    [Fact]
+    public async Task UrlProtoLaunchSurvivesAutoApply()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<WindowsAssociationTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+
+        var suffix = TestHelper.RandomString(8);
+        var id = "WinAssocUpdateTest";
+        var scheme = $"vpkassoc{suffix}u";
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+
+        using var classes = Registry.CurrentUser.CreateSubKey(@"Software\Classes", true);
+        try {
+            // install v1 with a URL protocol
+            await WindowsPackTests.PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger, urlProtocols: scheme);
+            WindowsTestHelper.RunNoCoverage(
+                Path.Combine(releaseDir, $"{id}-win-Setup.exe"),
+                ["--silent", "--installto", installDir],
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                logger);
+            AssertProtocolRegistered(classes, scheme, id, appPath, installDir);
+
+            // make v2 pending: VelopackApp auto-applies a newer full package found in the packages dir at startup
+            await WindowsPackTests.PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, urlProtocols: scheme);
+            var packagesDir = Path.Combine(installDir, "packages");
+            Directory.CreateDirectory(packagesDir);
+            File.Copy(Path.Combine(releaseDir, $"{id}-2.0.0-full.nupkg"), Path.Combine(packagesDir, $"{id}-2.0.0-full.nupkg"), true);
+
+            // open a URL (with spaces and double quotes) via the registered command: v1 recovers it from the raw command
+            // line, restarts through Update.exe to apply v2 and forwards it as [flag, value]; v2 receives it from argv
+            var url = $"{scheme}://open?title=\"hi there\"&id=1";
+            LaunchRegisteredCommand(classes, $@"{scheme}\shell\open\command", url, logger);
+
+            var urlFile = Path.Combine(installDir, "url-proto");
+            TestHelper.WaitUntil(() => Assert.Equal($"OnUrlProto: {url}", TestHelper.ReadAllTextShared(urlFile).Trim()), pollDelayMs: 1000);
+            // the callback ran in the restarted v2 process, after its OnRestarted hook
+            Assert.True(File.Exists(Path.Combine(installDir, "restarted")), "OnRestarted did not run");
+            var version = WindowsTestHelper.RunNoCoverage(appPath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", version);
+            logger.Info("TEST: url launch survived the auto-applied update");
+        } finally {
+            try {
+                classes.DeleteSubKeyTree(scheme, throwOnMissingSubKey: false);
+            } catch (Exception ex) {
+                logger.Warn($"TEST: failed to clean up HKCU\\Software\\Classes\\{scheme}: {ex.Message}");
+            }
+        }
+    }
+
     // mirrors make_progid in src/bins/src/windows/associations.rs for ids/extensions which need no sanitizing
     private static string ProgId(string id, string ext) => $"{id}.{ext.TrimStart('.')}";
 
@@ -156,7 +207,7 @@ public class WindowsAssociationTests
         Assert.Equal($"URL:{title}", key.GetValue(""));
         Assert.Equal("", key.GetValue("URL Protocol"));
         AssertRootDir(key, installDir);
-        AssertHandlerKeys(key, appPath, UrlAssociationFlag);
+        AssertHandlerKeys(key, appPath, UrlProtoFlag);
     }
 
     private static void AssertFileAssociationRegistered(RegistryKey classes, string ext, string id, string appPath, string installDir)
@@ -166,7 +217,7 @@ public class WindowsAssociationTests
         Assert.True(progIdKey != null, $"ProgId key '{progId}' is missing");
         Assert.Equal($"{id} {ext.TrimStart('.').ToUpperInvariant()} File", progIdKey.GetValue(""));
         AssertRootDir(progIdKey, installDir);
-        AssertHandlerKeys(progIdKey, appPath, FileAssociationFlag);
+        AssertHandlerKeys(progIdKey, appPath, FileAssocFlag);
 
         using var extKey = classes.OpenSubKey(ext);
         Assert.True(extKey != null, $"extension key '{ext}' is missing");

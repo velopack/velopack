@@ -176,6 +176,8 @@ public static class MsiBuilder
             BannerBmpPath = options.MsiTopBanner,
             DialogBmpPath = options.MsiDialogBackground,
             RuntimeDependencies = runtimeDeps,
+            HasAssociations = AppAssociations.ParseFileAssociations(options.FileAssociations).Length > 0
+                              || AppAssociations.ParseUrlProtocols(options.UrlProtocols).Length > 0,
             ConclusionMessage = GetPlainTextMessage(options.InstConclusion),
             ReadmeRtfFilePath = GetRtfPath(options.InstReadme, "rendered_readme.rtf", portableDir.Parent),
             WelcomeMessage = GetPlainTextMessage(options.InstWelcome),

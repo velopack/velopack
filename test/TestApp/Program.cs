@@ -14,7 +14,10 @@ var locator = VelopackLocator.CreateDefaultForPlatform(logger: new ConsoleVelopa
 
 try {
     bool shouldExit = false;
-    bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase));
+    // an OS association launch (--veloapp-fileassoc / --veloapp-urlproto) behaves like a real app start: a pending
+    // update is applied first and the launch must be forwarded to the restarted app
+    bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase))
+                            || (args.Length > 0 && args[0].StartsWith("--veloapp-", StringComparison.OrdinalIgnoreCase));
 
 #if USE_ASYNC_MAIN
     await Task.Delay(10).ConfigureAwait(false);
@@ -57,15 +60,15 @@ try {
                 Console.WriteLine("app just restarted");
                 shouldExit = true;
             })
-        .OnFileAssociation(
+        .OnFileAssoc(
             (path) => {
-                debugFile("file-association", path, "OnFileAssociation");
+                debugFile("file-assoc", path, "OnFileAssoc");
                 Console.WriteLine("opened file: " + path);
                 shouldExit = true;
             })
-        .OnUrlAssociation(
+        .OnUrlProto(
             (url) => {
-                debugFile("url-association", url, "OnUrlAssociation");
+                debugFile("url-proto", url, "OnUrlProto");
                 Console.WriteLine("opened url: " + url);
                 shouldExit = true;
             })
@@ -77,13 +80,13 @@ try {
         .Run();
 #endif
 
+    if (shouldExit) {
+        return 0;
+    }
+
     if (shouldAutoUpdate) {
         // this shouldn't be reached
         return -1;
-    }
-
-    if (shouldExit) {
-        return 0;
     }
 #endif
 

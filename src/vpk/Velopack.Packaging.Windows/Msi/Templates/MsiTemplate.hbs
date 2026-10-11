@@ -250,6 +250,40 @@
         <CustomAction Id="PatchChannelDeferred" BinaryRef="RustDll" DllEntry="PatchChannelDeferred"
                       Execute="deferred" Impersonate="no" Return="ignore"/>
 
+        {{#if HasAssociations}}
+        <!-- File / URL associations, registered from current\sq.version by the same code Update.exe uses.
+             A per-machine install (ALLUSERS=1) registers in HKLM\Software\Classes and must run
+             non-impersonated (SYSTEM can write HKLM; its HKCU is not the installing user's, and SYSTEM
+             deployments like Intune have no user at all). A per-user install registers in HKCU and must
+             run impersonated so HKCU is the installing user's. Same DLL entry, two actions per operation.
+             The Rollback* actions undo a sync when the install fails after it (RemoveAssociationsDeferred again,
+             scheduled right before the sync so the rollback script runs it before InstallFiles' rollback). -->
+        <CustomAction Id="SetSyncAssociationsMachineData" Property="SyncAssociationsMachine"
+                      Value="[INSTALLFOLDER]&quot;[ALLUSERS]" Execute="immediate" Return="check"/>
+        <CustomAction Id="SyncAssociationsMachine" BinaryRef="RustDll" DllEntry="SyncAssociationsDeferred"
+                      Execute="deferred" Impersonate="no" Return="ignore"/>
+        <CustomAction Id="SetRollbackAssociationsMachineData" Property="RollbackAssociationsMachine"
+                      Value="[INSTALLFOLDER]&quot;[ALLUSERS]" Execute="immediate" Return="check"/>
+        <CustomAction Id="RollbackAssociationsMachine" BinaryRef="RustDll" DllEntry="RemoveAssociationsDeferred"
+                      Execute="rollback" Impersonate="no" Return="ignore"/>
+        <CustomAction Id="SetSyncAssociationsUserData" Property="SyncAssociationsUser"
+                      Value="[INSTALLFOLDER]&quot;[ALLUSERS]" Execute="immediate" Return="check"/>
+        <CustomAction Id="SyncAssociationsUser" BinaryRef="RustDll" DllEntry="SyncAssociationsDeferred"
+                      Execute="deferred" Impersonate="yes" Return="ignore"/>
+        <CustomAction Id="SetRollbackAssociationsUserData" Property="RollbackAssociationsUser"
+                      Value="[INSTALLFOLDER]&quot;[ALLUSERS]" Execute="immediate" Return="check"/>
+        <CustomAction Id="RollbackAssociationsUser" BinaryRef="RustDll" DllEntry="RemoveAssociationsDeferred"
+                      Execute="rollback" Impersonate="yes" Return="ignore"/>
+        <CustomAction Id="SetRemoveAssociationsMachineData" Property="RemoveAssociationsMachine"
+                      Value="[INSTALLFOLDER]&quot;[ALLUSERS]" Execute="immediate" Return="check"/>
+        <CustomAction Id="RemoveAssociationsMachine" BinaryRef="RustDll" DllEntry="RemoveAssociationsDeferred"
+                      Execute="deferred" Impersonate="no" Return="ignore"/>
+        <CustomAction Id="SetRemoveAssociationsUserData" Property="RemoveAssociationsUser"
+                      Value="[INSTALLFOLDER]&quot;[ALLUSERS]" Execute="immediate" Return="check"/>
+        <CustomAction Id="RemoveAssociationsUser" BinaryRef="RustDll" DllEntry="RemoveAssociationsDeferred"
+                      Execute="deferred" Impersonate="yes" Return="ignore"/>
+        {{/if}}
+
         <InstallUISequence>
             <Custom Action="RustSetLocaleStrings" Before="AppSearch"/>
             <Custom Action="RustEarlyBootstrap" After="RustSetLocaleStrings" Condition="NOT REMOVE AND RustRuntimeDependencies"/>
@@ -283,6 +317,37 @@
                     Condition="(REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE"/>
             <Custom Action="UserRustCleanup" After="RustCleanup"
                     Condition="(REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE"/>
+            {{#if HasAssociations}}
+            <!-- Associations are synced on install, repair and upgrade once the payload (and the channel patch)
+                 is in place, and removed before RemoveFiles while current\sq.version can still be read. The
+                 removal also runs when the old product is removed by a major upgrade (no UPGRADINGPRODUCTCODE
+                 guard): RemoveExistingProducts is scheduled afterInstallValidate, so the old product's whole
+                 removal, including this action, completes before the new product's InstallFiles and sync. The
+                 upgrade therefore always ends with exactly the new version's set registered, and associations the
+                 old version declared but the new one dropped are cleaned without the new product having to know
+                 the old manifest (RustCleanup purges `current` before the new files land).
+                 Each sync is preceded by its rollback action: the rollback script runs in reverse order, so when a
+                 later action fails the registrations are removed before InstallFiles is rolled back, while
+                 current\sq.version can still be read. -->
+            <Custom Action="SetSyncAssociationsMachineData" Before="SyncAssociationsMachine"
+                    Condition="NOT REMOVE AND ALLUSERS=1"/>
+            <Custom Action="SetRollbackAssociationsMachineData" Before="RollbackAssociationsMachine"
+                    Condition="NOT REMOVE AND ALLUSERS=1"/>
+            <Custom Action="RollbackAssociationsMachine" Before="SyncAssociationsMachine" Condition="NOT REMOVE AND ALLUSERS=1"/>
+            <Custom Action="SyncAssociationsMachine" After="PatchChannelDeferred" Condition="NOT REMOVE AND ALLUSERS=1"/>
+            <Custom Action="SetSyncAssociationsUserData" Before="SyncAssociationsUser"
+                    Condition="NOT REMOVE AND NOT ALLUSERS=1"/>
+            <Custom Action="SetRollbackAssociationsUserData" Before="RollbackAssociationsUser"
+                    Condition="NOT REMOVE AND NOT ALLUSERS=1"/>
+            <Custom Action="RollbackAssociationsUser" Before="SyncAssociationsUser" Condition="NOT REMOVE AND NOT ALLUSERS=1"/>
+            <Custom Action="SyncAssociationsUser" After="PatchChannelDeferred" Condition="NOT REMOVE AND NOT ALLUSERS=1"/>
+            <Custom Action="SetRemoveAssociationsMachineData" Before="RemoveAssociationsMachine"
+                    Condition="(REMOVE=&quot;ALL&quot;) AND ALLUSERS=1"/>
+            <Custom Action="RemoveAssociationsMachine" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;) AND ALLUSERS=1"/>
+            <Custom Action="SetRemoveAssociationsUserData" Before="RemoveAssociationsUser"
+                    Condition="(REMOVE=&quot;ALL&quot;) AND NOT ALLUSERS=1"/>
+            <Custom Action="RemoveAssociationsUser" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;) AND NOT ALLUSERS=1"/>
+            {{/if}}
         </InstallExecuteSequence>
 
         <UI>

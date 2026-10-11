@@ -13,6 +13,13 @@ use crate::{
 /// `Send + Sync + 'static` because on macOS it is kept for the life of the process and invoked from the Cocoa run loop.
 pub(crate) type AssociationHook = Arc<dyn Fn(String) + Send + Sync + 'static>;
 
+/// One association activation: the canonical CLI flag (`--veloapp-fileassoc` / `--veloapp-urlproto`) and its value.
+pub(crate) type Association = (&'static str, String);
+
+/// How long `run()` waits for macOS to deliver the launch Apple Event before restarting to apply a pending update.
+#[cfg(target_os = "macos")]
+const LAUNCH_EVENT_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// VelopackApp helps you to handle app activation events correctly.
 /// This should be used as early as possible in your application startup code.
 /// (eg. the beginning of main() or wherever your entry point is)
@@ -23,14 +30,12 @@ pub struct VelopackApp<'a> {
     uninstall_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     firstrun_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     restarted_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
-    file_association_hook: Option<AssociationHook>,
-    url_association_hook: Option<AssociationHook>,
+    file_assoc_hook: Option<AssociationHook>,
+    url_proto_hook: Option<AssociationHook>,
     auto_apply: bool,
     #[allow(dead_code)]
     custom_aumid: Option<String>,
     args: Vec<String>,
-    /// True once `set_args` was used, meaning `args` no longer mirror this process's real command line.
-    args_overridden: bool,
     locator: Option<VelopackLocatorConfig>,
 }
 
@@ -44,14 +49,13 @@ impl<'a> VelopackApp<'a> {
             uninstall_hook: None,
             firstrun_hook: None,
             restarted_hook: None,
-            file_association_hook: None,
-            url_association_hook: None,
+            file_assoc_hook: None,
+            url_proto_hook: None,
             auto_apply: true, // Default to true
             custom_aumid: None,
             // lossy rather than `env::args()`, which panics on non-Unicode arguments: file association launches
             // pass arbitrary file names (NTFS permits unpaired surrogates) and must never abort the process here.
             args: env::args_os().skip(1).map(|a| a.to_string_lossy().into_owned()).collect(),
-            args_overridden: false,
             locator: None,
         }
     }
@@ -59,7 +63,6 @@ impl<'a> VelopackApp<'a> {
     /// Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
     pub fn set_args(mut self, args: Vec<String>) -> Self {
         self.args = args;
-        self.args_overridden = true;
         self
     }
 
@@ -98,30 +101,32 @@ impl<'a> VelopackApp<'a> {
     /// This hook is triggered when the operating system opens this app to handle a file whose extension was
     /// registered with `vpk pack --fileAssociations`. The argument is the full path of the file to open.
     ///
-    /// On Windows the path arrives as `--veloapp-file-association <path>` on the command line and the hook is
-    /// invoked once from `run()`, after the regular startup logic (the app then continues starting normally).
-    /// On macOS files arrive as Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then be
-    /// invoked at any time during the app's lifetime, on the main thread, and Velopack's handler replaces the UI
-    /// framework's own open-file handling. When a pending update is auto-applied at startup on macOS the process
-    /// exits before that launch's Apple Event is delivered, so the file is lost; macOS apps using associations should
-    /// call `set_auto_apply_on_startup(false)` and apply updates at a moment of their choosing. Not supported on Linux.
-    pub fn on_file_association<F: Fn(String) + Send + Sync + 'static>(mut self, hook: F) -> Self {
-        self.file_association_hook = Some(Arc::new(hook));
+    /// On Windows the path arrives as `--veloapp-fileassoc <path>` on the command line and the hook is invoked
+    /// from `run()`, after the regular startup logic (the app then continues starting normally). On macOS files
+    /// arrive as Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then be invoked at any
+    /// time during the app's lifetime, on the main thread, and Velopack's handler replaces the UI framework's own
+    /// open-file handling. The launch is never lost to an update: when `run()` restarts the app to apply a pending
+    /// update, the file(s) are forwarded to the new version, which invokes this hook once per file. On macOS this
+    /// means `run()` first waits for the launch Apple Event (up to about 2 seconds, only when an update is about to
+    /// be applied). Not supported on Linux.
+    pub fn on_file_assoc<F: Fn(String) + Send + Sync + 'static>(mut self, hook: F) -> Self {
+        self.file_assoc_hook = Some(Arc::new(hook));
         self
     }
 
     /// This hook is triggered when the operating system opens this app to handle a URL whose scheme was
     /// registered with `vpk pack --urlProtocols`. The argument is the full URL (eg. `myapp://open?id=1`).
     ///
-    /// On Windows the URL arrives as `--veloapp-url-association <url>` on the command line and the hook is
-    /// invoked once from `run()`, after the regular startup logic (the app then continues starting normally).
-    /// On macOS URLs arrive as Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then be
-    /// invoked at any time during the app's lifetime, on the main thread, and Velopack's handler replaces the UI
-    /// framework's own open-URL handling. When a pending update is auto-applied at startup on macOS the process
-    /// exits before that launch's Apple Event is delivered, so the URL is lost; macOS apps using associations should
-    /// call `set_auto_apply_on_startup(false)` and apply updates at a moment of their choosing. Not supported on Linux.
-    pub fn on_url_association<F: Fn(String) + Send + Sync + 'static>(mut self, hook: F) -> Self {
-        self.url_association_hook = Some(Arc::new(hook));
+    /// On Windows the URL arrives as `--veloapp-urlproto <url>` on the command line and the hook is invoked
+    /// from `run()`, after the regular startup logic (the app then continues starting normally). On macOS URLs
+    /// arrive as Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then be invoked at any
+    /// time during the app's lifetime, on the main thread, and Velopack's handler replaces the UI framework's own
+    /// open-URL handling. The launch is never lost to an update: when `run()` restarts the app to apply a pending
+    /// update, the URL is forwarded to the new version, which invokes this hook. On macOS this means `run()` first
+    /// waits for the launch Apple Event (up to about 2 seconds, only when an update is about to be applied).
+    /// Not supported on Linux.
+    pub fn on_url_proto<F: Fn(String) + Send + Sync + 'static>(mut self, hook: F) -> Self {
+        self.url_proto_hook = Some(Arc::new(hook));
         self
     }
 
@@ -170,8 +175,8 @@ impl<'a> VelopackApp<'a> {
     pub fn run(&mut self) {
         let args: Vec<String> = self.args.clone();
 
-        if args.first().is_some_and(|a| is_association_flag(a)) {
-            // the value (a file path or URL, which may carry tokens) is kept out of the persistent log
+        if args.first().is_some_and(|a| canonical_association_flag(a).is_some()) {
+            // the values (file paths or URLs, which may carry tokens) are kept out of the persistent log
             info!("VelopackApp: Running with args: [{:?}, <{} more>]", args[0], args.len() - 1);
         } else {
             info!("VelopackApp: Running with args: {:?}", args);
@@ -187,29 +192,24 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
-        // An OS file/URL association activation. Only recognised when the matching hook is registered,
+        // An OS file/URL association activation. Only recognised when a matching hook is registered,
         // otherwise the arguments are left untouched for the application to interpret itself.
-        let association = self.detect_association(&args);
+        let mut associations = self.detect_associations(&args);
 
         #[cfg(target_os = "macos")]
-        if self.file_association_hook.is_some() || self.url_association_hook.is_some() {
-            crate::apple_events::install(self.file_association_hook.clone(), self.url_association_hook.clone());
+        if self.has_association_hook() {
+            crate::apple_events::install(self.file_assoc_hook.clone(), self.url_proto_hook.clone());
         }
 
         match manager::UpdateManager::new(sources::NoneSource {}, None, self.locator.clone()) {
-            Ok(manager) => self.run_installed_startup(&manager, &args, association.as_ref()),
+            Ok(manager) => self.run_installed_startup(&manager, &args, &mut associations),
             // not installed (eg. a development build): nothing to apply or clean up, but an association launch is
             // still delivered below, as the C# library does.
             Err(e) => error!("VelopackApp: Error loading manager/locator: {:?}", e),
         }
 
-        if let Some((flag, value)) = association {
-            let hook = if flag == HOOK_CLI_FILE_ASSOCIATION {
-                &self.file_association_hook
-            } else {
-                &self.url_association_hook
-            };
-            if let Some(hook) = hook {
+        for (flag, value) in associations {
+            if let Some(hook) = self.association_hook(flag) {
                 info!("VelopackApp: Association activated ({}), {} chars.", flag, value.len());
                 hook(value);
             }
@@ -218,7 +218,7 @@ impl<'a> VelopackApp<'a> {
 
     /// The part of startup which only applies when the app is installed: AUMID, auto-applying a pending update
     /// (may exit the process), package cleanup and the first-run / restarted hooks.
-    fn run_installed_startup(&mut self, manager: &manager::UpdateManager, args: &[String], association: Option<&(&'static str, String)>) {
+    fn run_installed_startup(&mut self, manager: &manager::UpdateManager, args: &[String], associations: &mut Vec<Association>) {
         #[cfg(target_os = "windows")]
         {
             let aumid = self
@@ -256,13 +256,36 @@ impl<'a> VelopackApp<'a> {
             let pending_ver = manifest.version.clone();
             if self.auto_apply && !restarted {
                 let asset = manager::local_path_to_asset(manifest, path);
-                // Hand the association on as exactly [flag, value] so the recovered value survives the restart intact.
-                let restart_args: Vec<String> = match association {
-                    Some((flag, value)) => vec![flag.to_string(), value.clone()],
-                    None => args.to_vec(),
+
+                // On macOS the OS tells us what to open through a launch Apple Event, which is only delivered once a
+                // Cocoa run loop is pumped; collect it now so the launch is not lost when this process exits.
+                #[cfg(target_os = "macos")]
+                let drained: Vec<Association> = if self.has_association_hook() {
+                    crate::apple_events::drain_launch_events(LAUNCH_EVENT_DRAIN_TIMEOUT)
+                } else {
+                    Vec::new()
                 };
+                #[cfg(not(target_os = "macos"))]
+                let drained: Vec<Association> = Vec::new();
+
+                // Hand the associations on as repeated [flag, value] pairs (leading the arguments) so the recovered
+                // values survive the restart intact; without any, the arguments are forwarded as they are.
+                let mut restart_args: Vec<String> = Vec::new();
+                for (flag, value) in drained.iter().chain(associations.iter()) {
+                    restart_args.push(flag.to_string());
+                    restart_args.push(value.clone());
+                }
+                if associations.is_empty() {
+                    restart_args.extend(args.iter().cloned());
+                }
+
                 if let Err(e) = manager.apply_updates_and_restart_with_args(&asset, &restart_args) {
                     error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
+                    // Still deliver whatever the OS asked us to open, in this process. Known limitation: on macOS
+                    // the drain has already finished launching NSApplication (with our oapp/rapp handlers
+                    // installed) and the app simply carries on from there; it is deliberately not relaunched, which
+                    // could loop forever on a persistent apply failure.
+                    associations.extend(drained);
                 }
             }
             Some(pending_ver)
@@ -282,36 +305,57 @@ impl<'a> VelopackApp<'a> {
         }
     }
 
-    /// Returns the association flag and its value when `args` are an OS association activation
-    /// (`--veloapp-file-association <path>` / `--veloapp-url-association <url>`) for which a hook is registered.
-    fn detect_association(&self, args: &[String]) -> Option<(&'static str, String)> {
-        let flag = match args.first()?.to_ascii_lowercase().as_str() {
-            HOOK_CLI_FILE_ASSOCIATION if self.file_association_hook.is_some() => HOOK_CLI_FILE_ASSOCIATION,
-            HOOK_CLI_URL_ASSOCIATION if self.url_association_hook.is_some() => HOOK_CLI_URL_ASSOCIATION,
-            _ => return None,
-        };
-        let value = self.recover_association_value(args, flag);
-        if value.is_empty() {
-            warn!("VelopackApp: {} was passed without a value, ignoring.", flag);
-            return None;
-        }
-        Some((flag, value))
+    #[cfg(target_os = "macos")]
+    fn has_association_hook(&self) -> bool {
+        self.file_assoc_hook.is_some() || self.url_proto_hook.is_some()
     }
 
-    /// Recovers the value following `flag`. When the args are this process's real command line (not `set_args`)
-    /// and the OS launched us directly (not a Velopack restart, which re-quotes each argument), the raw command
-    /// line is used so a value containing quotes is not mangled by argv splitting. Otherwise `args[1..]` are joined.
-    #[cfg_attr(not(target_os = "windows"), allow(unused_variables))]
-    fn recover_association_value(&self, args: &[String], flag: &str) -> String {
+    fn association_hook(&self, flag: &str) -> Option<&AssociationHook> {
+        if flag == HOOK_CLI_FILE_ASSOC {
+            self.file_assoc_hook.as_ref()
+        } else {
+            self.url_proto_hook.as_ref()
+        }
+    }
+
+    /// Returns the association activations carried by `args` (`--veloapp-fileassoc <path>` /
+    /// `--veloapp-urlproto <url>` pairs), or nothing when `args` are not an association launch or no hook is
+    /// registered for any of them (the arguments are then left to the application).
+    fn detect_associations(&self, args: &[String]) -> Vec<Association> {
+        if !args.first().is_some_and(|a| canonical_association_flag(a).is_some()) {
+            return Vec::new();
+        }
+        let associations = self.recover_associations(args);
+        if associations.iter().any(|(flag, _)| self.association_hook(flag).is_some()) {
+            associations
+        } else {
+            info!(
+                "VelopackApp: No hook registered for {}, leaving the arguments to the application.",
+                args[0]
+            );
+            Vec::new()
+        }
+    }
+
+    /// Recovers the association values from `args` (whose first element is an association flag). A launch by the OS
+    /// shell on Windows (no `VELOPACK_RESTART`) carries exactly one value: it is taken from the raw command line
+    /// whenever the flag is found there — also when `set_args` was used, as apps commonly pass their own argv
+    /// through — so a value containing quotes is not mangled by argv splitting. Without the flag on the raw command
+    /// line (synthetic `set_args`) at most one `[flag, value]` pair is read from `args`, since the OS never passes
+    /// more. Restarted launches (Update.exe re-quotes each argument) and other platforms read `args` as repeated
+    /// pairs, as a Velopack restart forwards them.
+    fn recover_associations(&self, args: &[String]) -> Vec<Association> {
         #[cfg(target_os = "windows")]
-        if !self.args_overridden && env::var(HOOK_ENV_RESTART).is_err() {
+        if env::var(HOOK_ENV_RESTART).is_err() {
+            let flag = canonical_association_flag(&args[0]).expect("checked by the caller");
             let command_line = unsafe { windows::Win32::System::Environment::GetCommandLineW() };
             let command_line = crate::wide_strings::wide_to_string_lossy(command_line);
             if let Some(value) = association_value_from_command_line(&command_line, flag) {
-                return value;
+                return vec![(flag, value)];
             }
+            return association_pairs_from_args(args).into_iter().take(1).collect();
         }
-        args[1..].join(" ")
+        association_pairs_from_args(args)
     }
 
     fn call_hook(hook_option: &mut Option<Box<dyn FnOnce(Version) + 'a>>, version: &Version) {
@@ -337,13 +381,35 @@ impl<'a> VelopackApp<'a> {
     }
 }
 
-fn is_association_flag(arg: &str) -> bool {
-    let arg = arg.to_ascii_lowercase();
-    arg == HOOK_CLI_FILE_ASSOCIATION || arg == HOOK_CLI_URL_ASSOCIATION
+/// Returns the canonical (lowercase) association flag constant `arg` matches, if any. Flags are matched
+/// case-insensitively, like the other `--veloapp-*` hooks.
+pub(crate) fn canonical_association_flag(arg: &str) -> Option<&'static str> {
+    match arg.to_ascii_lowercase().as_str() {
+        HOOK_CLI_FILE_ASSOC => Some(HOOK_CLI_FILE_ASSOC),
+        HOOK_CLI_URL_PROTO => Some(HOOK_CLI_URL_PROTO),
+        _ => None,
+    }
+}
+
+/// Reads the leading `[flag, value]` pairs of `args` — the form in which a Velopack restart (or `set_args`) hands
+/// association activations over. Parsing stops at the first element which is not an association flag; a flag with
+/// nothing or an empty string after it is dropped with a warning.
+pub(crate) fn association_pairs_from_args(args: &[String]) -> Vec<Association> {
+    let mut pairs = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        let Some(flag) = canonical_association_flag(&args[i]) else { break };
+        match args.get(i + 1) {
+            Some(value) if !value.is_empty() => pairs.push((flag, value.clone())),
+            _ => warn!("VelopackApp: {} was passed without a value, ignoring.", flag),
+        }
+        i += 2;
+    }
+    pairs
 }
 
 /// Recovers the value that follows `flag` in a raw (unparsed) command line, as the shell hands it over when a
-/// registered association such as `"app.exe" --veloapp-url-association "%1"` is activated. The program path is
+/// registered association such as `"app.exe" --veloapp-urlproto "%1"` is activated. The program path is
 /// skipped, then everything after the flag token is taken verbatim, trimmed, and ONE pair of enclosing double
 /// quotes is removed — so a URL that itself contains quotes or backslashes survives intact where argv splitting
 /// would have mangled it. Returns `None` when the flag is absent or nothing follows it.
@@ -403,6 +469,7 @@ fn cleanup_old_packages_from_list(
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::sync::atomic::Ordering;
     use zip::write::SimpleFileOptions;
 
     /// Creates a minimal .nupkg (zip with a .nuspec) in the given directory.
@@ -475,30 +542,30 @@ mod tests {
 
     #[test]
     fn test_association_value_from_command_line_strips_one_pair_of_quotes() {
-        let cmd = r#""C:\Apps\My App\current\MyApp.exe" --veloapp-url-association "myapp://open?title="hi there"&x=1""#;
+        let cmd = r#""C:\Apps\My App\current\MyApp.exe" --veloapp-urlproto "myapp://open?title="hi there"&x=1""#;
         assert_eq!(
-            association_value_from_command_line(cmd, HOOK_CLI_URL_ASSOCIATION).as_deref(),
+            association_value_from_command_line(cmd, HOOK_CLI_URL_PROTO).as_deref(),
             Some(r#"myapp://open?title="hi there"&x=1"#)
         );
 
-        let cmd = r#""C:\Apps\MyApp.exe" --veloapp-url-association ""myapp://x"""#;
+        let cmd = r#""C:\Apps\MyApp.exe" --veloapp-urlproto ""myapp://x"""#;
         assert_eq!(
-            association_value_from_command_line(cmd, HOOK_CLI_URL_ASSOCIATION).as_deref(),
+            association_value_from_command_line(cmd, HOOK_CLI_URL_PROTO).as_deref(),
             Some(r#""myapp://x""#)
         );
     }
 
     #[test]
     fn test_association_value_from_command_line_unquoted_and_whitespace() {
-        let cmd = "  MyApp.exe   --veloapp-file-association   C:\\docs\\my file.myproj   ";
+        let cmd = "  MyApp.exe   --veloapp-fileassoc   C:\\docs\\my file.myproj   ";
         assert_eq!(
-            association_value_from_command_line(cmd, HOOK_CLI_FILE_ASSOCIATION).as_deref(),
+            association_value_from_command_line(cmd, HOOK_CLI_FILE_ASSOC).as_deref(),
             Some("C:\\docs\\my file.myproj")
         );
         // a trailing backslash (which argv parsing would eat together with a closing quote) is preserved
-        let cmd = r#""C:\MyApp.exe" --veloapp-file-association "C:\docs\dir\""#;
+        let cmd = r#""C:\MyApp.exe" --veloapp-fileassoc "C:\docs\dir\""#;
         assert_eq!(
-            association_value_from_command_line(cmd, HOOK_CLI_FILE_ASSOCIATION).as_deref(),
+            association_value_from_command_line(cmd, HOOK_CLI_FILE_ASSOC).as_deref(),
             Some(r"C:\docs\dir\")
         );
     }
@@ -506,31 +573,76 @@ mod tests {
     #[test]
     fn test_association_value_from_command_line_flag_matching() {
         // case-insensitive flag
-        let cmd = r#""C:\MyApp.exe" --VeloApp-URL-Association "myapp://x""#;
-        assert_eq!(
-            association_value_from_command_line(cmd, HOOK_CLI_URL_ASSOCIATION).as_deref(),
-            Some("myapp://x")
-        );
+        let cmd = r#""C:\MyApp.exe" --VeloApp-URLProto "myapp://x""#;
+        assert_eq!(association_value_from_command_line(cmd, HOOK_CLI_URL_PROTO).as_deref(), Some("myapp://x"));
         // the flag inside the program path, or as a prefix of a longer token, is not the flag
-        let cmd = r#""C:\dir --veloapp-url-association \MyApp.exe" --veloapp-url-association-extra 1 --veloapp-url-association "myapp://y""#;
-        assert_eq!(
-            association_value_from_command_line(cmd, HOOK_CLI_URL_ASSOCIATION).as_deref(),
-            Some("myapp://y")
-        );
+        let cmd = r#""C:\dir --veloapp-urlproto \MyApp.exe" --veloapp-urlproto-extra 1 --veloapp-urlproto "myapp://y""#;
+        assert_eq!(association_value_from_command_line(cmd, HOOK_CLI_URL_PROTO).as_deref(), Some("myapp://y"));
         // absent flag, flag with nothing after it, or only empty quotes
         assert_eq!(
-            association_value_from_command_line(r#""C:\MyApp.exe" myapp://x"#, HOOK_CLI_URL_ASSOCIATION),
+            association_value_from_command_line(r#""C:\MyApp.exe" myapp://x"#, HOOK_CLI_URL_PROTO),
             None
         );
         assert_eq!(
-            association_value_from_command_line(r#""C:\MyApp.exe" --veloapp-url-association"#, HOOK_CLI_URL_ASSOCIATION),
+            association_value_from_command_line(r#""C:\MyApp.exe" --veloapp-urlproto"#, HOOK_CLI_URL_PROTO),
             None
         );
         assert_eq!(
-            association_value_from_command_line(r#""C:\MyApp.exe" --veloapp-url-association  "" "#, HOOK_CLI_URL_ASSOCIATION),
+            association_value_from_command_line(r#""C:\MyApp.exe" --veloapp-urlproto  "" "#, HOOK_CLI_URL_PROTO),
             None
         );
-        assert_eq!(association_value_from_command_line("", HOOK_CLI_URL_ASSOCIATION), None);
+        assert_eq!(association_value_from_command_line("", HOOK_CLI_URL_PROTO), None);
+    }
+
+    fn strings(args: &[&str]) -> Vec<String> {
+        args.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn test_association_pairs_from_args() {
+        // one pair; flag casing is not significant and the value is taken verbatim (argv is exact after a restart)
+        assert_eq!(
+            association_pairs_from_args(&strings(&["--VeloApp-UrlProto", r#"myapp://open?q="quoted" value"#])),
+            vec![(HOOK_CLI_URL_PROTO, r#"myapp://open?q="quoted" value"#.to_string())]
+        );
+        // several pairs of mixed kinds, eg. a macOS launch forwarded through an update
+        assert_eq!(
+            association_pairs_from_args(&strings(&[
+                "--veloapp-fileassoc",
+                "/Users/me/a.myproj",
+                "--veloapp-fileassoc",
+                "/Users/me/b c.myproj",
+                "--veloapp-urlproto",
+                "myapp://x",
+            ])),
+            vec![
+                (HOOK_CLI_FILE_ASSOC, "/Users/me/a.myproj".to_string()),
+                (HOOK_CLI_FILE_ASSOC, "/Users/me/b c.myproj".to_string()),
+                (HOOK_CLI_URL_PROTO, "myapp://x".to_string()),
+            ]
+        );
+        // parsing stops at the first element which is not a flag; the rest is left to the app
+        assert_eq!(
+            association_pairs_from_args(&strings(&["--veloapp-urlproto", "myapp://x", "other", "--veloapp-urlproto", "myapp://y"])),
+            vec![(HOOK_CLI_URL_PROTO, "myapp://x".to_string())]
+        );
+        // a flag with nothing, or an empty string, after it is dropped
+        assert!(association_pairs_from_args(&strings(&["--veloapp-urlproto"])).is_empty());
+        assert_eq!(
+            association_pairs_from_args(&strings(&["--veloapp-urlproto", "", "--veloapp-fileassoc", "C:\\x.myproj"])),
+            vec![(HOOK_CLI_FILE_ASSOC, "C:\\x.myproj".to_string())]
+        );
+        // not an association launch at all
+        assert!(association_pairs_from_args(&strings(&["myapp://x", "--veloapp-urlproto", "myapp://y"])).is_empty());
+        assert!(association_pairs_from_args(&[]).is_empty());
+    }
+
+    /// The `run()` tests read and clear the `VELOPACK_RESTART` / `VELOPACK_FIRSTRUN` environment of this process,
+    /// so they must not overlap.
+    static RUN_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn run_lock() -> std::sync::MutexGuard<'static, ()> {
+        RUN_LOCK.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     fn test_locator(packages_dir: &std::path::Path) -> VelopackLocatorConfig {
@@ -548,35 +660,95 @@ mod tests {
     }
 
     #[test]
-    fn test_run_invokes_url_association_hook_with_joined_args() {
+    fn test_run_invokes_url_proto_hook_and_leaves_trailing_args() {
+        let _guard = run_lock();
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let received = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
         let files = received.clone();
         let urls = received.clone();
         VelopackApp::build()
             .set_locator(test_locator(tmp_dir.path()))
-            .set_args(vec!["--VELOAPP-url-association".into(), "myapp://open?a=1".into(), "b".into()])
-            .on_file_association(move |p| files.lock().unwrap().push(format!("file:{}", p)))
-            .on_url_association(move |u| urls.lock().unwrap().push(format!("url:{}", u)))
+            .set_args(vec!["--VELOAPP-urlproto".into(), "myapp://open?a=1".into(), "b".into()])
+            .on_file_assoc(move |p| files.lock().unwrap().push(format!("file:{}", p)))
+            .on_url_proto(move |u| urls.lock().unwrap().push(format!("url:{}", u)))
             .run();
-        assert_eq!(*received.lock().unwrap(), vec!["url:myapp://open?a=1 b".to_string()]);
+        assert_eq!(*received.lock().unwrap(), vec!["url:myapp://open?a=1".to_string()]);
+    }
+
+    fn two_file_pairs() -> Vec<String> {
+        strings(&[
+            HOOK_CLI_FILE_ASSOC,
+            "C:\\docs\\my file.myproj",
+            HOOK_CLI_FILE_ASSOC,
+            "C:\\docs\\other.myproj",
+        ])
     }
 
     #[test]
-    fn test_run_invokes_file_association_hook() {
+    fn test_run_invokes_file_assoc_hook_once_per_pair_when_restarted() {
+        let _guard = run_lock();
+        // several pairs are only ever forwarded by a Velopack restart (run() clears the variable again)
+        env::set_var(HOOK_ENV_RESTART, "1");
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let received = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let files = received.clone();
+        let restarted = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let restarted_flag = restarted.clone();
+        VelopackApp::build()
+            .set_locator(test_locator(tmp_dir.path()))
+            .set_args(two_file_pairs())
+            .on_restarted(move |_| restarted_flag.store(true, Ordering::SeqCst))
+            .on_file_assoc(move |p| files.lock().unwrap().push(p))
+            .run();
+        env::remove_var(HOOK_ENV_RESTART);
+        assert!(restarted.load(Ordering::SeqCst));
+        assert_eq!(
+            *received.lock().unwrap(),
+            vec!["C:\\docs\\my file.myproj".to_string(), "C:\\docs\\other.myproj".to_string()]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_run_direct_windows_launch_takes_at_most_one_pair() {
+        let _guard = run_lock();
+        // not restarted and the flag is not on this process's real command line: the OS never passes more than one
+        // value, so only the first pair of the (synthetic) args is an association
+        env::remove_var(HOOK_ENV_RESTART);
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let received = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
         let files = received.clone();
         VelopackApp::build()
             .set_locator(test_locator(tmp_dir.path()))
-            .set_args(vec![HOOK_CLI_FILE_ASSOCIATION.into(), "C:\\docs\\my file.myproj".into()])
-            .on_file_association(move |p| files.lock().unwrap().push(p))
+            .set_args(two_file_pairs())
+            .on_file_assoc(move |p| files.lock().unwrap().push(p))
             .run();
         assert_eq!(*received.lock().unwrap(), vec!["C:\\docs\\my file.myproj".to_string()]);
     }
 
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_run_invokes_file_assoc_hook_once_per_pair_from_argv() {
+        let _guard = run_lock();
+        // outside Windows argv is always exact, so the pairs are read whether or not this is a restart
+        env::remove_var(HOOK_ENV_RESTART);
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let received = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let files = received.clone();
+        VelopackApp::build()
+            .set_locator(test_locator(tmp_dir.path()))
+            .set_args(two_file_pairs())
+            .on_file_assoc(move |p| files.lock().unwrap().push(p))
+            .run();
+        assert_eq!(
+            *received.lock().unwrap(),
+            vec!["C:\\docs\\my file.myproj".to_string(), "C:\\docs\\other.myproj".to_string()]
+        );
+    }
+
     #[test]
     fn test_run_invokes_hook_when_app_is_not_installed() {
+        let _guard = run_lock();
         // the locator cannot be created (no Update.exe), as for a development build: the installed-startup logic is
         // skipped but the association launch is still delivered
         let tmp_dir = tempfile::TempDir::new().unwrap();
@@ -586,29 +758,30 @@ mod tests {
         let urls = received.clone();
         VelopackApp::build()
             .set_locator(config)
-            .set_args(vec![HOOK_CLI_URL_ASSOCIATION.into(), "myapp://dev".into()])
-            .on_url_association(move |u| urls.lock().unwrap().push(u))
+            .set_args(vec![HOOK_CLI_URL_PROTO.into(), "myapp://dev".into()])
+            .on_url_proto(move |u| urls.lock().unwrap().push(u))
             .run();
         assert_eq!(*received.lock().unwrap(), vec!["myapp://dev".to_string()]);
     }
 
     #[test]
     fn test_run_ignores_association_flag_without_hook_or_value() {
+        let _guard = run_lock();
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let received = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
         let urls = received.clone();
         // file flag but only a url hook registered: nothing is invoked, args are left to the app
         VelopackApp::build()
             .set_locator(test_locator(tmp_dir.path()))
-            .set_args(vec![HOOK_CLI_FILE_ASSOCIATION.into(), "C:\\x.myproj".into()])
-            .on_url_association(move |u| urls.lock().unwrap().push(u))
+            .set_args(vec![HOOK_CLI_FILE_ASSOC.into(), "C:\\x.myproj".into()])
+            .on_url_proto(move |u| urls.lock().unwrap().push(u))
             .run();
         // url flag without a value: ignored
         let urls = received.clone();
         VelopackApp::build()
             .set_locator(test_locator(tmp_dir.path()))
-            .set_args(vec![HOOK_CLI_URL_ASSOCIATION.into()])
-            .on_url_association(move |u| urls.lock().unwrap().push(u))
+            .set_args(vec![HOOK_CLI_URL_PROTO.into()])
+            .on_url_proto(move |u| urls.lock().unwrap().push(u))
             .run();
         assert!(received.lock().unwrap().is_empty());
     }

@@ -1,11 +1,12 @@
-//! Per-user (HKCU\Software\Classes) registration of file associations and custom URL protocols.
+//! Registration of file associations and custom URL protocols under `Software\Classes`: in HKCU for
+//! Setup.exe and per-user MSI installs, in HKLM for per-machine MSI installs (see [`Hive`]).
 //!
 //! Every key this module creates (a file ProgId key or a URL protocol key) carries a string value
 //! `VelopackRootDir` holding the install root. Keys are only ever removed, or modified for removal,
 //! when that marker matches our own root dir, so we never destroy registrations owned by another
 //! app or by another install of the same app.
 //!
-//! All functions take the `Classes` base key as a parameter so tests can run against a scratch key.
+//! The core functions take the `Classes` base key as a parameter so tests can run against a scratch key.
 //! Failures are logged as warnings: association problems must never fail install/apply/uninstall.
 
 use std::path::{Path, PathBuf};
@@ -14,6 +15,8 @@ use anyhow::{bail, Context, Result};
 use velopack::{constants, locator::VelopackLocator};
 use windows::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
 use winreg::{enums::*, types::FromRegValue, RegKey, RegValue};
+
+use super::registry::{self, MsiScope};
 
 const CLASSES_KEY: &str = "Software\\Classes";
 const ROOT_DIR_VALUE: &str = "VelopackRootDir";
@@ -54,61 +57,115 @@ impl AppRegistration {
     }
 }
 
+/// The registry hive an install registers its associations in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Hive {
+    /// `HKCU\Software\Classes`: Setup.exe installs and per-user MSI installs.
+    CurrentUser,
+    /// `HKLM\Software\Classes`: per-machine MSI installs, so the registrations exist for every user and can be
+    /// made by a SYSTEM deployment (Intune/SCCM) where HKCU is meaningless. Needs an elevated process.
+    LocalMachine,
+}
+
+impl Hive {
+    fn name(self) -> &'static str {
+        match self {
+            Hive::CurrentUser => "HKCU",
+            Hive::LocalMachine => "HKLM",
+        }
+    }
+
+    fn open_classes(self) -> Result<RegKey> {
+        let root = match self {
+            Hive::CurrentUser => HKEY_CURRENT_USER,
+            Hive::LocalMachine => HKEY_LOCAL_MACHINE,
+        };
+        let (classes, _) = RegKey::predef(root).create_subkey(CLASSES_KEY)?;
+        Ok(classes)
+    }
+
+    /// The machine-wide classes (read-only), consulted when registering per-user so a per-user `.ext` default
+    /// never shadows an existing system default handler. `None` when writing to HKLM itself (only HKLM matters
+    /// then) or when it cannot be opened, in which case only the target hive is consulted.
+    fn machine_classes_for_default_check(self) -> Option<RegKey> {
+        match self {
+            Hive::CurrentUser => RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey_with_flags(CLASSES_KEY, KEY_READ).ok(),
+            Hive::LocalMachine => None,
+        }
+    }
+}
+
+/// Where a (non-portable) install's associations live: HKCU, except for a per-machine MSI install. An MSI
+/// install's scope is read from the hive holding its ARP entry; when that is missing (deleted by hand) we
+/// fall back to HKCU, which is at least harmless when wrong.
+fn hive_for(locator: &VelopackLocator) -> Hive {
+    if !locator.get_is_msi_install() {
+        return Hive::CurrentUser;
+    }
+    match registry::get_msi_install_scope(locator) {
+        Some(MsiScope::PerMachine) => Hive::LocalMachine,
+        Some(MsiScope::PerUser) => Hive::CurrentUser,
+        None => {
+            warn!("Could not determine the MSI install scope (no ARP entry found), assuming a per-user install.");
+            Hive::CurrentUser
+        }
+    }
+}
+
 /// Writes all of `next`'s associations (idempotent, also repairs a renamed main exe) and removes the
-/// ones `prev` had which `next` no longer declares. Skipped for portable and MSI installs.
+/// ones `prev` had which `next` no longer declares. Skipped for portable installs.
 pub fn sync(next: &VelopackLocator, prev: Option<&VelopackLocator>) {
     if next.get_is_portable() {
         info!("Skipping file/URL association registration for portable app.");
         return;
     }
-    if next.get_is_msi_install() {
-        info!("Skipping file/URL association registration for MSI install.");
-        return;
-    }
+    sync_in_hive(next, prev, hive_for(next));
+}
+
+/// [`sync`] into an explicitly chosen hive (the MSI custom actions know their scope from the installer).
+pub fn sync_in_hive(next: &VelopackLocator, prev: Option<&VelopackLocator>, hive: Hive) {
     let next_reg = AppRegistration::from_locator(next);
     let prev_reg = prev.map(AppRegistration::from_locator);
     if next_reg.is_empty() && prev_reg.as_ref().map_or(true, |p| p.is_empty()) {
         return;
     }
-    info!("Registering file/URL associations...");
-    match open_classes_key() {
+    info!("Registering file/URL associations in {}...", hive.name());
+    match hive.open_classes() {
         Ok(classes) => {
-            let machine_classes = open_machine_classes_key();
+            let machine_classes = hive.machine_classes_for_default_check();
             if sync_in(&classes, machine_classes.as_ref(), &next_reg, prev_reg.as_ref()) {
                 notify_assoc_changed();
             }
         }
-        Err(e) => warn!("Failed to open HKCU\\{} ({}), associations were not registered.", CLASSES_KEY, e),
+        Err(e) => warn!(
+            "Failed to open {}\\{} ({}), associations were not registered.",
+            hive.name(),
+            CLASSES_KEY,
+            e
+        ),
     }
 }
 
 /// Removes every association owned by this install.
 pub fn remove_all(locator: &VelopackLocator) {
+    remove_all_in_hive(locator, hive_for(locator));
+}
+
+/// [`remove_all`] from an explicitly chosen hive.
+pub fn remove_all_in_hive(locator: &VelopackLocator, hive: Hive) {
     let reg = AppRegistration::from_locator(locator);
     if reg.is_empty() {
         return;
     }
-    info!("Removing file/URL associations...");
-    match open_classes_key() {
+    info!("Removing file/URL associations from {}...", hive.name());
+    match hive.open_classes() {
         Ok(classes) => {
             if remove_all_in(&classes, &reg) {
                 notify_assoc_changed();
             }
         }
-        Err(e) => warn!("Failed to open HKCU\\{} ({}), associations were not removed.", CLASSES_KEY, e),
+        Err(e) => warn!("Failed to open {}\\{} ({}), associations were not removed.", hive.name(), CLASSES_KEY, e),
     }
-}
-
-fn open_classes_key() -> Result<RegKey> {
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let (classes, _) = hkcu.create_subkey(CLASSES_KEY)?;
-    Ok(classes)
-}
-
-/// The machine-wide classes (read-only), consulted so a per-user registration never shadows an existing
-/// system default handler. `None` when it cannot be opened, in which case only HKCU is consulted.
-fn open_machine_classes_key() -> Option<RegKey> {
-    RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey_with_flags(CLASSES_KEY, KEY_READ).ok()
 }
 
 fn notify_assoc_changed() {
@@ -205,16 +262,12 @@ fn validate_scheme(scheme: &str) -> Result<()> {
     Ok(())
 }
 
-fn normalize_root(root: &Path) -> String {
-    root.to_string_lossy().trim_end_matches(['\\', '/']).to_lowercase()
-}
-
 fn owner_of(key: &RegKey) -> Option<String> {
     key.get_value::<String, _>(ROOT_DIR_VALUE).ok()
 }
 
 fn is_owned_by(key: &RegKey, root_dir: &Path) -> bool {
-    owner_of(key).is_some_and(|owner| normalize_root(Path::new(&owner)) == normalize_root(root_dir))
+    owner_of(key).is_some_and(|owner| registry::normalize_dir_path(Path::new(&owner)) == registry::normalize_dir_path(root_dir))
 }
 
 fn quoted_exe(exe: &Path) -> String {
@@ -255,7 +308,7 @@ fn register_url_protocol(classes: &RegKey, reg: &AppRegistration, scheme: &str) 
     let key = create_owned_key(classes, scheme, reg, "URL protocol")?;
     key.set_value("", &format!("URL:{}", reg.app_title))?;
     key.set_value("URL Protocol", &"")?;
-    write_handler_keys(&key, reg, constants::HOOK_CLI_URL_ASSOCIATION)
+    write_handler_keys(&key, reg, constants::HOOK_CLI_URL_PROTO)
 }
 
 fn register_file_association(classes: &RegKey, machine_classes: Option<&RegKey>, reg: &AppRegistration, ext: &str) -> Result<()> {
@@ -265,7 +318,7 @@ fn register_file_association(classes: &RegKey, machine_classes: Option<&RegKey>,
 
     let key = create_owned_key(classes, &progid, reg, "ProgId")?;
     key.set_value("", &format!("{} {} File", reg.app_title, ext.trim_start_matches('.').to_uppercase()))?;
-    write_handler_keys(&key, reg, constants::HOOK_CLI_FILE_ASSOCIATION)?;
+    write_handler_keys(&key, reg, constants::HOOK_CLI_FILE_ASSOC)?;
 
     let (ext_key, _) = classes.create_subkey(ext).with_context(|| format!("create key '{}'", ext))?;
     let (open_with, _) = ext_key.create_subkey(OPEN_WITH_PROGIDS)?;
@@ -499,7 +552,7 @@ mod tests {
         assert_eq!(s.default_of("myapp\\DefaultIcon"), Some(format!("{},0", exe)));
         assert_eq!(
             s.default_of("myapp\\shell\\open\\command"),
-            Some(format!("{} --veloapp-url-association \"%1\"", exe))
+            Some(format!("{} --veloapp-urlproto \"%1\"", exe))
         );
 
         assert_eq!(s.default_of("MyCompany.MyApp.myproj"), Some("My App MYPROJ File".to_owned()));
@@ -507,7 +560,7 @@ mod tests {
         assert_eq!(s.default_of("MyCompany.MyApp.myproj\\DefaultIcon"), Some(format!("{},0", exe)));
         assert_eq!(
             s.default_of("MyCompany.MyApp.myproj\\shell\\open\\command"),
-            Some(format!("{} --veloapp-file-association \"%1\"", exe))
+            Some(format!("{} --veloapp-fileassoc \"%1\"", exe))
         );
         assert_eq!(s.default_of(".myproj"), Some("MyCompany.MyApp.myproj".to_owned()));
         assert_eq!(s.value_of(".myproj\\OpenWithProgIds", "MyCompany.MyApp.myproj"), Some(String::new()));
@@ -557,12 +610,12 @@ mod tests {
         let exe = format!("\"{}\\current\\NewName.exe\"", ROOT);
         assert_eq!(
             s.default_of("myapp\\shell\\open\\command"),
-            Some(format!("{} --veloapp-url-association \"%1\"", exe))
+            Some(format!("{} --veloapp-urlproto \"%1\"", exe))
         );
         assert_eq!(s.default_of("myapp\\DefaultIcon"), Some(format!("{},0", exe)));
         assert_eq!(
             s.default_of("MyCompany.MyApp.myproj\\shell\\open\\command"),
-            Some(format!("{} --veloapp-file-association \"%1\"", exe))
+            Some(format!("{} --veloapp-fileassoc \"%1\"", exe))
         );
         assert_eq!(s.default_of("MyCompany.MyApp.myproj\\DefaultIcon"), Some(format!("{},0", exe)));
     }

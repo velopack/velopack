@@ -150,25 +150,54 @@ characters, reserved schemes like http/mailto/ms-* rejected).
   `Manifest`/locator (`get_manifest_file_associations()` etc., which filter empty entries) and registered by Update.exe in
   `src/bins/src/windows/associations.rs` under `HKCU\Software\Classes` on install, synced on apply and on an
   overwrite/repair install (writes all of next, removes prev-minus-next; install passes the located previous install
-  as prev) and removed on uninstall. Skipped for portable and MSI installs (vpk warns for `--msi`).
-  Command target is `{root}\current\{mainExe}` with the flags `--veloapp-file-association "%1"` /
-  `--veloapp-url-association "%1"`. Every key we create (ProgId `{AppId}.{ext}`, protocol key) carries a
+  as prev) and removed on uninstall. Skipped for portable installs.
+  Command target is `{root}\current\{mainExe}` with the flags `--veloapp-fileassoc "%1"` /
+  `--veloapp-urlproto "%1"`. Every key we create (ProgId `{AppId}.{ext}`, protocol key) carries a
   `VelopackRootDir` string value; we only ever delete/modify keys whose marker equals our root dir, never touch
   `UserChoice`, and only take the `.ext` default when it is empty in both HKCU and HKLM (HKCR merges HKCU over HKLM,
   so a per-user default would shadow a machine-wide handler) or already ours. Association failures are logged
   as warnings and never fail install/apply/uninstall. Registry functions take the Classes base key (plus an optional
   read-only machine Classes key) so unit tests run against scratch `HKCU\Software\VelopackTests\<random>\Classes` keys.
-- **VelopackApp** (`OnFileAssociation` / `OnUrlAssociation`, Rust `on_file_association` / `on_url_association`): not
-  fast-exit hooks. On Windows, when args[0] is one of the flags and a callback is registered, the value is recovered
-  from the raw command line (`GetCommandLineW`: first token (program path) skipped, text after the flag, trimmed, one
-  pair of quotes stripped) unless args were overridden (`SetArgs`) or `VELOPACK_RESTART` is set (Update.exe re-quotes
-  args, so argv is exact there); a restart to auto-apply forwards exactly `[flag, value]`. The callback fires after the
-  first-run/restarted hooks and startup continues, also when the app is not installed (dev build: the locator/manager
-  cannot be created, the installed-startup part is skipped). No callback registered: args are left to the app. The
-  value is never written to the log (only its length). Rust reads argv lossily (`args_os`), never panicking on
-  non-Unicode file names. Node: the callback runs on the next event-loop tick after `run()`; the neon channel is only
-  unref'd eagerly on macOS (where the hooks live for the process lifetime), elsewhere it is unref'd when the builder
-  drops, after the queued callback.
+  - **MSI installs** (`associations::Hive`): per-user MSIs register in HKCU, per-machine MSIs in HKLM (deployments run
+    as SYSTEM via Intune/SCCM have no useful HKCU; when writing to HKLM only HKLM is consulted for the `.ext` default).
+    `MsiTemplate.hbs` adds, only when the package declares associations (`HasAssociations`), `SyncAssociations*` /
+    `RemoveAssociations*` deferred custom actions in a `Machine` (Impersonate=no, `ALLUSERS=1`) and a `User`
+    (Impersonate=yes) variant, both calling `velopack_wix`'s `SyncAssociationsDeferred` / `RemoveAssociationsDeferred`
+    with `[INSTALLFOLDER]"[ALLUSERS]` (trailing `\` trimmed so the marker equals Update.exe's root dir). Sync runs
+    after `PatchChannelDeferred` on install/repair/upgrade; remove runs before `RemoveFiles` on uninstall *and* when the
+    old product is removed by a major upgrade (`RemoveExistingProducts` is `afterInstallValidate`, so that finishes
+    before the new product's sync; dropped associations are cleaned without the new MSI knowing the old manifest).
+    `RollbackAssociations{Machine,User}` (`Execute="rollback"`, `RemoveAssociationsDeferred`, same conditions and
+    impersonation as the sync) are scheduled right before each sync: the rollback script runs in reverse, so a failed
+    install removes the registrations before `InstallFiles` is rolled back, while `current\sq.version` is still there.
+    Every `velopack_wix` custom action runs under `with_msi_logging` (`src/wix-dll/src/msi.rs`): a `log::Log` impl
+    forwards this thread's `warn!`/`info!` records (incl. the bins crate's association warnings) and
+    `show_debug_message` traces to the MSI log via `MsiProcessMessage(INSTALLMESSAGE_INFO)`; visible with `/l*v`.
+    Update.exe `apply` syncs into the hive the install's `MSI:{AppId}` ARP entry lives in
+    (`registry::get_msi_install_scope`, HKMU-written so HKCU = per-user, HKLM = per-machine; `InstallLocation` breaks
+    ties when both exist); HKLM is writable there because a Program Files apply already re-launches elevated, otherwise
+    it warns. Update.exe `--uninstall` still bails for MSI installs (msiexec owns it).
+- **VelopackApp** (`OnFileAssoc` / `OnUrlProto`, Rust `on_file_assoc` / `on_url_proto`, Node `onFileAssoc` /
+  `onUrlProto`, Python `on_file_assoc` / `on_url_proto`, C `vpkc_app_set_hook_file_assoc` / `..._url_proto`): not
+  fast-exit hooks. Only recognised when args[0] is one of the flags and a callback is registered for at least one of
+  the carried flags; otherwise args are left to the app. **argv contract**: repeated leading `[flag, value]` pairs
+  (parsing stops at the first non-flag; a flag with no/empty value is dropped with a warning) — this is how a restart
+  forwards them. Exception: on Windows, when not restarted (no `VELOPACK_RESTART`), the OS shell launched us and passed
+  exactly one value. It is recovered from the raw command line (`GetCommandLineW`: first token (program path) skipped,
+  text after the flag, trimmed, one pair of quotes stripped) so quotes/backslashes survive — also when `SetArgs`/
+  `set_args` was used, since apps commonly pass their own argv through. If the raw line does not contain the flag
+  token (synthetic `SetArgs`), at most ONE pair is read from argv. Multi-pair parsing applies only to restarted
+  launches and to non-Windows argv. A restart to auto-apply forwards the pairs (any macOS-drained ones first) instead
+  of the original args; Update.exe re-quotes each argument, so argv is exact in the restarted process. The callbacks
+  fire after the first-run/restarted hooks (once per pair) and startup continues, also when the app is not installed
+  (dev build: the locator/manager cannot be created, the installed-startup part is skipped) and when the auto-apply
+  fails (logged; both libraries then deliver the pairs, plus any macOS-drained values, in the running process).
+  Values are never written to the log (only their length).
+  Rust reads argv lossily (`args_os`), never panicking on non-Unicode file names. Node: the callback runs on the next
+  event-loop tick after `run()`; the neon channel is only unref'd eagerly on macOS (where the hooks live for the
+  process lifetime), elsewhere it is unref'd when the builder drops, after the queued callback.
+  `test/Velopack.Pack.Tests/WindowsAssociationTests.cs` covers registration + raw-command-line recovery and
+  `UrlProtoLaunchSurvivesAutoApply` (TestApp auto-applies for any `--veloapp-*` args[0]).
 - **macOS**: LaunchServices ignores argv. vpk adds `CFBundleURLTypes` / `CFBundleDocumentTypes` to the Info.plist it
   generates (not to a user-supplied `--plist` or prebuilt `.app`; it warns instead). If a callback is registered,
   `Run()` installs `NSAppleEventManager` handlers for `GURL` and `odoc` (`src/lib-rust/src/apple_events.rs`,
@@ -176,9 +205,18 @@ characters, reserved schemes like http/mailto/ms-* rejected).
   consumers, including net6/net7, get a logged warning) and re-installs them on
   `NSApplicationWillFinishLaunchingNotification` because AppKit overwrites them. Requires a Cocoa run loop; replaces the
   UI framework's own open-file/open-URL handling; callbacks may fire many times over the process lifetime.
-  Known limitation: when a pending update is auto-applied at startup the process exits before the launch Apple Event
-  is delivered, so that launch's URL/file is lost; the docs tell macOS apps using associations to
-  `SetAutoApplyOnStartup(false)` and apply updates themselves.
+  **Auto-apply drain**: the launch Apple Event only arrives once a Cocoa run loop is pumped, so right before `Run()`
+  restarts to auto-apply a pending update (and only then, only with a callback registered) it switches the handlers to
+  collect mode, dlopens AppKit, `[NSApplication sharedApplication]` + `finishLaunching`, also claims `aevt/oapp` (+
+  `rapp`) as a "launch seen" marker and pumps `nextEventMatchingMask:untilDate:(50ms) inMode:default dequeue:YES`
+  (Apple Events are dispatched from inside it) until a launch event arrived or ~2s elapsed. Collected values are
+  prepended to the restart args as `[flag, value]` pairs; UpdateMac restarts with `open -n <app> --args ...`, which
+  also inherits the env (`VELOPACK_RESTART`, how a restart is detected there). The restarted app reads the pairs from
+  argv whether or not the env var is visible. Worst case this delays an auto-applied update start by ~2s. The drain
+  only runs on the main thread (`pthread_main_np`; AppKit aborts the process otherwise) and logs a warning elsewhere.
+  **Known limitation**: if the apply fails after the drain, the process continues with `NSApplication` already
+  `finishLaunching`'d and our `oapp`/`rapp` handlers installed; the drained values are delivered to the callbacks of
+  the running process. It is deliberately NOT relaunched, which could loop on a persistent apply failure.
 - **Linux**: not supported, nothing is registered and the callbacks never fire.
 
 ## Windows 7 support

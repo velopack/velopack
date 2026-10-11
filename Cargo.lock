@@ -5343,6 +5343,7 @@ version = "0.0.0-local"
 dependencies = [
  "anyhow",
  "cfb",
+ "log",
  "remove_dir_all",
  "tempfile",
  "velopack",

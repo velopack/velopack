@@ -129,9 +129,9 @@ test("VelopackApp should invoke association hooks with the opened value", async 
   };
   let received: string[] = [];
   VelopackApp.build()
-    .onFileAssociation((path) => received.push("file:" + path))
-    .onUrlAssociation((url) => received.push("url:" + url))
-    .setArgs(["--veloapp-url-association", "myapp://open?a=1"])
+    .onFileAssoc((path) => received.push("file:" + path))
+    .onUrlProto((url) => received.push("url:" + url))
+    .setArgs(["--veloapp-urlproto", "myapp://open?a=1"])
     .setLocator(locator)
     .run();
 
@@ -139,15 +139,16 @@ test("VelopackApp should invoke association hooks with the opened value", async 
     expect(received).toEqual(["url:myapp://open?a=1"]);
   });
 
+  // repeated [flag, value] pairs, as a restart to apply an update forwards them
   received = [];
   VelopackApp.build()
-    .onFileAssociation((path) => received.push("file:" + path))
-    .setArgs(["--veloapp-file-association", "C:\\docs\\my file.myproj"])
+    .onFileAssoc((path) => received.push("file:" + path))
+    .setArgs(["--veloapp-fileassoc", "C:\\docs\\my file.myproj", "--veloapp-fileassoc", "C:\\docs\\other.myproj"])
     .setLocator(locator)
     .run();
 
   await vi.waitFor(() => {
-    expect(received).toEqual(["file:C:\\docs\\my file.myproj"]);
+    expect(received).toEqual(["file:C:\\docs\\my file.myproj", "file:C:\\docs\\other.myproj"]);
   });
 });
 
