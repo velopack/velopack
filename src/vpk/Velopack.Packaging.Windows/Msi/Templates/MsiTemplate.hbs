@@ -225,6 +225,14 @@
                       Execute="immediate" Return="check"/>
         <CustomAction Id="UserRustCleanup" BinaryRef="RustDll" DllEntry="UserCleanupDeferred" Execute="deferred" Impersonate="yes"
                       Return="ignore"/>
+        <!-- Quiet uninstalls and upgrades (UILevel < 5, no FilesInUse dialog) stop the running app before
+             InstallValidate. Otherwise InstallValidate finds the app's files in use: Restart Manager cannot
+             close an app that ignores it (MSIRMSHUTDOWN does not force by default) and stalls on it, RemoveFiles
+             then moves the locked exe into rollback storage where RustCleanup's force-stop no longer sees it,
+             and reboot operations get scheduled for the files left behind. Immediate so it can run this early,
+             which means it runs as the installing user; that is enough to stop that user's own app. -->
+        <CustomAction Id="RustForceStopApplication" BinaryRef="RustDll" DllEntry="ForceStopApplication" Execute="immediate"
+                      Return="ignore"/>
         <CustomAction Id="RustLaunchApplication" BinaryRef="RustDll" DllEntry="LaunchApplication" Impersonate="yes" Execute="immediate"
                       Return="ignore"/>
 
@@ -270,6 +278,11 @@
             <Custom Action="InstallHookDeferred" After="PatchChannelDeferred" Condition="NOT REMOVE AND NOT WIX_UPGRADE_DETECTED"/>
             <Custom Action="SetUpdatedHookData" Before="UpdatedHookDeferred" Condition="NOT REMOVE AND WIX_UPGRADE_DETECTED"/>
             <Custom Action="UpdatedHookDeferred" After="PatchChannelDeferred" Condition="NOT REMOVE AND WIX_UPGRADE_DETECTED"/>
+            <!-- Full-UI runs keep the standard FilesInUse / MsiRMFilesInUse prompt instead. On a major upgrade
+                 it is the new product's InstallValidate that sees the old app's files in use, hence
+                 WIX_UPGRADE_DETECTED; REMOVE="ALL" covers the uninstall and the old product's nested removal. -->
+            <Custom Action="RustForceStopApplication" Before="InstallValidate"
+                    Condition="((REMOVE=&quot;ALL&quot;) OR WIX_UPGRADE_DETECTED) AND UILevel&lt;5"/>
             <!-- The app uninstall hook and per-user cleanup only run on a real uninstall, not when
                  the old product is removed as part of a major upgrade. RustCleanup runs in both
                  cases; it decides what to remove based on [UPGRADINGPRODUCTCODE]. -->

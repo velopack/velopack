@@ -94,6 +94,12 @@ try {
     }
 
     if (args.Length == 2) {
+        if (args[0] == "sleep") {
+            // stays running (keeping its exe in use) so tests can install/uninstall over a running app
+            Thread.Sleep(TimeSpan.FromSeconds(int.Parse(args[1])));
+            return 0;
+        }
+
         if (args[0] == "check") {
 #if LEGACY_VELOPACK_API
             var um = new UpdateManager(args[1], null, null, locator);

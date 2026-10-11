@@ -530,6 +530,19 @@ public class MsiTests
         Assert.True(Seq("RustCleanup") < Seq("UserRustCleanup"), "UserRustCleanup should run after RustCleanup");
         Assert.True(Seq("UserRustCleanup") < Seq("RemoveFolders"), "UserRustCleanup should run before RemoveFolders");
 
+        // quiet uninstalls and upgrades stop the running app before InstallValidate, so Windows Installer
+        // never sees its files in use and schedules a reboot (#1085); full-UI runs keep the FilesInUse prompt
+        var stopCondition = db.ExecuteScalar(
+            "SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = 'RustForceStopApplication'") as string;
+        Assert.Equal("((REMOVE=\"ALL\") OR WIX_UPGRADE_DETECTED) AND UILevel<5", stopCondition);
+        Assert.True(Seq("CostFinalize") < Seq("RustForceStopApplication"), "INSTALLFOLDER is only resolved after CostFinalize");
+        Assert.True(Seq("RustForceStopApplication") < Seq("InstallValidate"), "must run before InstallValidate checks for files in use");
+        const int msidbCustomActionTypeInScript = 1024;
+        const int msidbCustomActionTypeContinue = 64;
+        var stopType = Convert.ToInt32(db.ExecuteScalar("SELECT `Type` FROM `CustomAction` WHERE `Action` = 'RustForceStopApplication'"));
+        Assert.True((stopType & msidbCustomActionTypeInScript) == 0, "must be immediate: deferred actions cannot run before InstallValidate");
+        Assert.True((stopType & msidbCustomActionTypeContinue) != 0, "must never fail the uninstall");
+
         // the upgrade-mode `current` purge relies on the old product being removed (and cleaned)
         // before the new payload is laid down: MajorUpgrade is authored with afterInstallValidate
         Assert.True(Seq("InstallValidate") < Seq("RemoveExistingProducts"), "RemoveExistingProducts must run after InstallValidate");
@@ -968,6 +981,90 @@ public class MsiTests
             foreach (var lnk in new[] { msiShortcut, userShortcut }) {
                 try {
                     File.Delete(lnk);
+                } catch {
+                    // best effort cleanup
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TestMsiSilentUninstallWithRunningAppDoesNotRequireReboot()
+    {
+        // https://github.com/velopack/velopack/issues/1085
+        // InstallValidate flagged the running app's files as in use before RustCleanup stopped it, so a quiet
+        // uninstall returned 3010 (ERROR_SUCCESS_REBOOT_REQUIRED) or, without REBOOT=ReallySuppress, restarted
+        // the machine. Now the app is stopped before InstallValidate and the uninstall completes with 0.
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+
+        string id = "MsiRunningAppTest";
+        var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), id);
+        var msiPath = Path.Combine(releaseDir, $"{id}-win.msi");
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+        var hookTempDir = Path.Combine(Path.GetTempPath(), $"velopack_hooks_{id}");
+        var msiLogPath = PathHelper.GetTestRootPath($"msi.{WindowsTestHelper.RandomString(8)}.log");
+        Process app = null;
+
+        try {
+            await PackTestAppWithMsi(id, "1.0.0", "running app test", releaseDir, logger, InstallLocation.PerUser);
+            logger.Info("TEST: Installing MSI...");
+            RunMsiExec($"/i \"{msiPath}\" /qn", logger);
+            Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
+
+            // keep the app running from the install dir so its exe is in use throughout the uninstall
+            app = Process.Start(new ProcessStartInfo(appPath) {
+                ArgumentList = { "sleep", "600" },
+                WorkingDirectory = installDir,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            // a running exe cannot be opened for writing, which also proves the app got past startup
+            TestHelper.WaitUntil(() => Assert.Throws<IOException>(
+                () => File.Open(appPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None).Dispose()), pollDelayMs: 200);
+            Assert.False(app.HasExited, "TestApp should still be running");
+
+            // ReallySuppress keeps a regression from rebooting the test machine: a required restart then
+            // shows up as exit code 3010 instead of 0
+            logger.Info("TEST: Uninstalling MSI while the app is running...");
+            RunMsiExec($"/x \"{msiPath}\" /qn REBOOT=ReallySuppress /l*v \"{msiLogPath}\"", logger);
+
+            // without the early stop, Restart Manager stalls InstallValidate and leaves the app running,
+            // RemoveFiles moves the locked exe into rollback storage (out of RustCleanup's reach) and
+            // Windows Installer logs "Info 1903. Scheduling reboot operation" for the files left behind
+            Assert.True(app.WaitForExit(30_000), "The uninstall should have stopped the running app");
+            Assert.DoesNotContain("Info 1903", File.ReadAllText(msiLogPath));
+            Assert.False(Directory.Exists(installDir), $"Install directory should have been removed: {installDir}");
+            logger.Info("TEST: silent uninstall with running app verified");
+        } finally {
+            try {
+                File.Delete(msiLogPath);
+            } catch {
+                // best effort cleanup
+            }
+
+            try {
+                if (app is { HasExited: false }) {
+                    app.Kill();
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            try {
+                if (File.Exists(msiPath)) {
+                    RunMsiExec($"/x \"{msiPath}\" /qn REBOOT=ReallySuppress", logger, exitCode: null);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            foreach (var dir in new[] { installDir, hookTempDir }) {
+                try {
+                    if (Directory.Exists(dir)) {
+                        IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(dir), 10, 1000);
+                    }
                 } catch {
                     // best effort cleanup
                 }

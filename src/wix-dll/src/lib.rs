@@ -251,6 +251,29 @@ pub extern "system" fn UserCleanupDeferred(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
+/// Immediate, scheduled before InstallValidate on quiet (UILevel < 5) uninstalls and major upgrades.
+/// InstallValidate flags files held by running processes as in use. With no UI to show the FilesInUse
+/// dialog, Windows Installer asks Restart Manager to close the app; an app that ignores it is not forced
+/// (MSIRMSHUTDOWN default), so the uninstall stalls on it, RemoveFiles then moves the locked exe into
+/// rollback storage where CleanupDeferred's force-stop no longer finds it, and reboot operations get
+/// scheduled for the files left behind. Stopping the app here, like Setup.exe/Update.exe do before
+/// touching an install, means nothing is in use when InstallValidate runs. Immediate actions run
+/// impersonated as the installing user (SYSTEM for SCCM/Intune deployments), which is enough to stop
+/// that user's own app. Always returns ERROR_SUCCESS: never fails the install.
+#[no_mangle]
+pub extern "system" fn ForceStopApplication(h_install: MSIHANDLE) -> c_uint {
+    let install_dir = msi_get_property(h_install, "INSTALLFOLDER");
+    show_debug_message("ForceStopApplication", format!("INSTALLFOLDER={:?}", install_dir));
+
+    if let Some(install_dir) = install_dir {
+        if let Err(e) = velopack_bins::shared::force_stop_package(Path::new(&install_dir)) {
+            show_debug_message("ForceStopApplication", format!("Failed to stop running processes: {}", e));
+        }
+    }
+
+    ERROR_SUCCESS.0
+}
+
 #[no_mangle]
 pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
     let install_dir = msi_get_property(h_install, "INSTALLFOLDER");
