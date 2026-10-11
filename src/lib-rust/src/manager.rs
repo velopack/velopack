@@ -260,6 +260,18 @@ impl UpdateManager {
         self.inner.locator.get_manifest_id()
     }
 
+    /// The release notes (markdown) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+    /// Returns None if the release was packed without release notes.
+    pub fn get_current_release_notes_markdown(&self) -> Option<String> {
+        self.inner.locator.get_manifest_release_notes()
+    }
+
+    /// The release notes (rendered HTML) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+    /// Returns None if the release was packed without release notes.
+    pub fn get_current_release_notes_html(&self) -> Option<String> {
+        self.inner.locator.get_manifest_release_notes_html()
+    }
+
     /// Check if the app is in portable mode. This can be true or false on Windows.
     /// On Linux and MacOS, this will always return true.
     pub fn get_is_portable(&self) -> bool {

@@ -176,6 +176,24 @@ fn js_get_app_id(mut cx: FunctionContext) -> JsResult<JsString> {
     Ok(cx.string(id))
 }
 
+fn js_get_current_release_notes_markdown(mut cx: FunctionContext) -> JsResult<JsValue> {
+    let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
+    let mgr_ref = &mgr_boxed.borrow().manager;
+    match mgr_ref.get_current_release_notes_markdown() {
+        Some(notes) => Ok(cx.string(notes).upcast()),
+        None => Ok(cx.null().upcast()),
+    }
+}
+
+fn js_get_current_release_notes_html(mut cx: FunctionContext) -> JsResult<JsValue> {
+    let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
+    let mgr_ref = &mgr_boxed.borrow().manager;
+    match mgr_ref.get_current_release_notes_html() {
+        Some(notes) => Ok(cx.string(notes).upcast()),
+        None => Ok(cx.null().upcast()),
+    }
+}
+
 fn js_is_portable(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
     let mgr_ref = &mgr_boxed.borrow().manager;
@@ -394,6 +412,8 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("js_new_update_manager", js_new_update_manager)?;
     cx.export_function("js_get_current_version", js_get_current_version)?;
     cx.export_function("js_get_app_id", js_get_app_id)?;
+    cx.export_function("js_get_current_release_notes_markdown", js_get_current_release_notes_markdown)?;
+    cx.export_function("js_get_current_release_notes_html", js_get_current_release_notes_html)?;
     cx.export_function("js_is_portable", js_is_portable)?;
     cx.export_function("js_update_pending_restart", js_update_pending_restart)?;
     cx.export_function("js_check_for_updates_async", js_check_for_updates_async)?;

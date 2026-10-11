@@ -236,6 +236,16 @@ class UpdateManager:
         """
     def get_current_version(self) -> builtins.str: ...
     def get_app_id(self) -> builtins.str: ...
+    def get_current_release_notes_markdown(self) -> typing.Optional[builtins.str]:
+        r"""
+        The release notes (markdown) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+        Returns None if the release was packed without release notes.
+        """
+    def get_current_release_notes_html(self) -> typing.Optional[builtins.str]:
+        r"""
+        The release notes (rendered HTML) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+        Returns None if the release was packed without release notes.
+        """
     def get_is_portable(self) -> builtins.bool: ...
     def get_update_pending_restart(self) -> typing.Optional[VelopackAsset]: ...
     def check_for_updates(self) -> typing.Optional[UpdateInfo]: ...

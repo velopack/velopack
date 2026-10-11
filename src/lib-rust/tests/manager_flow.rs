@@ -36,4 +36,12 @@ fn new_flow_creates_manager_without_explicit_source() {
 
     assert_eq!(manager.get_app_id(), "Test.Squirrel-App");
     assert_eq!(manager.get_current_version_as_string(), "1.0.0");
+    assert_eq!(
+        manager.get_current_release_notes_markdown().as_deref(),
+        Some("# Release 1.0.0\n\n- Initial release")
+    );
+    assert_eq!(
+        manager.get_current_release_notes_html().as_deref(),
+        Some("<h1>Release 1.0.0</h1>\n<ul>\n<li>Initial release</li>\n</ul>")
+    );
 }

@@ -157,6 +157,8 @@ test("UpdateManager defaults to Velopack Flow when no source is given", async ()
 
     expect(um.getAppId()).toBe("Test.Squirrel-App");
     expect(um.getCurrentVersion()).toBe("1.0.0");
+    expect(um.getCurrentReleaseNotesMarkdown()).toBe("# Release 1.0.0\n\n- Initial release");
+    expect(um.getCurrentReleaseNotesHtml()).toBe("<h1>Release 1.0.0</h1>\n<ul>\n<li>Initial release</li>\n</ul>");
   });
 });
 

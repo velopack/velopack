@@ -81,6 +81,10 @@ namespace Velopack.Locators
             }
         }
 
+        public override string? CurrentReleaseNotesMarkdown => _releaseNotesMarkdown;
+
+        public override string? CurrentReleaseNotesHtml => _releaseNotesHtml;
+
         public override IVelopackLogger Log { get; }
 
         public override IProcessImpl Process => this;
@@ -105,6 +109,8 @@ namespace Velopack.Locators
         private readonly string? _channel;
         private readonly VelopackAsset? _asset;
         private readonly string? _processPath;
+        private readonly string? _releaseNotesMarkdown;
+        private readonly string? _releaseNotesHtml;
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, IVelopackLogger? logger = null)
@@ -115,7 +121,7 @@ namespace Velopack.Locators
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, string? appDir,
             string? rootDir, string? updateExe, string? channel = null, IVelopackLogger? logger = null, VelopackAsset? localPackage = null,
-            string processPath = null!)
+            string processPath = null!, string? releaseNotesMarkdown = null, string? releaseNotesHtml = null)
         {
             _id = appId;
             _packages = packagesDir;
@@ -126,6 +132,8 @@ namespace Velopack.Locators
             _channel = channel;
             _asset = localPackage;
             _processPath = processPath;
+            _releaseNotesMarkdown = releaseNotesMarkdown;
+            _releaseNotesHtml = releaseNotesHtml;
             Log = logger ?? new NullVelopackLogger();
         }
 

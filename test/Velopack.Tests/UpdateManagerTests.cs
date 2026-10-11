@@ -111,6 +111,28 @@ public class UpdateManagerTests
         Assert.Equal("MyCoolApp", um.AppId);
         Assert.True(new SemanticVersion(1, 0, 0) == um.CurrentVersion);
         Assert.True(um.IsInstalled);
+        Assert.Null(um.CurrentReleaseNotesMarkdown);
+        Assert.Null(um.CurrentReleaseNotesHtml);
+    }
+
+    [Fact]
+    public void ExposesCurrentReleaseNotesFromLocator()
+    {
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var locator = new TestVelopackLocator(
+            "MyCoolApp",
+            "1.0.0",
+            tempPath,
+            null,
+            null,
+            null,
+            logger: logger.ToVelopackLogger(),
+            releaseNotesMarkdown: "# Notes\n\n- one",
+            releaseNotesHtml: "<h1>Notes</h1>");
+        var um = new UpdateManager(locator: locator);
+        Assert.Equal("# Notes\n\n- one", um.CurrentReleaseNotesMarkdown);
+        Assert.Equal("<h1>Notes</h1>", um.CurrentReleaseNotesHtml);
     }
 
     [Fact]

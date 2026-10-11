@@ -42,6 +42,8 @@ def test_update_manager_defaults_to_flow():
         um = velopack.UpdateManager(locator=locator)
         assert um.get_app_id() == "Test.Squirrel-App"
         assert um.get_current_version() == "1.0.0"
+        assert um.get_current_release_notes_markdown() == "# Release 1.0.0\n\n- Initial release"
+        assert um.get_current_release_notes_html() == "<h1>Release 1.0.0</h1>\n<ul>\n<li>Initial release</li>\n</ul>"
 
 
 def test_update_manager_with_explicit_flow_source():
