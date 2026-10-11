@@ -33,6 +33,24 @@ where
     op()
 }
 
+/// Converts a `windows` crate error (an HRESULT, `0x8007xxxx` for Win32 errors) into an `io::Error` whose
+/// `raw_os_error()` is the original Win32 error code, so callers can match on `ERROR_*` values.
+#[cfg(windows)]
+pub fn io_error_from_win32(err: windows::core::Error) -> std::io::Error {
+    std::io::Error::from_raw_os_error(win32_error_code(&err) as i32)
+}
+
+/// The Win32 error code carried by a `windows` crate error (the low 16 bits of a `FACILITY_WIN32` HRESULT).
+#[cfg(windows)]
+pub fn win32_error_code(err: &windows::core::Error) -> u32 {
+    let code = err.code().0 as u32;
+    if code & 0xFFFF_0000 == 0x8007_0000 {
+        code & 0xFFFF
+    } else {
+        code
+    }
+}
+
 pub fn random_string(len: usize) -> String {
     Alphanumeric.sample_string(&mut rand::rng(), len)
 }

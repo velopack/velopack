@@ -5,20 +5,18 @@ use std::sync::Arc;
 
 use crate::{
     constants::*,
+    ipc::IpcEndpoint,
     locator::{self, VelopackLocatorConfig},
-    manager, sources,
+    lockfile::LockFile,
+    manager, single_instance, sources,
 };
 
-/// A hook invoked with the file path or URL the operating system asked this app to open.
-/// `Send + Sync + 'static` because on macOS it is kept for the life of the process and invoked from the Cocoa run loop.
+/// A hook invoked with the file path or URL the operating system asked this app to open. `Send + Sync + 'static`
+/// because in `SingleInstance` mode it is kept for the life of the process and invoked from the IPC server thread.
 pub(crate) type AssociationHook = Arc<dyn Fn(String) + Send + Sync + 'static>;
 
 /// One association activation: the canonical CLI flag (`--veloapp-fileassoc` / `--veloapp-urlproto`) and its value.
 pub(crate) type Association = (&'static str, String);
-
-/// How long `run()` waits for macOS to deliver the launch Apple Event before restarting to apply a pending update.
-#[cfg(target_os = "macos")]
-const LAUNCH_EVENT_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// VelopackApp helps you to handle app activation events correctly.
 /// This should be used as early as possible in your application startup code.
@@ -101,14 +99,27 @@ impl<'a> VelopackApp<'a> {
     /// This hook is triggered when the operating system opens this app to handle a file whose extension was
     /// registered with `vpk pack --fileAssociations`. The argument is the full path of the file to open.
     ///
-    /// On Windows the path arrives as `--veloapp-fileassoc <path>` on the command line and the hook is invoked
-    /// from `run()`, after the regular startup logic (the app then continues starting normally). On macOS files
-    /// arrive as Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then be invoked at any
-    /// time during the app's lifetime, on the main thread, and Velopack's handler replaces the UI framework's own
-    /// open-file handling. The launch is never lost to an update: when `run()` restarts the app to apply a pending
-    /// update, the file(s) are forwarded to the new version, which invokes this hook once per file. On macOS this
-    /// means `run()` first waits for the launch Apple Event (up to about 2 seconds, only when an update is about to
-    /// be applied). Not supported on Linux.
+    /// On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
+    /// association helper bundle receives the open-file event and launches the app with it). With the default
+    /// `NewInstance` launch mode the hook is invoked from `run()`, on the calling thread, after the regular startup
+    /// logic (OnFirstRun/OnRestarted); the app then continues starting normally. The launch is never lost to an
+    /// update: when `run()` restarts the app to apply a pending update, the file(s) are forwarded to the new
+    /// version, which invokes this hook once per file.
+    ///
+    /// With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
+    /// running hands the path to that instance and exits with code 0 before any update is applied. In the
+    /// receiving instance the hook runs **on a background thread** (invocations are serialized; possibly while the
+    /// main thread is still inside `run()`, even before the first-run/restarted hooks, or at any later time), so
+    /// it must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the UI thread
+    /// rather than blocking on it): the launching process waits at most 5 seconds for the hook to return, after
+    /// which it handles the activation itself as a second instance. The running instance is not brought to the
+    /// foreground by the OS, so activate your main window from the hook. If no instance answers within about 5
+    /// seconds, the launching process handles the activation itself, as in `NewInstance` mode.
+    ///
+    /// macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in
+    /// a protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders"
+    /// prompt, or fails with EPERM if the user denied it earlier; add the `NS*FolderUsageDescription` strings to
+    /// your Info.plist. Associations require macOS 10.13+. Not supported on Linux.
     pub fn on_file_assoc<F: Fn(String) + Send + Sync + 'static>(mut self, hook: F) -> Self {
         self.file_assoc_hook = Some(Arc::new(hook));
         self
@@ -117,14 +128,24 @@ impl<'a> VelopackApp<'a> {
     /// This hook is triggered when the operating system opens this app to handle a URL whose scheme was
     /// registered with `vpk pack --urlProtocols`. The argument is the full URL (eg. `myapp://open?id=1`).
     ///
-    /// On Windows the URL arrives as `--veloapp-urlproto <url>` on the command line and the hook is invoked
-    /// from `run()`, after the regular startup logic (the app then continues starting normally). On macOS URLs
-    /// arrive as Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then be invoked at any
-    /// time during the app's lifetime, on the main thread, and Velopack's handler replaces the UI framework's own
-    /// open-URL handling. The launch is never lost to an update: when `run()` restarts the app to apply a pending
-    /// update, the URL is forwarded to the new version, which invokes this hook. On macOS this means `run()` first
-    /// waits for the launch Apple Event (up to about 2 seconds, only when an update is about to be applied).
-    /// Not supported on Linux.
+    /// On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
+    /// association helper bundle receives the open-URL event and launches the app with it). With the default
+    /// `NewInstance` launch mode the hook is invoked from `run()`, on the calling thread, after the regular startup
+    /// logic (OnFirstRun/OnRestarted); the app then continues starting normally. The launch is never lost to an
+    /// update: when `run()` restarts the app to apply a pending update, the URL is forwarded to the new version,
+    /// which invokes this hook.
+    ///
+    /// With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
+    /// running hands the URL to that instance and exits with code 0 before any update is applied. In the receiving
+    /// instance the hook runs **on a background thread** (invocations are serialized; possibly while the main
+    /// thread is still inside `run()`, even before the first-run/restarted hooks, or at any later time), so it
+    /// must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the UI thread
+    /// rather than blocking on it): the launching process waits at most 5 seconds for the hook to return, after
+    /// which it handles the activation itself as a second instance. The running instance is not brought to the
+    /// foreground by the OS, so activate your main window from the hook. If no instance answers within about 5
+    /// seconds, the launching process handles the activation itself, as in `NewInstance` mode.
+    ///
+    /// Associations require macOS 10.13+. Not supported on Linux.
     pub fn on_url_proto<F: Fn(String) + Send + Sync + 'static>(mut self, hook: F) -> Self {
         self.url_proto_hook = Some(Arc::new(hook));
         self
@@ -194,15 +215,28 @@ impl<'a> VelopackApp<'a> {
 
         // An OS file/URL association activation. Only recognised when a matching hook is registered,
         // otherwise the arguments are left untouched for the application to interpret itself.
-        let mut associations = self.detect_associations(&args);
-
-        #[cfg(target_os = "macos")]
-        if self.has_association_hook() {
-            crate::apple_events::install(self.file_assoc_hook.clone(), self.url_proto_hook.clone());
-        }
+        let associations = self.detect_associations(&args);
 
         match manager::UpdateManager::new(sources::NoneSource {}, None, self.locator.clone()) {
-            Ok(manager) => self.run_installed_startup(&manager, &args, &mut associations),
+            Ok(manager) => {
+                // SingleInstance launch mode: the first instance serves association activations, a later launch
+                // carrying one forwards it to that instance and exits (before any update is applied).
+                let mut server = None;
+                if self.has_association_hook() && manager.get_locator().get_manifest_association_single_instance() {
+                    match single_instance::elect(manager.get_locator(), &associations) {
+                        single_instance::Election::Forwarded => {
+                            info!(
+                                "VelopackApp: forwarded {} association(s) to the running instance, exiting.",
+                                associations.len()
+                            );
+                            exit(0);
+                        }
+                        single_instance::Election::Server(ep, lock) => server = Some((ep, lock)),
+                        single_instance::Election::Standalone => {}
+                    }
+                }
+                self.run_installed_startup(&manager, &args, &associations, server)
+            }
             // not installed (eg. a development build): nothing to apply or clean up, but an association launch is
             // still delivered below, as the C# library does.
             Err(e) => error!("VelopackApp: Error loading manager/locator: {:?}", e),
@@ -217,8 +251,15 @@ impl<'a> VelopackApp<'a> {
     }
 
     /// The part of startup which only applies when the app is installed: AUMID, auto-applying a pending update
-    /// (may exit the process), package cleanup and the first-run / restarted hooks.
-    fn run_installed_startup(&mut self, manager: &manager::UpdateManager, args: &[String], associations: &mut Vec<Association>) {
+    /// (may exit the process), starting the SingleInstance server (if this process was elected), package cleanup
+    /// and the first-run / restarted hooks.
+    fn run_installed_startup(
+        &mut self,
+        manager: &manager::UpdateManager,
+        args: &[String],
+        associations: &[Association],
+        server: Option<(IpcEndpoint, LockFile)>,
+    ) {
         #[cfg(target_os = "windows")]
         {
             let aumid = self
@@ -257,21 +298,10 @@ impl<'a> VelopackApp<'a> {
             if self.auto_apply && !restarted {
                 let asset = manager::local_path_to_asset(manifest, path);
 
-                // On macOS the OS tells us what to open through a launch Apple Event, which is only delivered once a
-                // Cocoa run loop is pumped; collect it now so the launch is not lost when this process exits.
-                #[cfg(target_os = "macos")]
-                let drained: Vec<Association> = if self.has_association_hook() {
-                    crate::apple_events::drain_launch_events(LAUNCH_EVENT_DRAIN_TIMEOUT)
-                } else {
-                    Vec::new()
-                };
-                #[cfg(not(target_os = "macos"))]
-                let drained: Vec<Association> = Vec::new();
-
                 // Hand the associations on as repeated [flag, value] pairs (leading the arguments) so the recovered
                 // values survive the restart intact; without any, the arguments are forwarded as they are.
                 let mut restart_args: Vec<String> = Vec::new();
-                for (flag, value) in drained.iter().chain(associations.iter()) {
+                for (flag, value) in associations.iter() {
                     restart_args.push(flag.to_string());
                     restart_args.push(value.clone());
                 }
@@ -279,19 +309,23 @@ impl<'a> VelopackApp<'a> {
                     restart_args.extend(args.iter().cloned());
                 }
 
+                // on success this exits the process (releasing the SingleInstance lock); on failure the
+                // activation is still delivered in this process
                 if let Err(e) = manager.apply_updates_and_restart_with_args(&asset, &restart_args) {
                     error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
-                    // Still deliver whatever the OS asked us to open, in this process. Known limitation: on macOS
-                    // the drain has already finished launching NSApplication (with our oapp/rapp handlers
-                    // installed) and the app simply carries on from there; it is deliberately not relaunched, which
-                    // could loop forever on a persistent apply failure.
-                    associations.extend(drained);
                 }
             }
             Some(pending_ver)
         } else {
             None
         };
+
+        // The process is now committed to staying alive: serve forwarded activations from here on, before the
+        // (arbitrarily slow) first-run / restarted hooks, so that association launches made meanwhile are not
+        // left waiting for the whole connect window and then duplicated.
+        if let Some((ep, lock)) = server {
+            single_instance::start(ep, lock, self.file_assoc_hook.clone(), self.url_proto_hook.clone());
+        }
 
         // clean up old packages
         cleanup_old_packages_from_list(local_packages, &my_version, pending_version.as_ref());
@@ -305,7 +339,6 @@ impl<'a> VelopackApp<'a> {
         }
     }
 
-    #[cfg(target_os = "macos")]
     fn has_association_hook(&self) -> bool {
         self.file_assoc_hook.is_some() || self.url_proto_hook.is_some()
     }
@@ -784,6 +817,104 @@ mod tests {
             .on_url_proto(move |u| urls.lock().unwrap().push(u))
             .run();
         assert!(received.lock().unwrap().is_empty());
+    }
+
+    /// A locator whose manifest (written into `dir`) selects the SingleInstance launch mode.
+    fn single_instance_locator(dir: &std::path::Path) -> VelopackLocatorConfig {
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/Test.Squirrel-App.nuspec");
+        let xml = std::fs::read_to_string(fixture)
+            .unwrap()
+            .replace("</metadata>", "<associationLaunchMode>SingleInstance</associationLaunchMode></metadata>");
+        let manifest = dir.join("sq.version");
+        std::fs::write(&manifest, xml).unwrap();
+        let mut config = test_locator(dir);
+        config.UpdateExePath = manifest.clone();
+        config.ManifestPath = manifest;
+        config
+    }
+
+    fn connect_with_retries(ep: &crate::ipc::IpcEndpoint) -> crate::ipc::IpcConnection {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match crate::ipc::connect(ep).unwrap() {
+                Some(c) => return c,
+                None => {
+                    assert!(std::time::Instant::now() < deadline, "no server at {:?}", ep.address);
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+            }
+        }
+    }
+
+    fn forward(ep: &crate::ipc::IpcEndpoint, value: &str) -> bool {
+        let mut msg = crate::ipc::IpcMessage::new(crate::ipc::TYPE_ASSOCIATION);
+        msg.items.push(crate::ipc::IpcItem {
+            flag: HOOK_CLI_URL_PROTO.into(),
+            value: value.into(),
+        });
+        crate::ipc::request(connect_with_retries(ep), &msg, crate::ipc::EXCHANGE_TIMEOUT)
+            .unwrap()
+            .is_ack()
+    }
+
+    #[test]
+    fn test_run_single_instance_serves_forwarded_activations() {
+        let _guard = run_lock();
+        env::remove_var(HOOK_ENV_RESTART);
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let received = Arc::new(std::sync::Mutex::new(Vec::<(String, std::thread::ThreadId)>::new()));
+        let urls = received.clone();
+        // no other instance: the first launch becomes the server and handles its own activation in-process
+        VelopackApp::build()
+            .set_locator(single_instance_locator(tmp_dir.path()))
+            .set_args(vec![HOOK_CLI_URL_PROTO.into(), "myapp://first".into()])
+            .on_url_proto(move |u| urls.lock().unwrap().push((u, std::thread::current().id())))
+            .run();
+        assert_eq!(
+            *received.lock().unwrap(),
+            vec![("myapp://first".to_string(), std::thread::current().id())]
+        );
+
+        // a forwarded activation reaches the hook on the IPC thread and is acked
+        let ep = crate::ipc::IpcEndpoint::for_app("Test.Squirrel-App", tmp_dir.path()).unwrap();
+        assert!(forward(&ep, "myapp://second"));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while received.lock().unwrap().len() < 2 && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let received = received.lock().unwrap();
+        assert_eq!(received.len(), 2);
+        assert_eq!(received[1].0, "myapp://second");
+        assert_ne!(received[1].1, std::thread::current().id());
+    }
+
+    #[test]
+    fn test_run_single_instance_server_is_up_before_firstrun_hook() {
+        let _guard = run_lock();
+        env::remove_var(HOOK_ENV_RESTART);
+        env::set_var(HOOK_ENV_FIRSTRUN, "1");
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let received = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let urls = received.clone();
+        let (acked_tx, acked_rx) = std::sync::mpsc::channel();
+        let ep = crate::ipc::IpcEndpoint::for_app("Test.Squirrel-App", tmp_dir.path()).unwrap();
+        let client = std::thread::spawn(move || {
+            let acked = forward(&ep, "myapp://x");
+            acked_tx.send(acked).unwrap();
+        });
+        VelopackApp::build()
+            .set_locator(single_instance_locator(tmp_dir.path()))
+            .on_first_run(move |_| {
+                // the server must already answer while this (arbitrarily slow) hook is still running
+                assert!(acked_rx
+                    .recv_timeout(std::time::Duration::from_secs(10))
+                    .expect("server not up before the first-run hook"));
+            })
+            .on_url_proto(move |u| urls.lock().unwrap().push(u))
+            .run();
+        env::remove_var(HOOK_ENV_FIRSTRUN);
+        client.join().unwrap();
+        assert_eq!(*received.lock().unwrap(), vec!["myapp://x".to_string()]);
     }
 
     #[test]
