@@ -53,7 +53,7 @@ fn rust_set_locale_strings(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
-custom_action!(ValidatePath => |h_install| validate_path::validate_path(h_install));
+custom_action!(ValidatePath => validate_path::validate_path);
 
 custom_action!(EarlyBootstrap => early_bootstrap);
 fn early_bootstrap(h_install: MSIHANDLE) -> c_uint {
