@@ -2780,6 +2780,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.13.2",
+ "block2 0.6.2",
  "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -5232,6 +5233,7 @@ version = "0.0.0-local"
 dependencies = [
  "anyhow",
  "bitflags 2.13.2",
+ "block2 0.6.2",
  "chrono",
  "clap",
  "derivative",
@@ -5248,6 +5250,9 @@ dependencies = [
  "memmap2",
  "normpath",
  "ntest",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
  "os_info",
  "pretty-bytes-rust",
  "pretty_assertions",
