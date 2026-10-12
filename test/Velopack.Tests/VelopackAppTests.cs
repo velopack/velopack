@@ -150,7 +150,7 @@ public class VelopackAppTests
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
-        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var locator = InstalledLocator(tempPath, logger);
 
         var received = new List<string>();
         var fileReceived = new List<string>();
@@ -175,7 +175,7 @@ public class VelopackAppTests
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
-        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var locator = InstalledLocator(tempPath, logger);
 
         // several pairs are only ever forwarded by a Velopack restart (Run() clears the variable again)
         var received = new List<string>();
@@ -202,7 +202,7 @@ public class VelopackAppTests
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
-        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var locator = InstalledLocator(tempPath, logger);
 
         // not restarted: on Windows the real command line (the test host's, without the flag) is consulted and the OS
         // never passes more than one value, so only the first pair of the synthetic args counts. Elsewhere argv is exact.
@@ -227,7 +227,7 @@ public class VelopackAppTests
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
-        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var locator = InstalledLocator(tempPath, logger);
 
         var order = new List<string>();
         Environment.SetEnvironmentVariable("VELOPACK_FIRSTRUN", "true");
@@ -251,7 +251,7 @@ public class VelopackAppTests
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
-        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var locator = InstalledLocator(tempPath, logger);
 
         VelopackApp.Build()
             .SetLocator(locator)
@@ -268,7 +268,7 @@ public class VelopackAppTests
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
-        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var locator = InstalledLocator(tempPath, logger);
 
         var fileReceived = new List<string>();
         VelopackApp.Build()
@@ -291,6 +291,15 @@ public class VelopackAppTests
         var root = Path.Combine(tempPath, "Root " + Guid.NewGuid().ToString("N").Substring(0, 8));
         Directory.CreateDirectory(Path.Combine(root, "packages"));
         return root;
+    }
+
+    /// <summary>
+    /// An installed-looking locator with its packages and root dir at <paramref name="tempPath"/>: an installed app
+    /// always has a root dir, which the macOS startup reads to register the association helper.
+    /// </summary>
+    private static TestVelopackLocator InstalledLocator(string tempPath, IVelopackLogger logger)
+    {
+        return new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, null, tempPath, null, logger: logger);
     }
 
     /// <summary> An installed-looking locator whose manifest says SingleInstance, rooted at <paramref name="root"/>. </summary>
@@ -532,7 +541,7 @@ public class VelopackAppTests
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
-        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var locator = InstalledLocator(tempPath, logger);
 
         var received = new List<string>();
         VelopackApp.Build()
