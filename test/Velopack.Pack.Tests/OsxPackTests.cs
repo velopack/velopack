@@ -344,7 +344,7 @@ public class OsxPackTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsOSX, "macOS only");
         using var logger = _output.BuildLoggerFor<OsxPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir, GetInstallRoot());
 
         const string id = "OsxAssocE2E";
         var scheme = $"velotest{TestHelper.RandomString(6)}";
@@ -411,7 +411,7 @@ public class OsxPackTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsOSX, "macOS only");
         using var logger = _output.BuildLoggerFor<OsxPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir, GetInstallRoot());
 
         const string id = "OsxAssocUpdate";
         var scheme = $"velotest{TestHelper.RandomString(6)}";
@@ -507,6 +507,16 @@ public class OsxPackTests
     }
 
     /// <summary>
+    /// Where the activation tests install the app. LaunchServices flags a bundle under TMPDIR (`/var/folders/.../T`) as
+    /// `in-temp-dir launch-disabled` and never binds its URL schemes or document types (macOS 26), so the tests must
+    /// install somewhere a user would: this mimics a portable zip unpacked into ~/Applications.
+    /// </summary>
+    private static string GetInstallRoot()
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "velopack-tests");
+    }
+
+    /// <summary>
     /// `open` fails ("No application knows how to open URL", exit 1) exactly when LaunchServices did not pick up the
     /// nested helper's CFBundleURLTypes, which is what these tests exist to catch: a failure is only tolerated locally
     /// (eg. an ssh session without a GUI), never in CI.
@@ -524,30 +534,16 @@ public class OsxPackTests
     }
 
     /// <summary>
-    /// CI only, after `open` could not bind the scheme: records what LaunchServices knows about the bundle, which
-    /// registration variant (if any) makes the scheme bind, and the lsd log, so a runner failure is diagnosable.
+    /// After `open` could not bind the scheme: logs the macOS version and every LaunchServices record mentioning the
+    /// bundle or the scheme (`lsregister -dump`), which shows whether the helper was registered at all and with which
+    /// bundle flags / claimed schemes, so a runner failure is diagnosable without a mac.
     /// </summary>
     private static void ProbeLaunchServices(string bundle, string url, ILogger logger)
     {
         var dir = Path.GetDirectoryName(bundle)!;
-        var helper = OsxAssociationHelper.Find(bundle);
-        var helperExe = helper == null ? null : Path.Combine(helper, "Contents", "MacOS", OsxAssociationHelper.ExecutableName);
-
-        string Run(string file, params string[] args)
-        {
-            try {
-                var r = Exe.InvokeProcess(file, args, dir);
-                logger.Info($"PROBE: {file} {string.Join(" ", args)} => {r.ExitCode}{Environment.NewLine}{r.StdOutput}{r.StdErr}");
-                return r.StdOutput;
-            } catch (Exception ex) {
-                logger.Info($"PROBE: {file} {string.Join(" ", args)} threw {ex.Message}");
-                return "";
-            }
-        }
-
-        void DumpRecords(string label)
-        {
-            var dump = Run(LsRegister, "-dump");
+        try {
+            logger.Info("PROBE: " + Exe.InvokeProcess("/usr/bin/sw_vers", [], dir).StdOutput.Trim());
+            var dump = Exe.InvokeProcess(LsRegister, ["-dump"], dir).StdOutput;
             var records = dump.Split('\n').Aggregate(new List<List<string>> { new() }, (acc, line) => {
                 if (line.StartsWith("-----")) acc.Add(new List<string>());
                 else acc[acc.Count - 1].Add(line);
@@ -555,48 +551,13 @@ public class OsxPackTests
             });
             var scheme = url.Split(':')[0];
             var hits = records.Where(r => r.Any(l => l.Contains(bundle) || l.Contains(scheme))).ToList();
-            logger.Info($"PROBE [{label}]: {records.Count} LS records, {dump.Split('\n').Count(l => l.Contains("claimed schemes"))} with claimed schemes, " +
-                        $"{hits.Count} mention the bundle or '{scheme}'");
+            logger.Info($"PROBE: {records.Count} LaunchServices records, {hits.Count} mention the bundle or '{scheme}'");
             foreach (var hit in hits) {
                 logger.Info("PROBE record:" + Environment.NewLine + string.Join(Environment.NewLine, hit.Take(120)));
             }
+        } catch (Exception ex) {
+            logger.Info("PROBE failed: " + ex.Message);
         }
-
-        Run("/usr/bin/sw_vers");
-        Run("/usr/bin/id");
-        Run("/bin/ls", "-la@R", bundle);
-        Run("/usr/bin/xattr", "-lr", bundle);
-        Run("/usr/bin/codesign", "-dvvv", bundle);
-        if (helper != null) {
-            Run("/usr/bin/plutil", "-lint", Path.Combine(helper, "Contents", "Info.plist"));
-            Run("/bin/cat", Path.Combine(helper, "Contents", "Info.plist"));
-            Run("/usr/bin/file", helperExe);
-            Run("/usr/bin/codesign", "-dvvv", helper);
-            Run("/usr/bin/codesign", "-dvvv", helperExe);
-        }
-
-        DumpRecords("initial");
-
-        var experiments = new (string Name, Action Action)[] {
-            ("lsregister -f helper", () => { if (helper != null) Run(LsRegister, "-f", helper); }),
-            ("lsregister -R -f bundle", () => Run(LsRegister, "-R", "-f", bundle)),
-            ("lsregister -f bundle again", () => Run(LsRegister, "-f", bundle)),
-            ("launch helper once", () => { if (helper != null) { Run("/usr/bin/open", "-g", helper); Thread.Sleep(3000); } }),
-            ("run helper exe directly", () => { if (helperExe != null) { Run(helperExe); } }),
-        };
-        foreach (var (name, action) in experiments) {
-            action();
-            var open = Exe.InvokeProcess("/usr/bin/open", [url], dir);
-            logger.Info($"PROBE: after '{name}': open {url} => {open.ExitCode} {open.StdOutput}{open.StdErr}");
-            if (open.ExitCode == 0) {
-                DumpRecords("after " + name);
-                break;
-            }
-        }
-
-        var log = Run("/usr/bin/log", "show", "--last", "5m", "--style", "compact",
-            "--predicate", "process == \"lsd\" OR process == \"open\" OR subsystem == \"com.apple.launchservices\"");
-        logger.Info("PROBE lsd log tail:" + Environment.NewLine + string.Join(Environment.NewLine, log.Split('\n').TakeLast(300)));
     }
 
     /// <summary> LS-launched processes do not inherit the job environment, and the framework-dependent TestApp needs DOTNET_ROOT. </summary>
