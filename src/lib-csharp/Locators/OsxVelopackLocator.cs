@@ -107,6 +107,7 @@ namespace Velopack.Locators
                     Channel = manifest.Channel;
                     CurrentReleaseNotesMarkdown = manifest.ReleaseNotes;
                     CurrentReleaseNotesHtml = manifest.ReleaseNotesHtml;
+                    AssociationSingleInstance = IsSingleInstanceMode(manifest);
                     logFileName = $"velopack_{manifest.Id}.log";
                 }
             } else {

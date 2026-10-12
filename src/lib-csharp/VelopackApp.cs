@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Velopack.Ipc;
 using Velopack.Locators;
 using Velopack.Logging;
 using Velopack.Util;
@@ -27,9 +28,6 @@ namespace Velopack
         internal const string HookCliFileAssoc = "--veloapp-fileassoc";
         /// <summary> CLI flag the OS passes (via the registered protocol) when the app is opened to handle a URL. </summary>
         internal const string HookCliUrlProto = "--veloapp-urlproto";
-
-        /// <summary> How long <see cref="Run"/> waits for macOS to deliver the launch Apple Event before restarting to apply an update. </summary>
-        private static readonly TimeSpan LaunchEventDrainTimeout = TimeSpan.FromSeconds(2);
 
         [DllImport("shell32.dll", SetLastError = true)]
         private static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
@@ -132,23 +130,32 @@ namespace Velopack
         /// This callback is invoked when the operating system opens the application to handle a file whose extension
         /// was registered with the <c>--fileAssociations</c> packaging option. The argument is the full path of the file.
         /// <para>
-        /// On Windows, the registered association launches the application with <c>--veloapp-fileassoc "{path}"</c>.
-        /// <see cref="Run"/> recovers the path and invokes this callback at the end of startup (after the first-run and
-        /// restarted hooks); normal startup then continues. The callback runs on the thread calling <see cref="Run"/>.
+        /// On Windows the registered association, and on macOS (10.13+) the association helper bundle Velopack packages
+        /// next to the app, launch the application with <c>--veloapp-fileassoc "{path}"</c> (several
+        /// <c>[flag, value]</c> pairs when several files are opened at once). <see cref="Run"/> recovers the path(s) and
+        /// invokes this callback once per file at the end of startup (after the first-run and restarted hooks); normal
+        /// startup then continues. The callback runs on the thread calling <see cref="Run"/>. The launch is never lost
+        /// to an update: when <see cref="Run"/> restarts the application to apply a pending update, the pairs are
+        /// forwarded to the new version.
         /// </para>
         /// <para>
-        /// On macOS, files are delivered as Apple Events (<c>kAEOpenDocuments</c>) rather than command line arguments, so
-        /// this callback may be invoked at any time during the application lifetime and more than once (once per file).
-        /// Events are dispatched on the main thread by the Cocoa run loop, so the application must run one (any
-        /// Cocoa based UI framework does). Registering this callback replaces the UI framework's own open-file handling.
-        /// Delivered only by the net8.0 or later builds of the Velopack package; apps resolving the netstandard2.0 or
-        /// net472 build (including net6.0/net7.0 consumers) get a logged warning and the callback is never invoked on macOS.
+        /// With the <c>--associationLaunchMode SingleInstance</c> packaging option, a launch while an instance of the
+        /// app is already running is handed to that instance instead, and the launching process exits with code 0 from
+        /// inside <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then
+        /// invoked <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the
+        /// main thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
+        /// afterwards. It must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the
+        /// UI thread rather than blocking on it): the launching process waits at most ~5 seconds for the callback to
+        /// return before it handles the activation itself in a second instance. The OS does not bring the running
+        /// instance to the foreground (the short-lived launching process was the activated one), so activate your main
+        /// window from the callback. Plain launches are never forwarded, and if no instance answers within ~5 seconds
+        /// the launching process handles the activation itself as above.
         /// </para>
         /// <para>
-        /// The launch is never lost to an update: when <see cref="Run"/> restarts the application to apply a pending
-        /// update, the file(s) are forwarded to the new version, which invokes this callback once per file. On macOS
-        /// this means <see cref="Run"/> first waits for the launch Apple Event (up to about 2 seconds, only when an
-        /// update is about to be applied).
+        /// On macOS the file is opened by the helper, so the application only receives a path string: its first access
+        /// to a file in a protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and
+        /// Folders" consent prompt, or fails if the user denied it earlier. Add the <c>NS*FolderUsageDescription</c>
+        /// strings to the Info.plist.
         /// </para>
         /// <para>Not supported on Linux; the callback is never invoked there.</para>
         /// </summary>
@@ -162,24 +169,26 @@ namespace Velopack
         /// This callback is invoked when the operating system opens the application to handle a URL whose scheme was
         /// registered with the <c>--urlProtocols</c> packaging option. The argument is the complete URL.
         /// <para>
-        /// On Windows, the registered protocol launches the application with <c>--veloapp-urlproto "{url}"</c>.
-        /// <see cref="Run"/> recovers the URL verbatim from the raw command line (so URLs containing quotes or other
-        /// shell-significant characters survive) and invokes this callback at the end of startup (after the first-run and
-        /// restarted hooks); normal startup then continues. The callback runs on the thread calling <see cref="Run"/>.
+        /// On Windows the registered protocol, and on macOS (10.13+) the association helper bundle Velopack packages
+        /// next to the app, launch the application with <c>--veloapp-urlproto "{url}"</c>. <see cref="Run"/> recovers
+        /// the URL verbatim (on Windows from the raw command line, so URLs containing quotes or other shell-significant
+        /// characters survive) and invokes this callback at the end of startup (after the first-run and restarted
+        /// hooks); normal startup then continues. The callback runs on the thread calling <see cref="Run"/>. The launch
+        /// is never lost to an update: when <see cref="Run"/> restarts the application to apply a pending update, the
+        /// URL is forwarded to the new version.
         /// </para>
         /// <para>
-        /// On macOS, URLs are delivered as Apple Events (<c>kAEGetURL</c>) rather than command line arguments, so this
-        /// callback may be invoked at any time during the application lifetime and more than once. Events are dispatched
-        /// on the main thread by the Cocoa run loop, so the application must run one (any Cocoa based UI framework does).
-        /// Registering this callback replaces the UI framework's own open-URL handling.
-        /// Delivered only by the net8.0 or later builds of the Velopack package; apps resolving the netstandard2.0 or
-        /// net472 build (including net6.0/net7.0 consumers) get a logged warning and the callback is never invoked on macOS.
-        /// </para>
-        /// <para>
-        /// The launch is never lost to an update: when <see cref="Run"/> restarts the application to apply a pending
-        /// update, the URL is forwarded to the new version, which invokes this callback. On macOS this means
-        /// <see cref="Run"/> first waits for the launch Apple Event (up to about 2 seconds, only when an update is
-        /// about to be applied).
+        /// With the <c>--associationLaunchMode SingleInstance</c> packaging option, a launch while an instance of the
+        /// app is already running is handed to that instance instead, and the launching process exits with code 0 from
+        /// inside <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then
+        /// invoked <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the
+        /// main thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
+        /// afterwards. It must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the
+        /// UI thread rather than blocking on it): the launching process waits at most ~5 seconds for the callback to
+        /// return before it handles the activation itself in a second instance. The OS does not bring the running
+        /// instance to the foreground (the short-lived launching process was the activated one), so activate your main
+        /// window from the callback. Plain launches are never forwarded, and if no instance answers within ~5 seconds
+        /// the launching process handles the activation itself as above.
         /// </para>
         /// <para>Not supported on Linux; the callback is never invoked there.</para>
         /// </summary>
@@ -318,14 +327,24 @@ namespace Velopack
             }
 
             var myVersion = locator.CurrentlyInstalledVersion;
-            if (myVersion != null) {
-                if (!RunInstalledStartup(locator, myVersion, args, associations, firstrun, restarted)) {
+
+            // SingleInstance: the first instance becomes the IPC server; a later association launch forwards its
+            // values to it and exits (before any auto-apply). A plain launch just continues as another instance.
+            SingleInstanceServer? server = null;
+            if (myVersion != null && (_fileAssoc != null || _urlProto != null)
+                && locator is VelopackLocator { AssociationSingleInstance: true } vl
+                && !string.IsNullOrEmpty(vl.AppId) && !string.IsNullOrEmpty(vl.RootAppDir)) {
+                if (SingleInstance.Elect(vl, associations, log, out server) == Election.Forwarded) {
+                    log.Info($"Forwarded {associations.Count} association(s) to the running instance, exiting.");
+                    locator.Process.Exit(0);
                     return;
                 }
             }
 
-            if (VelopackRuntimeInfo.IsOSX && (_fileAssoc != null || _urlProto != null)) {
-                InstallAppleEventHandlers(log);
+            if (myVersion != null) {
+                if (!RunInstalledStartup(locator, myVersion, args, associations, firstrun, restarted, server)) {
+                    return;
+                }
             }
 
             foreach (var association in associations) {
@@ -338,7 +357,7 @@ namespace Velopack
         /// (restarting to apply an update), true if startup should continue.
         /// </summary>
         private bool RunInstalledStartup(IVelopackLocator locator, SemanticVersion myVersion, string[] args,
-            List<(string Flag, string Value)> associations, bool firstrun, bool restarted)
+            List<(string Flag, string Value)> associations, bool firstrun, bool restarted, SingleInstanceServer? server)
         {
             var log = locator.Log;
             var localPackages = locator.GetLocalPackages();
@@ -356,9 +375,8 @@ namespace Velopack
 
                     // Hand the associations on as repeated [flag, value] pairs (leading the arguments) so the recovered
                     // values survive the restart intact; without any, the arguments are forwarded as they are.
-                    var drained = DrainMacLaunchEvents(log);
                     var restartArgs = new List<string>();
-                    foreach (var (flag, value) in drained.Concat(associations)) {
+                    foreach (var (flag, value) in associations) {
                         restartArgs.Add(flag);
                         restartArgs.Add(value);
                     }
@@ -372,15 +390,12 @@ namespace Velopack
                         UpdateExe.Apply(locator, latestLocal, false, locator.Process.GetCurrentProcessId(), true, restartArgs.ToArray());
                         applying = true;
                     } catch (Exception ex) {
+                        // startup continues in this process, which still delivers whatever the OS asked us to open
                         log.Error(ex, "Error applying pending updates on startup.");
-                        // Startup continues in this process, so still deliver whatever the OS asked us to open. Known
-                        // limitation: on macOS the drain has already finished launching NSApplication (with our oapp/rapp
-                        // handlers installed) and the app simply carries on from there; it is deliberately not relaunched,
-                        // which could loop forever on a persistent apply failure.
-                        associations.AddRange(drained);
                     }
 
                     if (applying) {
+                        // exiting releases the SingleInstance lock, so the restarted process can take it
                         locator.Process.Exit(0);
                         return false;
                     }
@@ -388,6 +403,13 @@ namespace Velopack
                     log.Info(
                         "Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
+            }
+
+            // the process is now committed to staying alive: serve forwarded activations from here on, BEFORE the
+            // cleanup and the first-run/restarted hooks (arbitrary user code, eg. a welcome window), since the lock has
+            // been held since the election and association launches would otherwise stall for the whole connect window
+            if (server != null) {
+                SingleInstance.Start(server, this, log);
             }
 
             // clean up old versions of the app
@@ -428,9 +450,9 @@ namespace Velopack
             return true;
         }
 
-        private Action<string>? GetAssociationCallback(string flag) => flag == HookCliFileAssoc ? _fileAssoc : _urlProto;
+        internal Action<string>? GetAssociationCallback(string flag) => flag == HookCliFileAssoc ? _fileAssoc : _urlProto;
 
-        private void InvokeAssociationCallback(IVelopackLogger log, string flag, string value)
+        internal void InvokeAssociationCallback(IVelopackLogger log, string flag, string value)
         {
             var callback = GetAssociationCallback(flag);
             if (callback == null) {
@@ -442,50 +464,6 @@ namespace Velopack
             } catch (Exception ex) {
                 log.Error(ex, $"Error occurred executing user defined Velopack hook. ({flag})");
             }
-        }
-
-        /// <summary>
-        /// On macOS the OS tells us what to open through a launch Apple Event, which is only delivered once a Cocoa run
-        /// loop is pumped. Called right before restarting to apply an update, this pumps the run loop until that event
-        /// has arrived (or <see cref="LaunchEventDrainTimeout"/> elapses) and returns the files / URLs it carried so
-        /// they can be forwarded to the restarted app. Empty on other platforms, without association callbacks, and when
-        /// not called on the main thread (AppKit would abort the process).
-        /// <para>
-        /// Known limitation: if the update is then not applied after all (the apply failed), the process carries on with
-        /// NSApplication already finish-launched and our oapp/rapp handlers still installed; the caller delivers the
-        /// collected values to the callbacks itself. The process is deliberately not relaunched to undo this, since that
-        /// could loop forever on a persistent apply failure.
-        /// </para>
-        /// </summary>
-        private List<(string Flag, string Value)> DrainMacLaunchEvents(IVelopackLogger log)
-        {
-            var drained = new List<(string Flag, string Value)>();
-#if NET8_0_OR_GREATER
-            if (VelopackRuntimeInfo.IsOSX && (_fileAssoc != null || _urlProto != null)) {
-                try {
-                    drained = Osx.AppleEventHandler.DrainLaunchEvents(_fileAssoc != null, _urlProto != null, LaunchEventDrainTimeout, log);
-                } catch (Exception ex) {
-                    log.Error(ex, "Failed to collect the macOS launch Apple Event before applying the update.");
-                }
-            }
-#endif
-            return drained;
-        }
-
-        [SupportedOSPlatform("osx")]
-        private void InstallAppleEventHandlers(IVelopackLogger log)
-        {
-#if NET8_0_OR_GREATER
-            try {
-                Osx.AppleEventHandler.Install(_fileAssoc, _urlProto, log);
-            } catch (Exception ex) {
-                log.Error(ex, "Failed to install macOS Apple Event handlers for file/URL associations.");
-            }
-#else
-            log.Warn(
-                "File/URL association callbacks are not delivered on macOS by this build of Velopack " +
-                "(netstandard2.0 / net472); they require the net8.0 or later build of the package.");
-#endif
         }
 
         /// <summary>

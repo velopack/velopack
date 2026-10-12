@@ -90,6 +90,7 @@ namespace Velopack.Locators
                     Channel = manifest.Channel;
                     CurrentReleaseNotesMarkdown = manifest.ReleaseNotes;
                     CurrentReleaseNotesHtml = manifest.ReleaseNotesHtml;
+                    AssociationSingleInstance = IsSingleInstanceMode(manifest);
                     AppUserModelId = !string.IsNullOrEmpty(manifest.ShortcutAumid)
                         ? manifest.ShortcutAumid
                         : CoreUtil.GetAppUserModelId(manifest.Id!);
@@ -123,6 +124,7 @@ namespace Velopack.Locators
                     Channel = manifest.Channel;
                     CurrentReleaseNotesMarkdown = manifest.ReleaseNotes;
                     CurrentReleaseNotesHtml = manifest.ReleaseNotesHtml;
+                    AssociationSingleInstance = IsSingleInstanceMode(manifest);
                     AppUserModelId = !string.IsNullOrEmpty(manifest.ShortcutAumid)
                         ? manifest.ShortcutAumid
                         : CoreUtil.GetAppUserModelId(manifest.Id!);

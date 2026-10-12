@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <LangVersion>9</LangVersion>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <VelopackPackageId>Velopack</VelopackPackageId>
   </PropertyGroup>
 

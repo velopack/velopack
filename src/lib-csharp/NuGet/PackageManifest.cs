@@ -34,6 +34,11 @@ namespace Velopack.NuGet
         public IEnumerable<string> FileAssociations { get; private set; } = Enumerable.Empty<string>();
         /// <summary> URL scheme names (eg. "myapp") this app is registered as a handler for. Never contains empty entries. </summary>
         public IEnumerable<string> UrlProtocols { get; private set; } = Enumerable.Empty<string>();
+        /// <summary>
+        /// What an association activation does while the app is already running: "SingleInstance" forwards it to the
+        /// running instance; anything else (or absent) starts a new instance.
+        /// </summary>
+        public string? AssociationLaunchMode { get; private set; }
 
         private static readonly string[] ExcludePaths = new[] { "_rels", "package" };
 
@@ -156,6 +161,9 @@ namespace Velopack.NuGet
                 break;
             case "urlProtocols":
                 UrlProtocols = getCommaDelimitedValue(value);
+                break;
+            case "associationLaunchMode":
+                AssociationLaunchMode = value;
                 break;
             }
         }

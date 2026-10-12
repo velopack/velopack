@@ -1,3 +1,4 @@
+using Velopack.Ipc;
 using Velopack.Locators;
 using Velopack.Logging;
 using Velopack.Util;
@@ -278,6 +279,216 @@ public class VelopackAppTests
 
         Assert.Empty(fileReceived);
         Assert.Null(locator.ExitCode);
+    }
+
+    /// <summary>
+    /// A root for one SingleInstance test. The IPC servers these tests start live for the whole test process, holding
+    /// the lock of their endpoint (keyed on the root path), and <see cref="TempUtil.GetTempDirectory"/> reuses its
+    /// <c>temp.N</c> names once disposed, so every test needs a root path no other test can get again.
+    /// </summary>
+    private static string UniqueRoot(string tempPath)
+    {
+        var root = Path.Combine(tempPath, "Root " + Guid.NewGuid().ToString("N").Substring(0, 8));
+        Directory.CreateDirectory(Path.Combine(root, "packages"));
+        return root;
+    }
+
+    /// <summary> An installed-looking locator whose manifest says SingleInstance, rooted at <paramref name="root"/>. </summary>
+    private static TestVelopackLocator SingleInstanceLocator(string root, IVelopackLogger logger)
+    {
+        var packages = Path.Combine(root, "packages");
+        return new TestVelopackLocator("MyCoolApp", "1.0.0", packages, null, root, null, logger: logger) { AssociationSingleInstance = true };
+    }
+
+    private static IpcMessage UrlActivation(string value) => new(IpcProtocol.TypeAssociation) {
+        Items = new List<IpcItem> { new(VelopackApp.HookCliUrlProto, value) },
+    };
+
+    private static void WaitFor(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!condition() && DateTime.UtcNow < deadline) {
+            Thread.Sleep(20);
+        }
+
+        Assert.True(condition(), "condition not met within 5 s");
+    }
+
+    [Fact]
+    public void RunSingleInstanceBecomesServerAndReceivesForwarded()
+    {
+        var logger = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+        var locator = SingleInstanceLocator(root, logger);
+
+        var received = new List<(string Value, int ThreadId)>();
+        VelopackApp.Build()
+            .SetLocator(locator)
+            .SetArgs(new[] { "--veloapp-urlproto", "myapp://a" })
+            .OnUrlProto(v => { lock (received) received.Add((v, Environment.CurrentManagedThreadId)); })
+            .Run();
+
+        // the first instance handles its own activation inline and becomes the server
+        Assert.Null(locator.ExitCode);
+        Assert.Equal(new[] { ("myapp://a", Environment.CurrentManagedThreadId) }, received);
+        Assert.Contains(logger.Entries, e => e.Contains("serving association activations"));
+
+        // a forwarded activation is acked after the callback ran, on a Velopack IPC thread
+        var ep = IpcEndpoint.ForApp("MyCoolApp", root, logger);
+        Assert.NotNull(ep);
+        using (var conn = IpcServerClientTests.ConnectWithRetries(ep)) {
+            Assert.True(conn.Request(UrlActivation("myapp://b"), IpcProtocol.ExchangeTimeout).IsAck);
+        }
+
+        WaitFor(() => { lock (received) return received.Count == 2; });
+        Assert.Equal("myapp://b", received[1].Value);
+        Assert.NotEqual(Environment.CurrentManagedThreadId, received[1].ThreadId);
+        Assert.DoesNotContain(logger.Entries, e => e.Contains("myapp://b")); // values never reach the log
+
+        // an unregistered flag is refused (and nothing is invoked)
+        using (var conn = IpcServerClientTests.ConnectWithRetries(ep)) {
+            var reply = conn.Request(
+                new IpcMessage(IpcProtocol.TypeAssociation) { Items = new List<IpcItem> { new(VelopackApp.HookCliFileAssoc, @"C:\a.myproj") } },
+                IpcProtocol.ExchangeTimeout);
+            Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrUnhandledAssociation), (reply.Type, reply.Message));
+        }
+
+        using (var conn = IpcServerClientTests.ConnectWithRetries(ep)) {
+            var reply = conn.Request(new IpcMessage("bogus"), IpcProtocol.ExchangeTimeout);
+            Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrUnknownMessageType), (reply.Type, reply.Message));
+        }
+
+        Assert.Equal(2, received.Count);
+    }
+
+    [Fact]
+    public void RunSingleInstanceServerIsUpBeforeFirstRunHook()
+    {
+        var logger = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+        var locator = SingleInstanceLocator(root, logger);
+
+        var received = new List<string>();
+        var firstRunEntered = new ManualResetEventSlim();
+        var releaseFirstRun = new ManualResetEventSlim();
+        Environment.SetEnvironmentVariable("VELOPACK_FIRSTRUN", "true");
+        var runThread = new Thread(() => {
+            try {
+                VelopackApp.Build()
+                    .SetLocator(locator)
+                    .SetArgs(new string[0])
+                    .OnFirstRun(_ => {
+                        firstRunEntered.Set();
+                        releaseFirstRun.Wait(TimeSpan.FromSeconds(10));
+                    })
+                    .OnUrlProto(v => { lock (received) received.Add(v); })
+                    .Run();
+            } finally {
+                Environment.SetEnvironmentVariable("VELOPACK_FIRSTRUN", null);
+            }
+        });
+        runThread.Start();
+
+        try {
+            Assert.True(firstRunEntered.Wait(TimeSpan.FromSeconds(10)));
+            // the server accepts while the first-run hook (arbitrary user code) is still blocking the main thread
+            var ep = IpcEndpoint.ForApp("MyCoolApp", root, logger);
+            Assert.NotNull(ep);
+            using var conn = IpcServerClientTests.ConnectWithRetries(ep);
+            Assert.True(conn.Request(UrlActivation("myapp://early"), IpcProtocol.ExchangeTimeout).IsAck);
+            Assert.False(releaseFirstRun.IsSet);
+            Assert.Equal(new[] { "myapp://early" }, received);
+        } finally {
+            releaseFirstRun.Set();
+            runThread.Join();
+        }
+
+        Assert.Null(locator.ExitCode);
+    }
+
+    [Fact]
+    public void RunSingleInstanceForwardsAndExits()
+    {
+        // POSIX record locks are per process, so a second election in the same process cannot observe a held lock
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
+        var logger = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+
+        // instance A: elected server, serving the url callback
+        var locatorA = SingleInstanceLocator(root, logger);
+        var receivedA = new List<string>();
+        var appA = VelopackApp.Build().OnUrlProto(v => { lock (receivedA) receivedA.Add(v); });
+        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
+        SingleInstance.Start(server!, appA, logger);
+
+        // instance B: launched for an association, forwards it and exits with 0 before anything else
+        var locatorB = SingleInstanceLocator(root, logger);
+        var receivedB = new List<string>();
+        var value = "myapp://open?q=\"a b\"";
+        VelopackApp.Build()
+            .SetLocator(locatorB)
+            .SetArgs(new[] { "--veloapp-urlproto", value })
+            .OnUrlProto(receivedB.Add)
+            .Run();
+
+        Assert.Equal(0, locatorB.ExitCode);
+        Assert.Empty(receivedB);
+        Assert.Equal(new[] { value }, receivedA);
+        Assert.Contains(logger.Entries, e => e.Contains("Forwarded 1 association(s)"));
+    }
+
+    [Fact]
+    public void RunSingleInstancePlainLaunchContinues()
+    {
+        var logger = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+
+        // another instance holds the lock (on Windows; elsewhere this process simply takes it again)
+        var locatorA = SingleInstanceLocator(root, logger);
+        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
+        SingleInstance.Start(server!, VelopackApp.Build().OnUrlProto(_ => { }), logger);
+
+        var locatorB = SingleInstanceLocator(root, logger);
+        VelopackApp.Build()
+            .SetLocator(locatorB)
+            .SetArgs(new[] { "--not-an-association", "x" })
+            .OnUrlProto(_ => { })
+            .Run();
+
+        Assert.Null(locatorB.ExitCode);
+    }
+
+    [Fact]
+    public void RunSingleInstanceInvalidUnicodeIsHandledInProcess()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
+        var logger = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+
+        var locatorA = SingleInstanceLocator(root, logger);
+        var receivedA = new List<string>();
+        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
+        SingleInstance.Start(server!, VelopackApp.Build().OnFileAssoc(receivedA.Add), logger);
+
+        // NTFS allows a lone surrogate in a file name; JSON cannot carry it, so it is handled in-process, not altered
+        var lone = "C:\\Users\\me\\bad\uD800name.myproj";
+        var locatorB = SingleInstanceLocator(root, logger);
+        var receivedB = new List<string>();
+        VelopackApp.Build()
+            .SetLocator(locatorB)
+            .SetArgs(new[] { "--veloapp-fileassoc", lone })
+            .OnFileAssoc(receivedB.Add)
+            .Run();
+
+        Assert.Null(locatorB.ExitCode);
+        Assert.Equal(new[] { lone }, receivedB);
+        Assert.Empty(receivedA);
+        Assert.Contains(logger.Entries, e => e.Contains("not valid Unicode"));
     }
 
     [Fact]
