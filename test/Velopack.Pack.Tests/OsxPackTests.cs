@@ -368,7 +368,7 @@ public class OsxPackTests
 
             // (a) no instance running: the helper starts the app with the url, which handles it in-process and exits
             var first = $"{scheme}://first";
-            OpenUrl(first, installDir);
+            OpenUrl(first, bundle, logger);
             WaitForActivation(urlFile, $"OnUrlProto: {first}", 1, logFile, logger);
             logger.Info("TEST: the helper started the app for the first url");
 
@@ -384,7 +384,7 @@ public class OsxPackTests
             Assert.False(server.HasExited, "the waiting instance exited early");
 
             var second = $"{scheme}://second";
-            OpenUrl(second, installDir);
+            OpenUrl(second, bundle, logger);
             WaitForActivation(urlFile, $"OnUrlProto: {second}", 2, logFile, logger);
             Assert.Equal($"Pid: {server.Id}", TestHelper.ReadAllTextShared(pidFile).Trim().Split('\n').Last().Trim());
             logger.Info("TEST: the running instance received the forwarded url");
@@ -442,7 +442,7 @@ public class OsxPackTests
             Assert.DoesNotContain("LSRegisterURL(", log);
 
             var url = $"{scheme}://after-update";
-            OpenUrl(url, installDir);
+            OpenUrl(url, bundle, logger);
             WaitForActivation(urlFile, $"OnUrlProto: {url}", 1, logFile, logger);
             logger.Info("TEST: the updated app received the url");
         } finally {
@@ -511,11 +511,92 @@ public class OsxPackTests
     /// nested helper's CFBundleURLTypes, which is what these tests exist to catch: a failure is only tolerated locally
     /// (eg. an ssh session without a GUI), never in CI.
     /// </summary>
-    private static void OpenUrl(string url, string workingDir)
+    private static void OpenUrl(string url, string bundle, ILogger logger)
     {
+        var workingDir = Path.GetDirectoryName(bundle)!;
         var open = Exe.InvokeProcess("/usr/bin/open", [url], workingDir);
         Assert.SkipWhen(!PathHelper.IsCI && open.ExitCode != 0, $"open failed (no GUI session?): {open.StdOutput} {open.StdErr}");
+        if (open.ExitCode != 0) {
+            ProbeLaunchServices(bundle, url, logger);
+        }
+
         Assert.True(open.ExitCode == 0, $"open '{url}' failed ({open.ExitCode}): {open.StdOutput} {open.StdErr}");
+    }
+
+    /// <summary>
+    /// CI only, after `open` could not bind the scheme: records what LaunchServices knows about the bundle, which
+    /// registration variant (if any) makes the scheme bind, and the lsd log, so a runner failure is diagnosable.
+    /// </summary>
+    private static void ProbeLaunchServices(string bundle, string url, ILogger logger)
+    {
+        var dir = Path.GetDirectoryName(bundle)!;
+        var helper = OsxAssociationHelper.Find(bundle);
+        var helperExe = helper == null ? null : Path.Combine(helper, "Contents", "MacOS", OsxAssociationHelper.ExecutableName);
+
+        string Run(string file, params string[] args)
+        {
+            try {
+                var r = Exe.InvokeProcess(file, args, dir);
+                logger.Info($"PROBE: {file} {string.Join(" ", args)} => {r.ExitCode}{Environment.NewLine}{r.StdOutput}{r.StdErr}");
+                return r.StdOutput;
+            } catch (Exception ex) {
+                logger.Info($"PROBE: {file} {string.Join(" ", args)} threw {ex.Message}");
+                return "";
+            }
+        }
+
+        void DumpRecords(string label)
+        {
+            var dump = Run(LsRegister, "-dump");
+            var records = dump.Split('\n').Aggregate(new List<List<string>> { new() }, (acc, line) => {
+                if (line.StartsWith("-----")) acc.Add(new List<string>());
+                else acc[acc.Count - 1].Add(line);
+                return acc;
+            });
+            var scheme = url.Split(':')[0];
+            var hits = records.Where(r => r.Any(l => l.Contains(bundle) || l.Contains(scheme))).ToList();
+            logger.Info($"PROBE [{label}]: {records.Count} LS records, {dump.Split('\n').Count(l => l.Contains("claimed schemes"))} with claimed schemes, " +
+                        $"{hits.Count} mention the bundle or '{scheme}'");
+            foreach (var hit in hits) {
+                logger.Info("PROBE record:" + Environment.NewLine + string.Join(Environment.NewLine, hit.Take(120)));
+            }
+        }
+
+        Run("/usr/bin/sw_vers");
+        Run("/usr/bin/id");
+        Run("/bin/ls", "-la@R", bundle);
+        Run("/usr/bin/xattr", "-lr", bundle);
+        Run("/usr/bin/codesign", "-dvvv", bundle);
+        if (helper != null) {
+            Run("/usr/bin/plutil", "-lint", Path.Combine(helper, "Contents", "Info.plist"));
+            Run("/bin/cat", Path.Combine(helper, "Contents", "Info.plist"));
+            Run("/usr/bin/file", helperExe);
+            Run("/usr/bin/codesign", "-dvvv", helper);
+            Run("/usr/bin/codesign", "-dvvv", helperExe);
+        }
+
+        DumpRecords("initial");
+
+        var experiments = new (string Name, Action Action)[] {
+            ("lsregister -f helper", () => { if (helper != null) Run(LsRegister, "-f", helper); }),
+            ("lsregister -R -f bundle", () => Run(LsRegister, "-R", "-f", bundle)),
+            ("lsregister -f bundle again", () => Run(LsRegister, "-f", bundle)),
+            ("launch helper once", () => { if (helper != null) { Run("/usr/bin/open", "-g", helper); Thread.Sleep(3000); } }),
+            ("run helper exe directly", () => { if (helperExe != null) { Run(helperExe); } }),
+        };
+        foreach (var (name, action) in experiments) {
+            action();
+            var open = Exe.InvokeProcess("/usr/bin/open", [url], dir);
+            logger.Info($"PROBE: after '{name}': open {url} => {open.ExitCode} {open.StdOutput}{open.StdErr}");
+            if (open.ExitCode == 0) {
+                DumpRecords("after " + name);
+                break;
+            }
+        }
+
+        var log = Run("/usr/bin/log", "show", "--last", "5m", "--style", "compact",
+            "--predicate", "process == \"lsd\" OR process == \"open\" OR subsystem == \"com.apple.launchservices\"");
+        logger.Info("PROBE lsd log tail:" + Environment.NewLine + string.Join(Environment.NewLine, log.Split('\n').TakeLast(300)));
     }
 
     /// <summary> LS-launched processes do not inherit the job environment, and the framework-dependent TestApp needs DOTNET_ROOT. </summary>
