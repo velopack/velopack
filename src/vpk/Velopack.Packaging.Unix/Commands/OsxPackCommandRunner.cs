@@ -81,59 +81,19 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         return Task.FromResult(dir.FullName);
     }
 
-    /// <summary>
-    /// Builds the association helper bundle from the pack options, taking the main app's identity (bundle id,
-    /// display name, icon) from its final Info.plist so a prebuilt .app is matched in Finder "Open With".
-    /// </summary>
+    /// <summary>Builds the association helper bundle from the pack options and the bundle's final Info.plist.</summary>
     private void BuildAssociationHelper(OsxStructureBuilder structure, string[] extensions, string[] schemes)
     {
-        var plist = Path.Combine(structure.ContentsDirectory, PlistWriter.PlistFileName);
-        string Read(string key) => OsxBuildTools.ReadPlistValue(plist, key);
-
-        var mainBundleId = Read("CFBundleIdentifier")
-                           ?? Options.BundleId
-                           ?? OsxBundleCommandRunner.GetDefaultBundleId(Options.PackId, Options.PackAuthors);
-        var displayName = Read("CFBundleDisplayName") ?? Read("CFBundleName") ?? Options.PackTitle ?? Options.PackId;
-
-        // the helper shows the main app's icon in Finder / Safari: --icon, else the plist's CFBundleIconFile, else
-        // CFBundleIconName (an icon in Assets.car cannot be reused, so warn when falling back to the default)
-        var icon = Options.Icon;
-        var iconFile = Read("CFBundleIconFile");
-        if (icon == null && iconFile != null) {
-            icon = new[] { iconFile, iconFile + ".icns" }
-                .Select(f => Path.Combine(structure.ResourcesDirectory, f))
-                .FirstOrDefault(File.Exists);
-        }
-
-        var iconName = Read("CFBundleIconName");
-        if (icon == null && iconName != null) {
-            var path = Path.Combine(structure.ResourcesDirectory, iconName + ".icns");
-            icon = File.Exists(path) ? path : null;
-        }
-
-        if (icon == null) {
-            icon = HelperFile.GetDefaultAppIcon(RuntimeOs.OSX);
-            if (iconName != null) {
-                Log.Warn("The association helper will use the default Velopack icon in Finder/Safari; pass --icon with the app's .icns to match.");
-            }
-        }
-
-        if (Read("CFBundleURLTypes") != null || Read("CFBundleDocumentTypes") != null) {
-            Log.Warn(
-                "Info.plist also declares CFBundleURLTypes/CFBundleDocumentTypes. Launch Services may route activations to the " +
-                "main bundle, where they arrive as Apple Events for the app's own framework and NOT as Velopack OnFileAssoc/OnUrlProto " +
-                "callbacks. Remove those keys from Info.plist or do not pass --fileAssociations/--urlProtocols.");
-        }
-
-        var info = OsxAssociationHelper.CreateInfo(
-            displayName,
-            mainBundleId,
-            SemanticVersion.Parse(Options.PackVersion).Version.ToString(),
-            Options.PackVersion,
+        OsxAssociationHelper.BuildForBundle(
+            Log,
+            structure.AppDirectory,
             extensions,
             schemes,
-            Options.AssociationLaunchMode);
-        OsxAssociationHelper.Build(Log, structure.AppDirectory, info, HelperFile.GetAssocHelperPath(), icon);
+            Options.AssociationLaunchMode,
+            Options.PackVersion,
+            Options.Icon,
+            Options.BundleId ?? OsxBundleCommandRunner.GetDefaultBundleId(Options.PackId, Options.PackAuthors),
+            Options.PackTitle ?? Options.PackId);
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)

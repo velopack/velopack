@@ -346,6 +346,34 @@ public class IpcInteropTests
     }
 
     [Fact]
+    public void RustServerCSharpPlainLaunchContinues()
+    {
+        var log = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+        var outFile = Path.Combine(tempPath, "received.txt");
+
+        using var server = new RustProcess(_output, "ipc-elect", AppId, root, outFile);
+        server.WaitForLine("Server");
+        server.WaitForLine("ready");
+
+        // a plain launch while another instance holds the lock is just another instance: no forwarding, no exit, no wait
+        var locator = Locator(root, log);
+        var timer = Stopwatch.StartNew();
+        VelopackApp.Build()
+            .SetLocator(locator)
+            .SetArgs(new[] { "--not-an-association", "x" })
+            .OnUrlProto(_ => Assert.Fail("no activation was launched"))
+            .Run();
+        Assert.Null(locator.ExitCode);
+        Assert.True(timer.Elapsed < TimeSpan.FromSeconds(4), $"a plain launch must not wait for the connect window ({timer.Elapsed})");
+        Assert.DoesNotContain(log.Entries, e => e.Contains("serving association activations"));
+
+        Assert.False(File.Exists(outFile));
+        Assert.Equal(0, server.Stop());
+    }
+
+    [Fact]
     public void RustClientPlainLaunchIsStandalone()
     {
         var log = new ListLogger(_output);

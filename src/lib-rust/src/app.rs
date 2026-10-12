@@ -223,11 +223,14 @@ impl<'a> VelopackApp<'a> {
                 // carrying one forwards it to that instance and exits (before any update is applied).
                 let mut server = None;
                 if self.has_association_hook() && manager.get_locator().get_manifest_association_single_instance() {
-                    match single_instance::elect(manager.get_locator(), &associations) {
+                    // only items this build has a hook for are forwarded: the running instance (the same build)
+                    // would refuse the whole message over one unhandled item, and they are ignored locally anyway
+                    let forwardable = self.hooked_associations(&associations);
+                    match single_instance::elect(manager.get_locator(), &forwardable) {
                         single_instance::Election::Forwarded => {
                             info!(
                                 "VelopackApp: forwarded {} association(s) to the running instance, exiting.",
-                                associations.len()
+                                forwardable.len()
                             );
                             exit(0);
                         }
@@ -349,6 +352,15 @@ impl<'a> VelopackApp<'a> {
         } else {
             self.url_proto_hook.as_ref()
         }
+    }
+
+    /// The items of `associations` whose flag has a registered hook.
+    fn hooked_associations(&self, associations: &[Association]) -> Vec<Association> {
+        associations
+            .iter()
+            .filter(|(flag, _)| self.association_hook(flag).is_some())
+            .cloned()
+            .collect()
     }
 
     /// Returns the association activations carried by `args` (`--veloapp-fileassoc <path>` /
@@ -676,6 +688,19 @@ mod tests {
 
     fn run_lock() -> std::sync::MutexGuard<'static, ()> {
         RUN_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    #[test]
+    fn test_hooked_associations_keeps_only_items_with_a_hook() {
+        let app = VelopackApp::build().on_url_proto(|_| {});
+        let mixed: Vec<Association> = vec![
+            (HOOK_CLI_FILE_ASSOC, "/x.myproj".into()),
+            (HOOK_CLI_URL_PROTO, "myapp://a".into()),
+            (HOOK_CLI_FILE_ASSOC, "/y.myproj".into()),
+        ];
+        assert_eq!(app.hooked_associations(&mixed), vec![(HOOK_CLI_URL_PROTO, "myapp://a".to_string())]);
+        assert!(app.hooked_associations(&mixed[..1]).is_empty());
+        assert!(VelopackApp::build().hooked_associations(&mixed).is_empty());
     }
 
     fn test_locator(packages_dir: &std::path::Path) -> VelopackLocatorConfig {

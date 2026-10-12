@@ -42,10 +42,6 @@ namespace Velopack.Ipc
     {
         private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
 
-        // the locks (and the server state) must outlive every reference the app holds: a finalized LockFile would
-        // release the lock while the server is still accepting
-        private static readonly List<SingleInstanceServer> Servers = new();
-
         private static LockAttempt TryLock(IpcEndpoint endpoint, out LockFile? lockFile)
         {
             lockFile = new LockFile(endpoint.LockPath);
@@ -154,17 +150,13 @@ namespace Velopack.Ipc
         }
 
         /// <summary>
-        /// Starts serving association activations for the rest of the process. Callbacks run on the connection thread,
-        /// serialized through one gate, and the <c>ack</c> is sent only after they have returned. A failure to start
-        /// simply leaves the process without a server (the lock is released).
+        /// Starts serving association activations for the rest of the process (the server keeps the lock). Callbacks
+        /// run on the connection thread, serialized through one gate, and the <c>ack</c> is sent only after they have
+        /// returned. A failure to start simply leaves the process without a server (the lock is released).
         /// </summary>
         public static void Start(SingleInstanceServer server, VelopackApp app, IVelopackLogger log)
         {
             var gate = new object();
-            lock (Servers) {
-                Servers.Add(server);
-            }
-
             var started = IpcServer.Start(
                 server.Endpoint,
                 server.Lock,
@@ -178,9 +170,6 @@ namespace Velopack.Ipc
                 log.Info("SingleInstance: serving association activations for this app.");
             } else {
                 log.Warn("SingleInstance: could not start the IPC server, later activations start new instances.");
-                lock (Servers) {
-                    Servers.Remove(server);
-                }
             }
         }
 

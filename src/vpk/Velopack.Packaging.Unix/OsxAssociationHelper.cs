@@ -9,7 +9,7 @@ namespace Velopack.Packaging.Unix;
 /// Builds the nested <c>Contents/Helpers/{Name}.app</c> bundle which owns the app's CFBundleURLTypes /
 /// CFBundleDocumentTypes on macOS. The helper (the <c>assochelper</c> rust binary) receives the open-URL /
 /// open-file events and launches the main app with <c>--veloapp-urlproto</c> / <c>--veloapp-fileassoc</c> argv pairs.
-/// Cross-platform (no mac tools) so it is testable on Windows.
+/// Cross-platform (no mac tools) so it is testable on Windows, except <see cref="BuildForBundle"/>.
 /// </summary>
 public static class OsxAssociationHelper
 {
@@ -82,6 +82,62 @@ public static class OsxAssociationHelper
 
         new PlistWriter(log, info, builder.ContentsDirectory).Write();
         return builder.AppDirectory;
+    }
+
+    /// <summary>
+    /// Builds the helper for an existing app bundle, taking the main app's identity (bundle id, display name, icon)
+    /// from its final <c>Contents/Info.plist</c> (read with PlistBuddy, so macOS only) so a prebuilt .app or a user
+    /// <c>--plist</c> is matched in Finder "Open With". The fallbacks apply when the plist lacks the key.
+    /// </summary>
+    public static string BuildForBundle(ILogger log, string appBundlePath, string[] extensions, string[] schemes, AssociationLaunchMode mode,
+        string packVersion, string iconOption, string fallbackBundleId, string fallbackDisplayName)
+    {
+        var structure = new OsxStructureBuilder(appBundlePath);
+        var plist = Path.Combine(structure.ContentsDirectory, PlistWriter.PlistFileName);
+        string Read(string key) => OsxBuildTools.ReadPlistValue(plist, key)?.Trim();
+
+        var mainBundleId = Read("CFBundleIdentifier") ?? fallbackBundleId;
+        var displayName = Read("CFBundleDisplayName") ?? Read("CFBundleName") ?? fallbackDisplayName;
+
+        // the helper shows the main app's icon in Finder / Safari: --icon, else the plist's CFBundleIconFile, else
+        // CFBundleIconName (an icon in Assets.car cannot be reused, so warn when falling back to the default)
+        var icon = iconOption;
+        var iconFile = Read("CFBundleIconFile");
+        if (icon == null && iconFile != null) {
+            icon = new[] { iconFile, iconFile + ".icns" }
+                .Select(f => Path.Combine(structure.ResourcesDirectory, f))
+                .FirstOrDefault(File.Exists);
+        }
+
+        var iconName = Read("CFBundleIconName");
+        if (icon == null && iconName != null) {
+            var path = Path.Combine(structure.ResourcesDirectory, iconName + ".icns");
+            icon = File.Exists(path) ? path : null;
+        }
+
+        if (icon == null) {
+            icon = HelperFile.GetDefaultAppIcon(RuntimeOs.OSX);
+            if (iconName != null) {
+                log.Warn("The association helper will use the default Velopack icon in Finder/Safari; pass --icon with the app's .icns to match.");
+            }
+        }
+
+        if (Read("CFBundleURLTypes") != null || Read("CFBundleDocumentTypes") != null) {
+            log.Warn(
+                "Info.plist also declares CFBundleURLTypes/CFBundleDocumentTypes. Launch Services may route activations to the " +
+                "main bundle, where they arrive as Apple Events for the app's own framework and NOT as Velopack OnFileAssoc/OnUrlProto " +
+                "callbacks. Remove those keys from Info.plist or do not pass --fileAssociations/--urlProtocols.");
+        }
+
+        var info = CreateInfo(
+            displayName,
+            mainBundleId,
+            SemanticVersion.Parse(packVersion).Version.ToString(),
+            packVersion,
+            extensions,
+            schemes,
+            mode);
+        return Build(log, appBundlePath, info, HelperFile.GetAssocHelperPath(), icon);
     }
 
     /// <summary>An existing helper .app (eg. built by <c>vpk bundle</c>) inside the app bundle, or null.</summary>

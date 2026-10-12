@@ -101,6 +101,28 @@ public class IpcProtocolTests
     }
 
     [Fact]
+    public void DeeplyNestedUnknownValuesAreSkippedWithoutRecursion()
+    {
+        // a recursive skip would overflow a thread-pool thread's stack at a few thousand levels and kill the serving
+        // app; serde_json ignores unknown values iteratively at any depth, and so does IpcJson
+        string Nested(int depth, string open, string close) =>
+            string.Concat(Enumerable.Repeat(open, depth)) + "0" + string.Concat(Enumerable.Repeat(close, depth));
+        var arrays = """{"version":1,"type":"ack","x":""" + Nested(100_000, "[", "]") + "}";
+        var objects = """{"version":1,"type":"ack","x":""" + Nested(100_000, """{"a":""", "}") + ""","id":"7"}""";
+        var inItems = """{"version":1,"type":"association","items":[{"flag":"f","junk":""" + Nested(100_000, """[{"a":""", "}]") +
+                      ""","value":"v"}]}""";
+        Assert.True(IpcJson.Deserialize(arrays).IsAck);
+        Assert.Equal("7", IpcJson.Deserialize(objects).Id);
+        Assert.Equal("v", Assert.Single(IpcJson.Deserialize(inItems).Items!).Value);
+        Assert.True(Serve(arrays, m => IpcMessage.Ack().ReplyTo(m))!.IsAck);
+
+        // the skipped value is still validated
+        foreach (var bad in new[] { "[1,]", """{"a":1,}""", "[1 2]", """{"a" 1}""", "[}", "{]", "[", "{\"a\":" }) {
+            Assert.Throws<FormatException>(() => IpcJson.Deserialize("""{"version":1,"type":"ack","x":""" + bad + "}"));
+        }
+    }
+
+    [Fact]
     public void FrameRoundTripsThroughAStream()
     {
         var message = Association("myapp://x");

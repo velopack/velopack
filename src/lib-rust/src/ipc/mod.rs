@@ -554,6 +554,29 @@ mod tests {
         assert!(duplex.output.is_empty());
     }
 
+    // serde_json ignores unknown values iteratively (no recursion limit, no stack use), and the C# reader skips
+    // them the same way: a deeply nested unknown value is neither a crash of the serving app nor a rejection
+    #[test]
+    fn test_serve_request_skips_deeply_nested_unknown_values() {
+        let nested = |depth: usize, open: &str, close: &str| open.repeat(depth) + "0" + &close.repeat(depth);
+        for payload in [
+            format!(r#"{{"version":1,"type":"ack","x":{}}}"#, nested(100_000, "[", "]")),
+            format!(r#"{{"version":1,"type":"ack","x":{},"id":"7"}}"#, nested(100_000, r#"{"a":"#, "}")),
+            format!(
+                r#"{{"version":1,"type":"association","items":[{{"flag":"f","junk":{},"value":"v"}}]}}"#,
+                nested(100_000, r#"[{"a":"#, "}]")
+            ),
+        ] {
+            assert!(payload.len() <= MAX_MESSAGE_BYTES);
+            let reply = serve(payload.as_bytes(), |m| IpcMessage::ack().reply_to(&m)).unwrap();
+            assert!(reply.is_ack(), "{payload:.80}");
+        }
+        // the skipped value is still validated
+        let bad = format!(r#"{{"version":1,"type":"ack","x":{}}}"#, "[1,]");
+        let reply = serve(bad.as_bytes(), |_| panic!("handler must not run")).unwrap();
+        assert_eq!(reply.message.as_deref(), Some(ERR_INVALID_MESSAGE));
+    }
+
     fn random_endpoint() -> IpcEndpoint {
         IpcEndpoint::from_key(&format!("test-{}", crate::misc::random_string(12).to_ascii_lowercase())).unwrap()
     }

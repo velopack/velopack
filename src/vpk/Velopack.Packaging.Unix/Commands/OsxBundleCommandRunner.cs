@@ -91,16 +91,18 @@ public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBund
         FileUtil.CopyDirectoryContents(packDirectory, builder.MacosDirectory, _logger);
 
         if (fileAssociations.Length + urlProtocols.Length > 0) {
-            // not signed here (vpk bundle never signs); the user signs it like the rest of the bundle
-            var helperInfo = OsxAssociationHelper.CreateInfo(
-                info.CFBundleName,
-                info.CFBundleIdentifier,
-                appleSafeVersion,
-                packVersion,
+            // built from the Info.plist that ships (a user --plist may name/identify the app differently from the
+            // options); not signed here (vpk bundle never signs), the user signs it like the rest of the bundle
+            OsxAssociationHelper.BuildForBundle(
+                _logger,
+                builder.AppDirectory,
                 fileAssociations,
                 urlProtocols,
-                options.AssociationLaunchMode);
-            OsxAssociationHelper.Build(_logger, builder.AppDirectory, helperInfo, HelperFile.GetAssocHelperPath(), icon);
+                options.AssociationLaunchMode,
+                packVersion,
+                options.Icon,
+                info.CFBundleIdentifier,
+                info.CFBundleName);
         }
 
         _logger.Debug("Bundle created successfully: " + builder.AppDirectory);

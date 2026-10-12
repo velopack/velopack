@@ -146,11 +146,12 @@ export class VelopackApp {
    * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
    * running hands the path to that instance and the launching process exits with code 0 in native code, inside
    * run(), before any update is applied (`process.on("exit")` handlers do not run, like the fast-exit hooks).
-   * In the receiving instance the callback is queued to the event loop (it always runs on the JS thread), at any
-   * time after run() has started, even before onFirstRun/onRestarted; the IPC server does not keep the event loop
-   * alive, and an activation arriving while the process is already shutting down is logged and dropped. The running
-   * instance is not brought to the foreground by the OS, so activate your main window from the callback. If no
-   * instance answers within about 5 seconds, the launching process handles the activation itself, as in
+   * The receiving instance always invokes the callback on the JS thread: an activation that arrives while run() is
+   * still executing is invoked synchronously at the end of run(), after onFirstRun/onRestarted (like the process's
+   * own command line); one arriving later is dispatched to the event loop. The IPC server does not keep the event
+   * loop alive, and an activation arriving while the process is already shutting down is logged and dropped. The
+   * running instance is not brought to the foreground by the OS, so activate your main window from the callback.
+   * If no instance answers within about 5 seconds, the launching process handles the activation itself, as in
    * `NewInstance` mode.
    *
    * macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in a
@@ -177,11 +178,12 @@ export class VelopackApp {
    * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
    * running hands the URL to that instance and the launching process exits with code 0 in native code, inside
    * run(), before any update is applied (`process.on("exit")` handlers do not run, like the fast-exit hooks).
-   * In the receiving instance the callback is queued to the event loop (it always runs on the JS thread), at any
-   * time after run() has started, even before onFirstRun/onRestarted; the IPC server does not keep the event loop
-   * alive, and an activation arriving while the process is already shutting down is logged and dropped. The running
-   * instance is not brought to the foreground by the OS, so activate your main window from the callback. If no
-   * instance answers within about 5 seconds, the launching process handles the activation itself, as in
+   * The receiving instance always invokes the callback on the JS thread: an activation that arrives while run() is
+   * still executing is invoked synchronously at the end of run(), after onFirstRun/onRestarted (like the process's
+   * own command line); one arriving later is dispatched to the event loop. The IPC server does not keep the event
+   * loop alive, and an activation arriving while the process is already shutting down is logged and dropped. The
+   * running instance is not brought to the foreground by the OS, so activate your main window from the callback.
+   * If no instance answers within about 5 seconds, the launching process handles the activation itself, as in
    * `NewInstance` mode.
    *
    * Associations require macOS 10.13+. Not supported on Linux.

@@ -228,8 +228,9 @@ repeated.
   before `OnFirstRun`/`OnRestarted` or while the main thread is still inside `Run()`; the `ack` is sent only after the
   callback returned for every item, so callbacks must return promptly (post to the UI thread, do not block on it;
   the client gives up after 5 s and handles the value itself). Invalid items (unknown flag, empty value, no callback
-  registered for that flag) → `error("unhandled association")` and nothing is invoked; a C# exception / Rust panic in
-  the callback is logged and still acked. The OS does not bring the running instance to the foreground (the
+  registered for that flag) → `error("unhandled association")` and nothing is invoked, so the client forwards only the
+  items it has a callback for itself (a mixed helper burst keeps the hooked items in the running instance); a C#
+  exception / Rust panic in the callback is logged and still acked. The OS does not bring the running instance to the foreground (the
   short-lived forwarding process was the activated one): activate the main window from the callback. If the server
   cannot start, later activations simply start new instances (warning logged). Bindings: Node queues in-run
   deliveries and calls the JS callbacks synchronously after `run()` (after onFirstRun/onRestarted); later IPC-thread
@@ -241,7 +242,9 @@ repeated.
   `UrlProtoLaunchSurvivesAutoApply` (TestApp auto-applies for any `--veloapp-*` args[0]) and
   `SingleInstanceForwardsActivationToRunningApp` (C# + Rust test apps; both have a `wait` command that writes
   `ready`/`assoc-pid` and polls for a `stop` sentinel). `VelopackAppTests` (C#) and the `app.rs`/`single_instance.rs`
-  tests (Rust) cover the election in-process.
+  tests (Rust) cover the election in-process (Windows only where a second election must see a held lock; the Unix
+  cross-process cases are in `IpcInteropTests`). `src/lib-nodejs/test/VelopackApp.test.ts` elects the vitest process
+  as server and has the Rust testapp (`ipc-send`) forward a url, covering the neon-channel delivery after `run()`.
 - **macOS**: LaunchServices ignores argv, so the libraries contain no AppKit code at all. Instead vpk ships a small
   Rust helper app (`src/bins/src/assochelper.rs`, cargo bin `assochelper`, lipo'd by `build-rust.yml` into the vendored
   `AssocHelperMac`, `HelperFile.GetAssocHelperPath()`) as a NESTED bundle `{Main}.app/Contents/Helpers/{Name}.app`
@@ -249,7 +252,9 @@ repeated.
   with chars outside `[A-Za-z0-9.-]` → `-`; same display name + icon as the main app so it looks right in Finder "Open
   With"; `LSUIElement` = no Dock icon; `LSMinimumSystemVersion` 10.13, so associations require 10.13+). Built by
   `Velopack.Packaging.Unix/OsxAssociationHelper.cs` (`Build`/`Find`/`FindAll`, cross-platform and unit-tested on
-  Windows in `PlistWriterTests`). The helper's Info.plist owns `CFBundleURLTypes` / `CFBundleDocumentTypes` plus the
+  Windows in `PlistWriterTests`; `BuildForBundle` reads the identity from the bundle's final Info.plist with
+  PlistBuddy and is what both `vpk pack` and `vpk bundle` call, so a user `--plist` names the helper). The helper's
+  Info.plist owns `CFBundleURLTypes` / `CFBundleDocumentTypes` plus the
   private `VelopackAssociationLaunchMode` key; the main Info.plist never declares association keys (a user `--plist`
   is left alone; if it does declare them vpk warns, because LS may then route activations to the main bundle where the
   app's own framework gets them and the Velopack callbacks never fire). Icon order for the helper: `--icon`, else
@@ -279,7 +284,9 @@ repeated.
   `:0:ChildBundles:{n}` via PlistBuddy so Installer cannot "relocate" the helper onto a stale copy elsewhere on disk.
   Portable `.zip`: nothing explicit; LS registers the bundle when Finder copies it or the user first launches it and
   scans the nested helper when the outer app is registered (`OsxPackTests.UrlActivationViaHelperReachesApp` registers
-  ONLY the outer bundle to prove this). `ExtractPkgToAppBundle` counts only top-level `.app` dirs.
+  ONLY the outer bundle to prove this; `UrlActivationSurvivesUpdate` applies v2 through UpdateMac and opens the scheme
+  with no lsregister at all, covering `register_association_helpers`). Both fail in CI when `open` cannot resolve the
+  scheme (locally that skips: no GUI session). `ExtractPkgToAppBundle` counts only top-level `.app` dirs.
   **Limitations** (accepted, documented in the `OnFileAssoc` docs of every language): the odoc intent (double-click,
   "Open With", drag-drop) lands on the helper, so the main app only gets a path string and its first access to a file
   in a protected folder (Desktop, Documents, Downloads, removable volumes) triggers the TCC "Files and Folders" prompt
@@ -320,9 +327,10 @@ fail in CI.
   loops, EOF mid-frame / N = 0 / N > cap close the connection without a reply. `{"version":1,"type":"association",
   "items":[{"flag":"--veloapp-urlproto","value":"..."}]}`, `{"version":1,"type":"ack"}`,
   `{"version":1,"type":"error","message":"..."}`; `id` (≤ 64 chars) is an opaque correlation id copied into the reply;
-  `items`/`message`/`id` omitted when empty; unknown fields of any shape ignored. Receivers reject only
-  `version > 1` (`unsupported version`); 0/missing version, missing type, malformed or non-UTF-8 JSON → `invalid
-  message`; unknown types → `unknown message type` (never a crash). Fixed error strings never contain values. v1 is one
+  `items`/`message`/`id` omitted when empty; unknown fields of any shape and depth ignored (serde_json skips ignored
+  values iteratively and so does `IpcJson.SkipValue`: a recursive skip would let one frame stack-overflow the serving
+  app). Receivers reject only `version > 1` (`unsupported version`); 0/missing version, missing
+  type, malformed or non-UTF-8 JSON → `invalid message`; unknown types → `unknown message type` (never a crash). Fixed error strings never contain values. v1 is one
   request + one reply per connection, but the framing is symmetric and multi-frame.
 - **Security** (current user only; logs never contain values): Windows server pipe = `PIPE_ACCESS_DUPLEX |
   FILE_FLAG_OVERLAPPED` (+ `FILE_FLAG_FIRST_PIPE_INSTANCE` for the first instance, so a squatted name fails the start),

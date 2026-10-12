@@ -293,10 +293,7 @@ namespace Velopack.Ipc
                 }
 
                 while (true) {
-                    SkipWhitespace();
-                    var name = ReadString();
-                    SkipWhitespace();
-                    Expect(':');
+                    var name = ReadMemberName();
                     SkipWhitespace();
                     onMember(name);
                     SkipWhitespace();
@@ -309,6 +306,16 @@ namespace Velopack.Ipc
                         throw new FormatException($"expected ',' or '}}' at position {_pos - 1}");
                     }
                 }
+            }
+
+            /// <summary> Reads <c>"name" :</c> and returns the name. </summary>
+            private string ReadMemberName()
+            {
+                SkipWhitespace();
+                var name = ReadString();
+                SkipWhitespace();
+                Expect(':');
+                return name;
             }
 
             private void ReadArray(Action onElement)
@@ -432,33 +439,64 @@ namespace Velopack.Ipc
                 }
             }
 
-            /// <summary> Skips one value of any shape (object, array, string, number, literal). </summary>
+            /// <summary>
+            /// Skips one value of any shape (object, array, string, number, literal). Iterative, like serde_json's ignored
+            /// values on the Rust side, so an unknown value nested arbitrarily deep costs no stack: a recursive skip would
+            /// let one frame overflow a thread of the serving process, the user's running app.
+            /// </summary>
             private void SkipValue()
             {
-                SkipWhitespace();
-                var c = Peek();
-                switch (c) {
-                case '{':
-                    ReadObject(_ => SkipValue());
-                    break;
-                case '[':
-                    ReadArray(SkipValue);
-                    break;
-                case '"':
-                    ReadString();
-                    break;
-                default:
-                    if (c == '-' || (c >= '0' && c <= '9')) {
+                var closers = new Stack<char>();
+                while (true) {
+                    SkipWhitespace();
+                    var c = Peek();
+                    if (c == '{' || c == '[') {
+                        _pos++;
+                        var close = c == '{' ? '}' : ']';
+                        SkipWhitespace();
+                        if (Peek() == close) {
+                            _pos++;
+                        } else {
+                            closers.Push(close);
+                            if (close == '}') {
+                                ReadMemberName();
+                            }
+
+                            continue; // positioned at the first element
+                        }
+                    } else if (c == '"') {
+                        ReadString();
+                    } else if (c == '-' || (c >= '0' && c <= '9')) {
                         while (_pos < _s.Length && "+-.eE0123456789".IndexOf(_s[_pos]) >= 0) {
                             _pos++;
                         }
-                    } else if (TryReadLiteral("true") || TryReadLiteral("false") || TryReadLiteral("null")) {
-                        // consumed
-                    } else {
+                    } else if (!TryReadLiteral("true") && !TryReadLiteral("false") && !TryReadLiteral("null")) {
                         throw new FormatException($"unexpected character '{c}' at position {_pos}");
                     }
 
-                    break;
+                    // a value ended: close the enclosing containers, or move on to the next element
+                    while (true) {
+                        if (closers.Count == 0) {
+                            return;
+                        }
+
+                        SkipWhitespace();
+                        var d = Next();
+                        if (d == closers.Peek()) {
+                            closers.Pop();
+                            continue;
+                        }
+
+                        if (d != ',') {
+                            throw new FormatException($"expected ',' or '{closers.Peek()}' at position {_pos - 1}");
+                        }
+
+                        if (closers.Peek() == '}') {
+                            ReadMemberName();
+                        }
+
+                        break;
+                    }
                 }
             }
 

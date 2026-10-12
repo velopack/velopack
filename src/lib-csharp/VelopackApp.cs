@@ -334,8 +334,11 @@ namespace Velopack
             if (myVersion != null && (_fileAssoc != null || _urlProto != null)
                 && locator is VelopackLocator { AssociationSingleInstance: true } vl
                 && !string.IsNullOrEmpty(vl.AppId) && !string.IsNullOrEmpty(vl.RootAppDir)) {
-                if (SingleInstance.Elect(vl, associations, log, out server) == Election.Forwarded) {
-                    log.Info($"Forwarded {associations.Count} association(s) to the running instance, exiting.");
+                // only items this build has a callback for are forwarded: the running instance (the same build) would
+                // refuse the whole message over one unhandled item, and they are ignored locally anyway
+                var forwardable = associations.Where(a => GetAssociationCallback(a.Flag) != null).ToList();
+                if (SingleInstance.Elect(vl, forwardable, log, out server) == Election.Forwarded) {
+                    log.Info($"Forwarded {forwardable.Count} association(s) to the running instance, exiting.");
                     locator.Process.Exit(0);
                     return;
                 }

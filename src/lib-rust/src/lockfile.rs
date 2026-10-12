@@ -63,11 +63,12 @@ impl LockFile {
     }
 
     /// Opens (creating if needed, never truncating) the lock file with `O_CLOEXEC`, so the lock does not leak into
-    /// child processes, and takes a non-blocking `lockf` lock on it.
+    /// child processes, and takes a non-blocking `lockf` lock on it. Contention (`lockf` failing with `EAGAIN` or
+    /// `EACCES`) is reported as [`ErrorKind::WouldBlock`]; an `open` failure keeps its own kind.
     #[cfg(unix)]
     unsafe fn unix_exclusive_lock(path: &std::path::Path) -> Result<i32> {
-        use libc::{close, lockf, open, EINTR, F_TLOCK, O_CLOEXEC, O_CREAT, O_RDWR};
-        use std::io::Error;
+        use libc::{close, lockf, open, EACCES, EAGAIN, EINTR, F_TLOCK, O_CLOEXEC, O_CREAT, O_RDWR};
+        use std::io::{Error, ErrorKind};
         use std::os::unix::ffi::OsStrExt;
 
         let c_path = std::ffi::CString::new(path.as_os_str().as_bytes())?;
@@ -93,7 +94,11 @@ impl LockFile {
         if ret == -1 {
             let err = Error::last_os_error();
             let _ = close(fd);
-            return Err(err);
+            // EAGAIN and EWOULDBLOCK share a value on Linux and macOS, hence no `matches!` or-pattern
+            return Err(match err.raw_os_error() {
+                Some(code) if code == EAGAIN || code == EACCES => Error::new(ErrorKind::WouldBlock, err),
+                _ => err,
+            });
         }
         Ok(fd)
     }
@@ -145,9 +150,7 @@ pub fn is_lock_contention(e: &std::io::Error) -> bool {
     }
     #[cfg(unix)]
     {
-        // EAGAIN and EWOULDBLOCK share a value on Linux and macOS, hence no `matches!` or-pattern
-        e.raw_os_error()
-            .is_some_and(|c| c == libc::EAGAIN || c == libc::EWOULDBLOCK || c == libc::EACCES)
+        e.kind() == std::io::ErrorKind::WouldBlock
     }
 }
 
@@ -192,5 +195,24 @@ mod tests {
 
         let not_contention = std::io::Error::from_raw_os_error(32);
         assert!(!is_lock_contention(&not_contention));
+    }
+
+    // an unwritable lock file is a hard failure, not contention (which would make association launches wait for
+    // a server that does not exist)
+    #[cfg(unix)]
+    #[test]
+    fn test_lock_once_unwritable_file_is_not_contention() {
+        use std::os::unix::fs::PermissionsExt;
+        if unsafe { libc::geteuid() } == 0 {
+            return; // root opens anything
+        }
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("test.lock");
+        std::fs::write(&path, b"").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        let err = LockFile::try_acquire_lock_once(&path).unwrap_err();
+        assert!(!is_lock_contention(&err), "{err:?}");
+        assert_eq!(err.raw_os_error(), Some(libc::EACCES));
     }
 }

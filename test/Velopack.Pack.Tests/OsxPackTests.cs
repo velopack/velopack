@@ -361,27 +361,14 @@ public class OsxPackTests
         Assert.NotNull(OsxAssociationHelper.Find(bundle));
 
         Process server = null;
-        var launchdVars = new List<string>();
+        var launchdVars = ExportLaunchdEnvironment(installDir);
         try {
-            // LS-launched processes do not inherit the job environment, and the framework-dependent TestApp needs DOTNET_ROOT
-            foreach (var name in new[] { "DOTNET_ROOT", "PATH" }) {
-                var value = Environment.GetEnvironmentVariable(name);
-                if (!string.IsNullOrEmpty(value)) {
-                    Exe.InvokeAndThrowIfNonZero("launchctl", ["setenv", name, value], installDir);
-                    launchdVars.Add(name);
-                }
-            }
-
             // register ONLY the outer bundle, as a portable zip install would: LaunchServices must find the nested helper itself
             Exe.InvokeAndThrowIfNonZero(LsRegister, ["-f", bundle], installDir);
 
             // (a) no instance running: the helper starts the app with the url, which handles it in-process and exits
             var first = $"{scheme}://first";
-            var open = Exe.InvokeProcess("/usr/bin/open", [first], installDir);
-            if (open.ExitCode != 0) {
-                Assert.Skip($"open failed (no GUI session?): {open.StdOutput} {open.StdErr}");
-            }
-
+            OpenUrl(first, installDir);
             WaitForActivation(urlFile, $"OnUrlProto: {first}", 1, logFile, logger);
             logger.Info("TEST: the helper started the app for the first url");
 
@@ -397,8 +384,7 @@ public class OsxPackTests
             Assert.False(server.HasExited, "the waiting instance exited early");
 
             var second = $"{scheme}://second";
-            open = Exe.InvokeProcess("/usr/bin/open", [second], installDir);
-            Assert.True(open.ExitCode == 0, $"open failed: {open.StdOutput} {open.StdErr}");
+            OpenUrl(second, installDir);
             WaitForActivation(urlFile, $"OnUrlProto: {second}", 2, logFile, logger);
             Assert.Equal($"Pid: {server.Id}", TestHelper.ReadAllTextShared(pidFile).Trim().Split('\n').Last().Trim());
             logger.Info("TEST: the running instance received the forwarded url");
@@ -412,11 +398,147 @@ public class OsxPackTests
             }
 
             server?.Dispose();
-            try { Exe.InvokeProcess(LsRegister, ["-u", bundle], installDir); } catch { }
-            try { Exe.InvokeProcess("/usr/bin/pkill", ["-f", bundle], installDir); } catch { }
-            foreach (var name in launchdVars) {
-                try { Exe.InvokeProcess("launchctl", ["unsetenv", name], installDir); } catch { }
+            CleanupActivationTest(bundle, installDir, launchdVars);
+        }
+    }
+
+    [Fact]
+    public async Task UrlActivationSurvivesUpdate()
+    {
+        // the production path that keeps a portable-zip install's helper registered when the bundle contents change:
+        // UpdateMac `apply` calls LSRegisterURL on the new bundle and its helper(s) (util_osx.rs). No lsregister is
+        // run here after the update, so a broken registration shows up as `open` failing or the url never arriving.
+        Assert.SkipUnless(VelopackRuntimeInfo.IsOSX, "macOS only");
+        using var logger = _output.BuildLoggerFor<OsxPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+
+        const string id = "OsxAssocUpdate";
+        var scheme = $"velotest{TestHelper.RandomString(6)}";
+        var bundle = Path.Combine(installDir, $"{id}.app");
+        var contents = Path.Combine(bundle, "Contents");
+        var appExe = Path.Combine(contents, "MacOS", "TestApp");
+        var urlFile = Path.Combine(contents, "url-proto");
+        var logFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Logs", $"velopack_{id}.log");
+
+        await PackCSharpTestApp(id, "1.0.0", "version 1 test", releaseDir, logger, urlProtocols: scheme);
+        ExtractDittoZip(Path.Combine(releaseDir, $"{id}-osx-Portable.zip"), installDir);
+        var launchdVars = ExportLaunchdEnvironment(installDir);
+        try {
+            // the initial registration, as Finder's copy / the first launch would do it
+            Exe.InvokeAndThrowIfNonZero(LsRegister, ["-f", bundle], installDir);
+
+            await PackCSharpTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, urlProtocols: scheme);
+            TestHelper.RunNoCoverage(appExe, ["download", releaseDir], installDir, logger);
+            TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
+            TestHelper.WaitUntil(() => {
+                var version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "2.0.0", version);
+            }, pollDelayMs: 1000);
+            logger.Info("TEST: v2 applied");
+
+            var log = TestHelper.ReadAllTextShared(logFile);
+            Assert.Contains("association helper(s) with LaunchServices", log);
+            Assert.DoesNotContain("LSRegisterURL(", log);
+
+            var url = $"{scheme}://after-update";
+            OpenUrl(url, installDir);
+            WaitForActivation(urlFile, $"OnUrlProto: {url}", 1, logFile, logger);
+            logger.Info("TEST: the updated app received the url");
+        } finally {
+            CleanupActivationTest(bundle, installDir, launchdVars);
+            try {
+                var cacheDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "Library", "Caches", "velopack", id);
+                if (Directory.Exists(cacheDir))
+                    Directory.Delete(cacheDir, true);
+            } catch { }
+        }
+    }
+
+    [Fact]
+    public void BundleWithCustomPlistNamesHelperFromPlist()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsOSX, "macOS only");
+        using var logger = _output.BuildLoggerFor<OsxPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var workDir);
+        using var _2 = TempUtil.GetTempDirectory(out var bundleDir);
+
+        var rid = RID.Parse(VelopackRuntimeInfo.SystemRid);
+        var publishDir = Path.Combine(workDir, "publish");
+        TestApp.PreparePublishDir(rid, "version 1 test", publishDir, logger);
+
+        // the user's plist identifies and names the app differently from the pack options: the helper must follow the
+        // plist that ships, so it is matched to the app in Finder "Open With"
+        var plist = Path.Combine(workDir, "Info.plist");
+        File.WriteAllText(plist, """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+              <key>CFBundleExecutable</key><string>TestApp</string>
+              <key>CFBundleIdentifier</key><string>com.acme.app</string>
+              <key>CFBundleName</key><string>Acme</string>
+              <key>CFBundleDisplayName</key><string>Acme Studio</string>
+              <key>CFBundlePackageType</key><string>APPL</string>
+            </dict>
+            </plist>
+            """);
+
+        var appDir = new OsxBundleCommandRunner(logger).Bundle(new OsxBundleOptions {
+            EntryExecutableName = "TestApp",
+            ReleaseDir = new DirectoryInfo(bundleDir),
+            PackId = "AcmeStudio",
+            PackVersion = "1.0.0",
+            PackDirectory = publishDir,
+            InfoPlistPath = plist,
+            FileAssociations = $".velotest{TestHelper.RandomString(6)}",
+        });
+
+        var helper = OsxAssociationHelper.Find(appDir);
+        Assert.NotNull(helper);
+        Assert.Equal("Acme Studio.app", Path.GetFileName(helper));
+        var dict = LoadPlistDict(Path.Combine(helper, "Contents", "Info.plist"));
+        Assert.Equal("com.acme.app.velopack-assoc", PlistValue(dict, "CFBundleIdentifier")?.Value);
+        Assert.Equal("Acme Studio", PlistValue(dict, "CFBundleName")?.Value);
+        Assert.Equal("Acme Studio", PlistValue(dict, "CFBundleDisplayName")?.Value);
+        Assert.Null(PlistValue(LoadPlistDict(Path.Combine(appDir, "Contents", "Info.plist")), "CFBundleDocumentTypes"));
+    }
+
+    /// <summary>
+    /// `open` fails ("No application knows how to open URL", exit 1) exactly when LaunchServices did not pick up the
+    /// nested helper's CFBundleURLTypes, which is what these tests exist to catch: a failure is only tolerated locally
+    /// (eg. an ssh session without a GUI), never in CI.
+    /// </summary>
+    private static void OpenUrl(string url, string workingDir)
+    {
+        var open = Exe.InvokeProcess("/usr/bin/open", [url], workingDir);
+        Assert.SkipWhen(!PathHelper.IsCI && open.ExitCode != 0, $"open failed (no GUI session?): {open.StdOutput} {open.StdErr}");
+        Assert.True(open.ExitCode == 0, $"open '{url}' failed ({open.ExitCode}): {open.StdOutput} {open.StdErr}");
+    }
+
+    /// <summary> LS-launched processes do not inherit the job environment, and the framework-dependent TestApp needs DOTNET_ROOT. </summary>
+    private static List<string> ExportLaunchdEnvironment(string workingDir)
+    {
+        var launchdVars = new List<string>();
+        foreach (var name in new[] { "DOTNET_ROOT", "PATH" }) {
+            var value = Environment.GetEnvironmentVariable(name);
+            if (!string.IsNullOrEmpty(value)) {
+                Exe.InvokeAndThrowIfNonZero("launchctl", ["setenv", name, value], workingDir);
+                launchdVars.Add(name);
             }
+        }
+
+        return launchdVars;
+    }
+
+    private static void CleanupActivationTest(string bundle, string workingDir, List<string> launchdVars)
+    {
+        try { Exe.InvokeProcess(LsRegister, ["-u", bundle], workingDir); } catch { }
+        try { Exe.InvokeProcess("/usr/bin/pkill", ["-f", bundle], workingDir); } catch { }
+        foreach (var name in launchdVars) {
+            try { Exe.InvokeProcess("launchctl", ["unsetenv", name], workingDir); } catch { }
         }
     }
 

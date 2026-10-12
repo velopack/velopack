@@ -443,11 +443,14 @@ public class VelopackAppTests
     [Fact]
     public void RunSingleInstancePlainLaunchContinues()
     {
+        // POSIX record locks are per process, so a second election in the same process cannot observe a held lock;
+        // IpcInteropTests.RustServerCSharpPlainLaunchContinues covers Unix cross-process
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var root = UniqueRoot(tempPath);
 
-        // another instance holds the lock (on Windows; elsewhere this process simply takes it again)
+        // another instance holds the lock
         var locatorA = SingleInstanceLocator(root, logger);
         Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
         SingleInstance.Start(server!, VelopackApp.Build().OnUrlProto(_ => { }), logger);
@@ -460,6 +463,39 @@ public class VelopackAppTests
             .Run();
 
         Assert.Null(locatorB.ExitCode);
+    }
+
+    [Fact]
+    public void RunSingleInstanceForwardsOnlyItemsWithACallback()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
+        var logger = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+
+        // instance A: url callback only (the server refuses a message carrying any item it has no callback for)
+        var locatorA = SingleInstanceLocator(root, logger);
+        var receivedA = new List<string>();
+        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
+        SingleInstance.Start(server!, VelopackApp.Build().OnUrlProto(v => { lock (receivedA) receivedA.Add(v); }), logger);
+
+        // instance B (the same build): a mixed launch, eg. the macOS helper coalescing a file and a url, forwards only
+        // the url and exits; the file item has no callback here either and is dropped
+        var locatorB = SingleInstanceLocator(root, logger);
+        Environment.SetEnvironmentVariable("VELOPACK_RESTART", "true"); // several pairs are only read for restarted launches
+        try {
+            VelopackApp.Build()
+                .SetLocator(locatorB)
+                .SetArgs(new[] { "--veloapp-fileassoc", @"C:\x.myproj", "--veloapp-urlproto", "myapp://a" })
+                .OnUrlProto(_ => Assert.Fail("B must not handle the url itself"))
+                .Run();
+        } finally {
+            Environment.SetEnvironmentVariable("VELOPACK_RESTART", null);
+        }
+
+        Assert.Equal(0, locatorB.ExitCode);
+        Assert.Equal(new[] { "myapp://a" }, receivedA);
+        Assert.Contains(logger.Entries, e => e.Contains("Forwarded 1 association(s)"));
     }
 
     [Fact]

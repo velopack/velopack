@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
 using System.Net.Sockets;
@@ -12,11 +13,15 @@ namespace Velopack.Ipc
 {
     /// <summary>
     /// The accepting side. <see cref="Start"/> binds synchronously (so a failure is reported) and then accepts
-    /// connections for the rest of the process on a background <c>Velopack IPC</c> thread, which owns the lock and
-    /// hands every connection to the callback on the thread pool. There is no stop API.
+    /// connections for the rest of the process on a background <c>Velopack IPC</c> thread, which hands every
+    /// connection to the callback on the thread pool. There is no stop API.
     /// </summary>
     internal static class IpcServer
     {
+        // a started server owns its lock for the rest of the process: the caller need not keep a reference, and a
+        // finalized LockFile would release the lock while the server is still accepting
+        private static readonly List<LockFile> HeldLocks = new();
+
         /// <summary>
         /// Returns false (with a logged warning) when the endpoint could not be bound, eg. because another process
         /// already owns the pipe name; <paramref name="lockFile"/> is then disposed.
@@ -37,7 +42,11 @@ namespace Velopack.Ipc
                     throw new PlatformNotSupportedException("IPC needs the net8.0+ Velopack build on this OS.");
                 }
 
-                var thread = new Thread(() => AcceptLoop(accept, lockFile, onConnection, log)) {
+                if (lockFile != null) {
+                    lock (HeldLocks) HeldLocks.Add(lockFile);
+                }
+
+                var thread = new Thread(() => AcceptLoop(accept, onConnection, log)) {
                     IsBackground = true,
                     Name = "Velopack IPC",
                 };
@@ -50,10 +59,8 @@ namespace Velopack.Ipc
             }
         }
 
-        private static void AcceptLoop(Func<IpcConnection> accept, LockFile? lockFile, Action<IpcConnection> onConnection, IVelopackLogger log)
+        private static void AcceptLoop(Func<IpcConnection> accept, Action<IpcConnection> onConnection, IVelopackLogger log)
         {
-            // the lock is held by this thread's reference for the lifetime of the process
-            GC.KeepAlive(lockFile);
             while (true) {
                 IpcConnection connection;
                 try {
