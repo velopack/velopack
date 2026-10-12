@@ -7,6 +7,7 @@ using System.Runtime.Versioning;
 using Velopack.Ipc;
 using Velopack.Locators;
 using Velopack.Logging;
+using Velopack.Osx;
 using Velopack.Util;
 
 namespace Velopack
@@ -363,6 +364,13 @@ namespace Velopack
             List<(string Flag, string Value)> associations, bool firstrun, bool restarted, SingleInstanceServer? server)
         {
             var log = locator.Log;
+
+            // LaunchServices only learns of the nested association helper (its URL schemes / document types) through
+            // an explicit registration, which a portable zip install otherwise never gets.
+            if (VelopackRuntimeInfo.IsOSX && locator is VelopackLocator { RootAppDir: { } rootAppDir }) {
+                LaunchServices.RegisterAssociationHelpers(rootAppDir, log);
+            }
+
             var localPackages = locator.GetLocalPackages();
             var latestLocal = locator.GetLatestLocalFullPackage();
 

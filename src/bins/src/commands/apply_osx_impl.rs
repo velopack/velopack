@@ -123,7 +123,7 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
             if let Err(e) = touch(&root_path) {
                 warn!("Failed to update bundle modification time ({})", e);
             }
-            shared::register_association_helpers(&root_path);
+            velopack::launch_services::register_association_helpers(&root_path);
         }
         result
     })();

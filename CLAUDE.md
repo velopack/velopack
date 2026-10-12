@@ -276,17 +276,22 @@ repeated.
   covers the helper (80/90/100). `--signDisableDeep`: UpdateMac → helpers → outer bundle, inside-out. Notarization,
   staple and spctl are unchanged and cover the nested bundle. `vpk bundle` never signs (the user signs inside-out or
   `--deep`).
-  **LaunchServices registration**: UpdateMac `apply` calls `shared::register_association_helpers(root)`
-  (`util_osx.rs`: `LSRegisterURL` on the outer bundle first, then each `Contents/Helpers/*.app` with an `AssocHelper`;
-  non-zero OSStatus is a warning, never a failure) right after the post-swap `touch` of the bundle. The `.pkg`
-  postinstall runs `lsregister -f` on the bundle and each helper as the console user (a root registration would land
-  in root's LS database), and the pkg component plist sets `BundleIsRelocatable` false for `:0` and every
-  `:0:ChildBundles:{n}` via PlistBuddy so Installer cannot "relocate" the helper onto a stale copy elsewhere on disk.
-  Portable `.zip`: nothing explicit; LS registers the bundle when Finder copies it or the user first launches it and
-  scans the nested helper when the outer app is registered (`OsxPackTests.UrlActivationViaHelperReachesApp` registers
-  ONLY the outer bundle to prove this; `UrlActivationSurvivesUpdate` applies v2 through UpdateMac and opens the scheme
-  with no lsregister at all, covering `register_association_helpers`). Both fail in CI when `open` cannot resolve the
-  scheme (locally that skips: no GUI session). `ExtractPkgToAppBundle` counts only top-level `.app` dirs.
+  **LaunchServices registration**: LS NEVER scans a nested `Contents/Helpers/*.app` on its own (verified on macOS 26
+  with `lsregister -dump`: after `lsregister -f` of the outer bundle, and after the app's first launch, only the outer
+  bundle has a record), so the helper's schemes / document types are bindable only after an explicit `LSRegisterURL`
+  on it. Both libraries do that at every installed start (`VelopackApp.Run` → C# `Osx/LaunchServices.cs`
+  `RegisterAssociationHelpers`, Rust `launch_services.rs` `register_association_helpers`: outer bundle first, then each
+  `Contents/Helpers/*.app` with an `AssocHelper`; plain CoreFoundation/CoreServices FFI, non-zero OSStatus or a missing
+  API is a warning, never a failure). UpdateMac `apply` calls the same Rust function right after the post-swap `touch`
+  of the bundle. The `.pkg` postinstall runs `lsregister -f` on the bundle and each helper as the console user (a root
+  registration would land in root's LS database), and the pkg component plist sets `BundleIsRelocatable` false for
+  `:0` and every `:0:ChildBundles:{n}` via PlistBuddy so Installer cannot "relocate" the helper onto a stale copy
+  elsewhere on disk. Tests: `OsxPackTests.UrlActivationViaHelperReachesApp` launches the app ONCE through `open` (all a
+  portable zip user does) and then opens the scheme; `UrlActivationSurvivesUpdate` applies v2 through UpdateMac and
+  opens the scheme with no lsregister at all. Both install under `~/Applications/velopack-tests`, NEVER under TMPDIR:
+  LS flags a bundle in `/var/folders/.../T` as `in-temp-dir launch-disabled` and refuses to bind its schemes. On an
+  `open` failure they log the LS records for the bundle (`ProbeLaunchServices`); locally that skips (no GUI session),
+  in CI it fails. `ExtractPkgToAppBundle` counts only top-level `.app` dirs.
   **Limitations** (accepted, documented in the `OnFileAssoc` docs of every language): the odoc intent (double-click,
   "Open With", drag-drop) lands on the helper, so the main app only gets a path string and its first access to a file
   in a protected folder (Desktop, Documents, Downloads, removable volumes) triggers the TCC "Files and Folders" prompt

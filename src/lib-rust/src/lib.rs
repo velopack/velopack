@@ -103,6 +103,7 @@ maybe_pub!(
     bundle,
     constants,
     ipc,
+    launch_services,
     lockfile,
     logging,
     misc,

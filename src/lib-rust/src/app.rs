@@ -277,6 +277,11 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
+        // LaunchServices only learns of the nested association helper (its URL schemes / document types) through
+        // an explicit registration, which a portable zip install otherwise never gets.
+        #[cfg(target_os = "macos")]
+        crate::launch_services::register_association_helpers(&manager.get_locator().get_root_dir());
+
         let my_version = manager.get_current_version();
         let packages_dir = manager.get_locator().get_packages_dir();
 
