@@ -1,3 +1,4 @@
+#nullable enable
 using Velopack.NuGet;
 using Velopack.Util;
 

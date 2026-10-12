@@ -1,3 +1,4 @@
+#nullable enable
 using System.Diagnostics;
 using Velopack.Ipc;
 using Velopack.Logging;
