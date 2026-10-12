@@ -116,6 +116,8 @@ public class PackTask : MSBuildAsyncTask
 
     public string? UrlProtocols { get; set; }
 
+    public string AssociationLaunchMode { get; set; } = "NewInstance";
+
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         //System.Diagnostics.Debugger.Launch();

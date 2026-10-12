@@ -67,6 +67,13 @@ public class PlistWriter
                 WriteProperty(xmlWriter, nameof(_task.NSRequiresAquaSystemAppearance), _task.NSRequiresAquaSystemAppearance.Value);
             }
 
+            if (_task.LSUIElement.HasValue) {
+                WriteProperty(xmlWriter, nameof(_task.LSUIElement), _task.LSUIElement.Value);
+            }
+
+            WriteProperty(xmlWriter, nameof(_task.LSMinimumSystemVersion), _task.LSMinimumSystemVersion);
+            WriteProperty(xmlWriter, nameof(_task.VelopackAssociationLaunchMode), _task.VelopackAssociationLaunchMode);
+
             WriteUrlTypes(xmlWriter);
             WriteDocumentTypes(xmlWriter);
 

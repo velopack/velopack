@@ -264,6 +264,40 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
 
     protected abstract Task<string> PreprocessPackDir(Action<int> progress, string packDir);
 
+    /// <summary>
+    /// Parses the association options into the nuspec / sq.version metadata read at install time (Windows) and
+    /// at startup (<c>associationLaunchMode</c>, every OS). Must run before the manifest is generated.
+    /// </summary>
+    /// <param name="hasAssociations">True when the package already carries associations the options do not
+    /// describe (eg. a macOS helper bundle inherited from <c>vpk bundle</c>).</param>
+    protected (string[] Extensions, string[] Schemes) AddAssociationMetadata(string fileAssociations, string urlProtocols,
+        AssociationLaunchMode mode, bool hasAssociations = false)
+    {
+        var extensions = AppAssociations.ParseFileAssociations(fileAssociations);
+        if (extensions.Length > 0) {
+            ExtraNuspecMetadata["fileAssociations"] = AppAssociations.Join(extensions);
+            Log.Info($"File associations: {ExtraNuspecMetadata["fileAssociations"]}");
+        }
+
+        var schemes = AppAssociations.ParseUrlProtocols(urlProtocols);
+        if (schemes.Length > 0) {
+            ExtraNuspecMetadata["urlProtocols"] = AppAssociations.Join(schemes);
+            Log.Info($"URL protocols: {ExtraNuspecMetadata["urlProtocols"]}");
+        }
+
+        hasAssociations |= extensions.Length + schemes.Length > 0;
+        if (mode == AssociationLaunchMode.SingleInstance) {
+            if (hasAssociations) {
+                ExtraNuspecMetadata["associationLaunchMode"] = nameof(AssociationLaunchMode.SingleInstance);
+                Log.Info("Association launch mode: SingleInstance");
+            } else {
+                Log.Warn("--associationLaunchMode is ignored without --fileAssociations/--urlProtocols");
+            }
+        }
+
+        return (extensions, schemes);
+    }
+
     protected virtual Task CodeSign(Action<int> progress, string packDir)
     {
         return Task.CompletedTask;

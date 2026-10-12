@@ -9,11 +9,23 @@ namespace Velopack.Packaging.Unix;
 [SupportedOSPlatform("osx")]
 public class OsxBuildTools
 {
+    public const string PlistBuddy = "/usr/libexec/PlistBuddy";
+
     public ILogger Log { get; }
 
     public OsxBuildTools(ILogger logger)
     {
         Log = logger;
+    }
+
+    /// <summary>
+    /// Reads a top-level string value from a (binary or XML) plist with PlistBuddy. Returns null when the key is
+    /// absent (non-zero exit). For a dict/array key the printed structure is returned.
+    /// </summary>
+    public static string ReadPlistValue(string plistPath, string key)
+    {
+        var result = Exe.InvokeProcess(PlistBuddy, new[] { "-c", $"Print :{key}", plistPath }, null);
+        return result.ExitCode == 0 ? result.StdOutput : null;
     }
 
     public void CodeSign(string identity, string entitlements, string filePath, bool deep, string keychainPath)
@@ -100,6 +112,8 @@ public class OsxBuildTools
 
         // create postinstall scripts to open app after install
         // https://stackoverflow.com/questions/35619036/open-app-after-installation-from-pkg-file-in-mac
+        // the association helper bundle (Contents/Helpers/*.app) is registered with LaunchServices as the console
+        // user, because a registration done as root would land in root's LS database.
         var postinstall = Path.Combine(tmpScripts, "postinstall");
         File.WriteAllText(
             postinstall,
@@ -107,16 +121,32 @@ public class OsxBuildTools
             #!/bin/sh
             rm -rf /tmp/velopack/{appId}
             sudo -u "$USER" rm -rf ~/Library/Caches/velopack/{appId}
+            LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+            if ls "$2/{bundleName}/Contents/Helpers/"*.app >/dev/null 2>&1; then
+              sudo -u "$USER" "$LSREG" -f "$2/{bundleName}"
+              for h in "$2/{bundleName}/Contents/Helpers/"*.app; do sudo -u "$USER" "$LSREG" -f "$h"; done
+            fi
             sudo -u "$USER" env VELOPACK_FIRSTRUN=1 open "$2/{bundleName}/"
             exit 0
             """);
         Chmod.ChmodFileAsExecutable(postinstall);
         progress(15);
 
-        // generate non-relocatable component pkg. this will be included into a product archive
+        // generate non-relocatable component pkg. this will be included into a product archive.
+        // nested bundles (the association helper) are listed under ChildBundles with their own flag; without it
+        // Installer may "relocate" the helper onto a stale copy of a bundle with the same id found elsewhere.
         var pkgPlistPath = Path.Combine(tmp, "tmp.plist");
         Exe.InvokeAndThrowIfNonZero("pkgbuild", new[] { "--analyze", "--root", tmpPayload1, pkgPlistPath }, null);
-        Exe.InvokeAndThrowIfNonZero("plutil", new[] { "-replace", "BundleIsRelocatable", "-bool", "NO", pkgPlistPath }, null);
+        Exe.InvokeAndThrowIfNonZero(PlistBuddy, new[] { "-c", "Set :0:BundleIsRelocatable false", pkgPlistPath }, null);
+        for (int n = 0;; n++) {
+            var child = Exe.InvokeProcess(PlistBuddy, new[] { "-c", $"Set :0:ChildBundles:{n}:BundleIsRelocatable false", pkgPlistPath }, null);
+            if (child.ExitCode != 0) {
+                break; // no more child bundles
+            }
+
+            Log.Debug($"Marked child bundle {n} as not relocatable.");
+        }
+
         progress(50);
 
         var pkg1Path = Path.Combine(tmpPayload2, "1.pkg");
@@ -284,9 +314,14 @@ public class OsxBuildTools
 
         Log.Debug(Exe.InvokeAndThrowIfNonZero("pkgutil", args, null));
 
-        IEnumerable<string> appPaths = Directory.EnumerateDirectories(extractionTmpPath, "*.app", SearchOption.AllDirectories).ToArray();
+        // only top-level bundles count: a nested Contents/Helpers/*.app (the association helper) is part of its parent
+        var appPaths = Directory.EnumerateDirectories(extractionTmpPath, "*.app", SearchOption.AllDirectories)
+            .Where(p => !Path.GetRelativePath(extractionTmpPath, Path.GetDirectoryName(p))
+                .Split(Path.DirectorySeparatorChar)
+                .Any(s => s.EndsWith(".app", StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
 
-        if (appPaths.Count() > 1) {
+        if (appPaths.Length > 1) {
             throw new Exception("The package contains more than one .app bundle. This is not supported.");
         }
 

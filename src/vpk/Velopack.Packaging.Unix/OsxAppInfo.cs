@@ -26,6 +26,17 @@ public class OsxAppInfo
 
     public bool? NSRequiresAquaSystemAppearance { get; private set; }
 
+    /// <summary>Hides the app from the Dock and the app switcher (used by the association helper).</summary>
+    public bool? LSUIElement { get; set; }
+
+    public string LSMinimumSystemVersion { get; set; }
+
+    /// <summary>
+    /// Private key recording the <c>--associationLaunchMode</c> an association helper was built with, so that
+    /// <c>vpk pack</c> can carry it into the manifest when it inherits a helper built by <c>vpk bundle</c>.
+    /// </summary>
+    public string VelopackAssociationLaunchMode { get; set; }
+
     /// <summary>
     /// Normalized file extensions (with leading dot, eg. ".myproj") emitted as CFBundleDocumentTypes.
     /// </summary>

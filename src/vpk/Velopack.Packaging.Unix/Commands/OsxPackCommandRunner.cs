@@ -35,11 +35,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         if (!packDir.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
             appBundlePath = new OsxBundleCommandRunner(Log).Bundle(Options);
             deleteAppBundle = true;
-        } else if (!string.IsNullOrWhiteSpace(Options.FileAssociations) || !string.IsNullOrWhiteSpace(Options.UrlProtocols)) {
-            // a prebuilt .app is used as-is; editing its Info.plist would invalidate the user's signature
-            Log.Warn(
-                "--fileAssociations / --urlProtocols are ignored when packing a prebuilt .app bundle. " +
-                "Declare CFBundleDocumentTypes / CFBundleURLTypes in the bundle's Info.plist instead.");
         }
 
         CopyFiles(new DirectoryInfo(appBundlePath), dir, progress, true);
@@ -52,6 +47,22 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         var structure = new OsxStructureBuilder(dir.FullName);
         var macosdir = structure.MacosDirectory;
         File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(macosdir, "UpdateMac"), true);
+
+        // file / url associations live in a nested helper bundle (never in the main Info.plist). The metadata must be
+        // added before sq.version is written below.
+        var given = !string.IsNullOrWhiteSpace(Options.FileAssociations) || !string.IsNullOrWhiteSpace(Options.UrlProtocols);
+        var inherited = OsxAssociationHelper.Find(dir.FullName);
+        if (given) {
+            var (extensions, schemes) = AddAssociationMetadata(Options.FileAssociations, Options.UrlProtocols, Options.AssociationLaunchMode);
+            BuildAssociationHelper(structure, extensions, schemes);
+        } else if (inherited != null) {
+            // a helper built by `vpk bundle` (or a previous pack) is kept, and the mode it was built with is carried
+            // into the manifest so the pack step needs no association options repeated
+            var modeText = OsxBuildTools.ReadPlistValue(Path.Combine(inherited, "Contents", "Info.plist"), OsxAssociationHelper.LaunchModePlistKey);
+            var mode = Enum.TryParse<AssociationLaunchMode>(modeText?.Trim(), true, out var parsed) ? parsed : AssociationLaunchMode.NewInstance;
+            Log.Info($"Using the association helper found in the bundle ({Path.GetFileName(inherited)}, {mode}).");
+            AddAssociationMetadata("", "", mode, hasAssociations: true);
+        }
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
             if (BinDetect.IsMachOImage(f)) {
@@ -68,6 +79,61 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
 
         progress(100);
         return Task.FromResult(dir.FullName);
+    }
+
+    /// <summary>
+    /// Builds the association helper bundle from the pack options, taking the main app's identity (bundle id,
+    /// display name, icon) from its final Info.plist so a prebuilt .app is matched in Finder "Open With".
+    /// </summary>
+    private void BuildAssociationHelper(OsxStructureBuilder structure, string[] extensions, string[] schemes)
+    {
+        var plist = Path.Combine(structure.ContentsDirectory, PlistWriter.PlistFileName);
+        string Read(string key) => OsxBuildTools.ReadPlistValue(plist, key);
+
+        var mainBundleId = Read("CFBundleIdentifier")
+                           ?? Options.BundleId
+                           ?? OsxBundleCommandRunner.GetDefaultBundleId(Options.PackId, Options.PackAuthors);
+        var displayName = Read("CFBundleDisplayName") ?? Read("CFBundleName") ?? Options.PackTitle ?? Options.PackId;
+
+        // the helper shows the main app's icon in Finder / Safari: --icon, else the plist's CFBundleIconFile, else
+        // CFBundleIconName (an icon in Assets.car cannot be reused, so warn when falling back to the default)
+        var icon = Options.Icon;
+        var iconFile = Read("CFBundleIconFile");
+        if (icon == null && iconFile != null) {
+            icon = new[] { iconFile, iconFile + ".icns" }
+                .Select(f => Path.Combine(structure.ResourcesDirectory, f))
+                .FirstOrDefault(File.Exists);
+        }
+
+        var iconName = Read("CFBundleIconName");
+        if (icon == null && iconName != null) {
+            var path = Path.Combine(structure.ResourcesDirectory, iconName + ".icns");
+            icon = File.Exists(path) ? path : null;
+        }
+
+        if (icon == null) {
+            icon = HelperFile.GetDefaultAppIcon(RuntimeOs.OSX);
+            if (iconName != null) {
+                Log.Warn("The association helper will use the default Velopack icon in Finder/Safari; pass --icon with the app's .icns to match.");
+            }
+        }
+
+        if (Read("CFBundleURLTypes") != null || Read("CFBundleDocumentTypes") != null) {
+            Log.Warn(
+                "Info.plist also declares CFBundleURLTypes/CFBundleDocumentTypes. Launch Services may route activations to the " +
+                "main bundle, where they arrive as Apple Events for the app's own framework and NOT as Velopack OnFileAssoc/OnUrlProto " +
+                "callbacks. Remove those keys from Info.plist or do not pass --fileAssociations/--urlProtocols.");
+        }
+
+        var info = OsxAssociationHelper.CreateInfo(
+            displayName,
+            mainBundleId,
+            SemanticVersion.Parse(Options.PackVersion).Version.ToString(),
+            Options.PackVersion,
+            extensions,
+            schemes,
+            Options.AssociationLaunchMode);
+        OsxAssociationHelper.Build(Log, structure.AppDirectory, info, HelperFile.GetAssocHelperPath(), icon);
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
@@ -92,22 +158,36 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
             entitlements = HelperFile.VelopackEntitlements;
         }
 
+        // the association helper is always signed with Velopack's entitlements (never the user's: a sandboxed
+        // caller cannot pass arguments through NSWorkspace), inside-out before the outer bundle is sealed
+        var assocHelpers = OsxAssociationHelper.FindAll(packDir);
+
+        void SignAssociationHelpers()
+        {
+            foreach (var helperApp in assocHelpers) {
+                Log.Info("Code signing association helper bundle...");
+                helper.CodeSign(Options.SignAppIdentity, HelperFile.VelopackEntitlements, helperApp, false, keychainPath);
+            }
+        }
+
         void InnerSign(Action<int> signProgress)
         {
             if (Options.SignDisableDeep) {
                 // when --signDisableDeep is used, we expect the user to have signed everything before calling velopack
-                // we only need to sign what we added (UpdateMac) and then the final .app bundle
-                
+                // we only need to sign what we added (UpdateMac, the association helper) and then the final .app bundle
+
                 Log.Warn("Code signing with --signDisableDeep means that Velopack will only sign binaries it adds, " +
                          "along with the final .app bundle. Please ensure all other binaries and frameworks are signed " +
                          "properly before calling velopack.");
-                
+
                 Log.Info("Code signing Velopack binaries...");
                 var structure = new OsxStructureBuilder(packDir);
                 var updateMacPath = Path.Combine(structure.MacosDirectory, "UpdateMac");
                 helper.CodeSign(Options.SignAppIdentity, HelperFile.VelopackEntitlements, updateMacPath, false, keychainPath);
+                signProgress(40);
+                SignAssociationHelpers();
                 signProgress(50);
-                
+
                 Log.Info("Code signing application bundle...");
                 helper.CodeSign(Options.SignAppIdentity, entitlements, packDir, false, keychainPath);
                 signProgress(100);
@@ -133,8 +213,18 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
                 // this does not work 100% of the time, but it does work in a surprising number of cases so it is the default
                 // use --signDisableDeep to disable this behavior, which requires you to sign things before calling velopack
                 Log.Info("Code signing application bundle recursively (with --deep)...");
-                signProgress(90);
                 helper.CodeSign(Options.SignAppIdentity, entitlements, packDir, true, keychainPath);
+                signProgress(80);
+
+                if (assocHelpers.Length > 0) {
+                    // --deep signed the helper with the user's entitlements; re-sign it with Velopack's, then reseal
+                    // the outer bundle (non-deep, -f) so its seal covers the helper's new signature
+                    SignAssociationHelpers();
+                    signProgress(90);
+                    Log.Info("Resealing application bundle...");
+                    helper.CodeSign(Options.SignAppIdentity, entitlements, packDir, false, keychainPath);
+                }
+
                 signProgress(100);
             }
         }

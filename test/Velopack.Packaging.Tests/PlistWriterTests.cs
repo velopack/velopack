@@ -24,9 +24,10 @@ public class PlistWriterTests
     {
         using var _ = TempUtil.GetTempDirectory(out var dir);
         new PlistWriter(NullLogger.Instance, info, dir).Write();
-        var doc = XDocument.Load(Path.Combine(dir, PlistWriter.PlistFileName));
-        return doc.Root!.Element("dict")!;
+        return LoadDict(Path.Combine(dir, PlistWriter.PlistFileName));
     }
+
+    private static XElement LoadDict(string plistPath) => XDocument.Load(plistPath).Root!.Element("dict")!;
 
     /// <summary>Returns the value element following the given key in a plist dict, or null.</summary>
     private static XElement? ValueOf(XElement dict, string key)
@@ -42,31 +43,98 @@ public class PlistWriterTests
         Assert.Equal("My App", ValueOf(dict, "CFBundleName")!.Value);
         Assert.Null(ValueOf(dict, "CFBundleURLTypes"));
         Assert.Null(ValueOf(dict, "CFBundleDocumentTypes"));
+        Assert.Null(ValueOf(dict, "LSUIElement"));
+        Assert.Null(ValueOf(dict, "LSMinimumSystemVersion"));
+        Assert.Null(ValueOf(dict, OsxAssociationHelper.LaunchModePlistKey));
+    }
+
+    /// <summary>A fake main .app with a helper binary and icon to build the association helper into.</summary>
+    private sealed class FakeApp : IDisposable
+    {
+        private readonly IDisposable _temp;
+
+        public string AppDir { get; }
+        public string HelperBinary { get; }
+        public string Icon { get; }
+
+        public FakeApp()
+        {
+            _temp = TempUtil.GetTempDirectory(out var dir);
+            AppDir = Path.Combine(dir, "My App.app");
+            Directory.CreateDirectory(Path.Combine(AppDir, "Contents", "MacOS"));
+            HelperBinary = Path.Combine(dir, "assochelper");
+            File.WriteAllBytes(HelperBinary, [0xCF, 0xFA, 0xED, 0xFE, 1, 2, 3]);
+            Icon = Path.Combine(dir, "MyApp.icns");
+            File.WriteAllBytes(Icon, [0x69, 0x63, 0x6E, 0x73]);
+        }
+
+        public string Build(string[] extensions, string[] schemes, AssociationLaunchMode mode = AssociationLaunchMode.NewInstance)
+        {
+            var info = OsxAssociationHelper.CreateInfo("My App", "com.x.y", "1.2.0", "1.2.0-beta.1", extensions, schemes, mode);
+            return OsxAssociationHelper.Build(NullLogger.Instance, AppDir, info, HelperBinary, Icon);
+        }
+
+        public void Dispose() => _temp.Dispose();
     }
 
     [Fact]
-    public void UrlSchemes_WriteSingleUrlType()
+    public void Helper_BuildsNestedBundle()
     {
-        var info = CreateInfo();
-        info.UrlSchemes = ["myapp", "myapp-beta"];
+        using var app = new FakeApp();
 
-        var dict = WriteAndLoad(info);
+        var helper = app.Build([".myproj"], ["myapp"], AssociationLaunchMode.SingleInstance);
+
+        Assert.Equal(Path.Combine(app.AppDir, "Contents", "Helpers", "My App.app"), helper);
+        var exe = Path.Combine(helper, "Contents", "MacOS", "AssocHelper");
+        Assert.Equal(File.ReadAllBytes(app.HelperBinary), File.ReadAllBytes(exe));
+        Assert.True(File.Exists(Path.Combine(helper, "Contents", "Resources", "MyApp.icns")));
+        Assert.Equal(helper, OsxAssociationHelper.Find(app.AppDir));
+
+        var dict = LoadDict(Path.Combine(helper, "Contents", "Info.plist"));
+        Assert.Equal("My App", ValueOf(dict, "CFBundleName")!.Value);
+        Assert.Equal("My App", ValueOf(dict, "CFBundleDisplayName")!.Value);
+        Assert.Equal("AssocHelper", ValueOf(dict, "CFBundleExecutable")!.Value);
+        Assert.Equal("com.x.y.velopack-assoc", ValueOf(dict, "CFBundleIdentifier")!.Value);
+        Assert.Equal("APPL", ValueOf(dict, "CFBundlePackageType")!.Value);
+        Assert.Equal("1.2.0", ValueOf(dict, "CFBundleShortVersionString")!.Value);
+        Assert.Equal("1.2.0-beta.1", ValueOf(dict, "CFBundleVersion")!.Value);
+        Assert.Equal("MyApp.icns", ValueOf(dict, "CFBundleIconFile")!.Value);
+        Assert.Equal("NSApplication", ValueOf(dict, "NSPrincipalClass")!.Value);
+        Assert.Equal("true", ValueOf(dict, "NSHighResolutionCapable")!.Name.LocalName);
+        Assert.Equal("true", ValueOf(dict, "LSUIElement")!.Name.LocalName);
+        Assert.Equal("10.13", ValueOf(dict, "LSMinimumSystemVersion")!.Value);
+        Assert.Equal("SingleInstance", ValueOf(dict, OsxAssociationHelper.LaunchModePlistKey)!.Value);
+        Assert.Null(ValueOf(dict, "LSBackgroundOnly"));
+    }
+
+    [Fact]
+    public void Helper_UrlSchemes_WriteSingleUrlType()
+    {
+        using var app = new FakeApp();
+
+        var helper = app.Build([], ["myapp", "myapp-beta"]);
+
+        var dict = LoadDict(Path.Combine(helper, "Contents", "Info.plist"));
+        Assert.Equal("NewInstance", ValueOf(dict, OsxAssociationHelper.LaunchModePlistKey)!.Value);
+        Assert.Null(ValueOf(dict, "CFBundleDocumentTypes"));
 
         var urlTypes = ValueOf(dict, "CFBundleURLTypes")!;
         Assert.Equal("array", urlTypes.Name.LocalName);
         var entry = Assert.Single(urlTypes.Elements("dict"));
-        Assert.Equal("com.example.myapp", ValueOf(entry, "CFBundleURLName")!.Value);
+        Assert.Equal("com.x.y.velopack-assoc", ValueOf(entry, "CFBundleURLName")!.Value);
         Assert.Equal("Viewer", ValueOf(entry, "CFBundleTypeRole")!.Value);
         Assert.Equal(["myapp", "myapp-beta"], ValueOf(entry, "CFBundleURLSchemes")!.Elements("string").Select(e => e.Value));
     }
 
     [Fact]
-    public void DocumentExtensions_WriteOneDocumentTypePerExtension()
+    public void Helper_DocumentExtensions_WriteOneDocumentTypePerExtension()
     {
-        var info = CreateInfo();
-        info.DocumentExtensions = [".myproj", ".mytpl"];
+        using var app = new FakeApp();
 
-        var dict = WriteAndLoad(info);
+        var helper = app.Build([".myproj", ".mytpl"], []);
+
+        var dict = LoadDict(Path.Combine(helper, "Contents", "Info.plist"));
+        Assert.Null(ValueOf(dict, "CFBundleURLTypes"));
 
         var docTypes = ValueOf(dict, "CFBundleDocumentTypes")!;
         var entries = docTypes.Elements("dict").ToArray();
@@ -82,5 +150,54 @@ public class PlistWriterTests
 
         // no UTI declarations are generated in v1
         Assert.Null(ValueOf(dict, "UTExportedTypeDeclarations"));
+    }
+
+    [Fact]
+    public void Helper_SecondBuildReplacesExisting()
+    {
+        using var app = new FakeApp();
+        Assert.Null(OsxAssociationHelper.Find(app.AppDir));
+
+        var first = app.Build([".myproj"], []);
+        var stale = Path.Combine(first, "Contents", "stale.txt");
+        File.WriteAllText(stale, "old");
+
+        var second = app.Build([], ["myapp"]);
+
+        Assert.Equal(first, second);
+        Assert.False(File.Exists(stale));
+        Assert.Single(OsxAssociationHelper.FindAll(app.AppDir));
+        var dict = LoadDict(Path.Combine(second, "Contents", "Info.plist"));
+        Assert.Null(ValueOf(dict, "CFBundleDocumentTypes"));
+        Assert.NotNull(ValueOf(dict, "CFBundleURLTypes"));
+    }
+
+    [Fact]
+    public void Helper_Find_IgnoresBundlesWithoutHelperExecutable()
+    {
+        using var app = new FakeApp();
+        Directory.CreateDirectory(Path.Combine(app.AppDir, "Contents", "Helpers", "Other.app", "Contents", "MacOS"));
+
+        Assert.Null(OsxAssociationHelper.Find(app.AppDir));
+        Assert.Empty(OsxAssociationHelper.FindAll(app.AppDir));
+    }
+
+    [Theory]
+    [InlineData("A/B:C", "A_B_C")]
+    [InlineData("  My App  ", "My App")]
+    [InlineData("", "Associations")]
+    [InlineData(null, "Associations")]
+    public void SanitizeBundleName(string? input, string expected)
+    {
+        Assert.Equal(expected, OsxAssociationHelper.SanitizeBundleName(input!));
+    }
+
+    [Theory]
+    [InlineData("com.a b.c", "com.a-b.c.velopack-assoc")]
+    [InlineData("com.example.myapp", "com.example.myapp.velopack-assoc")]
+    [InlineData("com_example", "com-example.velopack-assoc")]
+    public void MakeBundleId(string input, string expected)
+    {
+        Assert.Equal(expected, OsxAssociationHelper.MakeBundleId(input));
     }
 }

@@ -66,6 +66,10 @@ public abstract class PackCommand : PlatformCommand
 
     protected Option<string> UrlProtocolsOption { get; private set; }
 
+    public AssociationLaunchMode AssociationLaunchMode { get; private set; }
+
+    protected Option<AssociationLaunchMode> AssociationLaunchModeOption { get; private set; }
+
     public PackCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description, targetOs)
     {
@@ -131,5 +135,10 @@ public abstract class PackCommand : PlatformCommand
         UrlProtocolsOption = AddOption<string>((v) => UrlProtocols = v, ["--urlProtocols"])
             .SetDescription("Custom URL schemes to open with the app (eg. 'myapp').")
             .SetArgumentHelpName("SCHEMES");
+
+        AssociationLaunchModeOption = AddOption<AssociationLaunchMode>((v) => AssociationLaunchMode = v, ["--associationLaunchMode"])
+            .SetDefault(AssociationLaunchMode.NewInstance)
+            .SetDescription("What an activation does if the app is already running.")
+            .SetArgumentHelpName("MODE");
     }
 }

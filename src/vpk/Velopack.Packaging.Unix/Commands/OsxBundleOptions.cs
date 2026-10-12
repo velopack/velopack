@@ -27,4 +27,6 @@ public class OsxBundleOptions : IOutputOptions
     public string FileAssociations { get; set; }
 
     public string UrlProtocols { get; set; }
+
+    public AssociationLaunchMode AssociationLaunchMode { get; set; }
 }

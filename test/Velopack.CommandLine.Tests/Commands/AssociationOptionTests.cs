@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Velopack.Packaging;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Vpk;
@@ -7,8 +8,8 @@ using Velopack.Vpk.Commands.Packaging;
 namespace Velopack.CommandLine.Tests.Commands;
 
 /// <summary>
-/// Parsing + mapping + validation of the shared --fileAssociations / --urlProtocols options
-/// across the Windows and macOS pack commands, and their absence from the Linux pack command.
+/// Parsing + mapping + validation of the shared --fileAssociations / --urlProtocols / --associationLaunchMode
+/// options across the Windows and macOS pack/bundle commands, and their absence from the Linux pack command.
 /// </summary>
 public class AssociationOptionTests : TempFileTestBase
 {
@@ -112,6 +113,60 @@ public class AssociationOptionTests : TempFileTestBase
         Assert.Contains("reserved", error.ErrorMessage);
     }
 
+    [Theory]
+    [InlineData(typeof(WindowsPackCommand))]
+    [InlineData(typeof(OsxPackCommand))]
+    [InlineData(typeof(OsxBundleCommand))]
+    public void AssociationLaunchMode_DefaultsToNewInstance(Type commandType)
+    {
+        var command = (PackCommand) Activator.CreateInstance(commandType)!;
+
+        Assert.Empty(command.ParseAndApply(RequiredOptions()).Errors);
+        Assert.Equal(AssociationLaunchMode.NewInstance, command.AssociationLaunchMode);
+    }
+
+    [Theory]
+    [InlineData(typeof(WindowsPackCommand))]
+    [InlineData(typeof(OsxPackCommand))]
+    [InlineData(typeof(OsxBundleCommand))]
+    public void AssociationLaunchMode_InvalidValue_IsParseError(Type commandType)
+    {
+        var command = (PackCommand) Activator.CreateInstance(commandType)!;
+
+        Assert.NotEmpty(command.ParseAndApply(RequiredOptions() + "--associationLaunchMode Bogus").Errors);
+    }
+
+    [Fact]
+    public void WindowsPack_ParsesAndMapsAssociationLaunchMode()
+    {
+        var command = new WindowsPackCommand();
+        var result = command.ParseAndApply(RequiredOptions() + "--urlProtocols myapp --associationLaunchMode SingleInstance");
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(AssociationLaunchMode.SingleInstance, command.AssociationLaunchMode);
+        Assert.Equal(AssociationLaunchMode.SingleInstance, OptionMapper.Map<WindowsPackOptions>(command).AssociationLaunchMode);
+    }
+
+    [Fact]
+    public void OsxPack_ParsesAndMapsAssociationLaunchMode()
+    {
+        var command = new OsxPackCommand();
+        var result = command.ParseAndApply(RequiredOptions() + "--fileAssociations .myproj --associationLaunchMode SingleInstance");
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(AssociationLaunchMode.SingleInstance, OptionMapper.Map<OsxPackOptions>(command).AssociationLaunchMode);
+    }
+
+    [Fact]
+    public void OsxBundle_ParsesAndMapsAssociationLaunchMode()
+    {
+        var command = new OsxBundleCommand();
+        var result = command.ParseAndApply(RequiredOptions() + "--urlProtocols myapp --associationLaunchMode SingleInstance");
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(AssociationLaunchMode.SingleInstance, OptionMapper.Map<OsxBundleOptions>(command).AssociationLaunchMode);
+    }
+
     [Fact]
     public void LinuxPack_DoesNotOfferAssociationOptions()
     {
@@ -119,9 +174,12 @@ public class AssociationOptionTests : TempFileTestBase
 
         Assert.DoesNotContain(command.Options, o => o.Name == "--fileAssociations");
         Assert.DoesNotContain(command.Options, o => o.Name == "--urlProtocols");
+        Assert.DoesNotContain(command.Options, o => o.Name == "--associationLaunchMode");
 
         var result = command.ParseAndApply(RequiredOptions() + "--fileAssociations .myproj");
         Assert.NotEmpty(result.Errors);
         Assert.Null(command.FileAssociations);
+
+        Assert.NotEmpty(command.ParseAndApply(RequiredOptions() + "--associationLaunchMode SingleInstance").Errors);
     }
 }

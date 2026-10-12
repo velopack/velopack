@@ -65,17 +65,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
 
         // file / url associations are registered at install time from these keys, by Update.exe
         // (Setup.exe installs) or by the MSI custom actions
-        var fileAssociations = AppAssociations.ParseFileAssociations(Options.FileAssociations);
-        if (fileAssociations.Length > 0) {
-            ExtraNuspecMetadata["fileAssociations"] = AppAssociations.Join(fileAssociations);
-            Log.Info($"File associations: {ExtraNuspecMetadata["fileAssociations"]}");
-        }
-
-        var urlProtocols = AppAssociations.ParseUrlProtocols(Options.UrlProtocols);
-        if (urlProtocols.Length > 0) {
-            ExtraNuspecMetadata["urlProtocols"] = AppAssociations.Join(urlProtocols);
-            Log.Info($"URL protocols: {ExtraNuspecMetadata["urlProtocols"]}");
-        }
+        AddAssociationMetadata(Options.FileAssociations, Options.UrlProtocols, Options.AssociationLaunchMode);
 
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");

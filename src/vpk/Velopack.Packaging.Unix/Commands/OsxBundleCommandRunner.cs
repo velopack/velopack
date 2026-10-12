@@ -43,26 +43,20 @@ public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBund
             throw new UserInfoException($"--exeName '{mainExePath}' is not a mach-o executable.");
         }
 
-        var appleId = $"com.{packAuthors ?? packId}.{packId}";
-        var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");
         var appleSafeVersion = SemanticVersion.Parse(packVersion).Version.ToString();
 
         var fileAssociations = AppAssociations.ParseFileAssociations(options.FileAssociations);
         var urlProtocols = AppAssociations.ParseUrlProtocols(options.UrlProtocols);
-        if (options.InfoPlistPath != null && (fileAssociations.Length > 0 || urlProtocols.Length > 0)) {
-            // editing a user supplied plist would break their signing / expectations, so leave it alone
-            _logger.Warn(
-                "--fileAssociations / --urlProtocols are ignored when a custom Info.plist is provided (--plist). " +
-                "Declare CFBundleDocumentTypes / CFBundleURLTypes in your own Info.plist instead.");
-        }
 
+        // the main Info.plist never declares CFBundleDocumentTypes / CFBundleURLTypes: the nested
+        // association helper bundle owns them (see OsxAssociationHelper)
         var info = new OsxAppInfo {
             // SQPackId = packId,
             // SQPackAuthors = packAuthors,
             CFBundleName = packTitle ?? packId,
             //CFBundleDisplayName = packTitle ?? packId,
             CFBundleExecutable = exeName,
-            CFBundleIdentifier = options.BundleId ?? escapedAppleId,
+            CFBundleIdentifier = options.BundleId ?? GetDefaultBundleId(packId, packAuthors),
             CFBundlePackageType = "APPL",
             CFBundleShortVersionString = appleSafeVersion,
             CFBundleVersion = packVersion,
@@ -70,8 +64,6 @@ public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBund
             NSPrincipalClass = "NSApplication",
             NSHighResolutionCapable = true,
             CFBundleIconFile = Path.GetFileName(icon),
-            DocumentExtensions = fileAssociations,
-            UrlSchemes = urlProtocols,
         };
 
         _logger.Debug("Creating '.app' directory structure");
@@ -98,8 +90,27 @@ public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBund
         _logger.Debug("Copying application files into new '.app' bundle");
         FileUtil.CopyDirectoryContents(packDirectory, builder.MacosDirectory, _logger);
 
+        if (fileAssociations.Length + urlProtocols.Length > 0) {
+            // not signed here (vpk bundle never signs); the user signs it like the rest of the bundle
+            var helperInfo = OsxAssociationHelper.CreateInfo(
+                info.CFBundleName,
+                info.CFBundleIdentifier,
+                appleSafeVersion,
+                packVersion,
+                fileAssociations,
+                urlProtocols,
+                options.AssociationLaunchMode);
+            OsxAssociationHelper.Build(_logger, builder.AppDirectory, helperInfo, HelperFile.GetAssocHelperPath(), icon);
+        }
+
         _logger.Debug("Bundle created successfully: " + builder.AppDirectory);
 
         return builder.AppDirectory;
+    }
+
+    /// <summary>The bundle id used when neither --bundleId nor a custom Info.plist is given.</summary>
+    public static string GetDefaultBundleId(string packId, string packAuthors)
+    {
+        return Regex.Replace($"com.{packAuthors ?? packId}.{packId}", @"[^\w\.]", "_");
     }
 }
