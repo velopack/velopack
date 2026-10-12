@@ -5,6 +5,7 @@ using System.Xml.Linq;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Core;
+using Velopack.Packaging;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Compression;
 using Velopack.Packaging.Windows.Commands;
@@ -346,18 +347,21 @@ public class WindowsPackTests
         Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v3));
     }
 
-    internal static async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger)
+    internal static async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger,
+        string fileAssociations = null, string urlProtocols = null, AssociationLaunchMode associationLaunchMode = AssociationLaunchMode.NewInstance)
     {
         if (variant == "csharp") {
-            await PackTestApp(id, version, testString, releaseDir, logger);
+            await PackTestApp(id, version, testString, releaseDir, logger,
+                fileAssociations: fileAssociations, urlProtocols: urlProtocols, associationLaunchMode: associationLaunchMode);
         } else if (variant == "rust") {
-            await PackRustTestApp(id, version, testString, releaseDir, logger);
+            await PackRustTestApp(id, version, testString, releaseDir, logger, fileAssociations, urlProtocols, associationLaunchMode);
         } else {
             throw new ArgumentException($"Unknown variant: {variant}");
         }
     }
 
-    internal static async Task PackRustTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
+    internal static async Task PackRustTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
+        string fileAssociations = null, string urlProtocols = null, AssociationLaunchMode associationLaunchMode = AssociationLaunchMode.NewInstance)
     {
         using var _ = TempUtil.GetTempDirectory(out var packDir);
 
@@ -377,6 +381,9 @@ public class WindowsPackTests
             PackVersion = version,
             TargetRuntime = RID.Parse("win-x64"),
             PackDirectory = packDir,
+            FileAssociations = fileAssociations,
+            UrlProtocols = urlProtocols,
+            AssociationLaunchMode = associationLaunchMode,
         };
 
         var runner = WindowsTestHelper.GetPackRunner(logger);
@@ -385,7 +392,7 @@ public class WindowsPackTests
 
     internal static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
         bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null,
-        string fileAssociations = null, string urlProtocols = null)
+        string fileAssociations = null, string urlProtocols = null, AssociationLaunchMode associationLaunchMode = AssociationLaunchMode.NewInstance)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
@@ -425,11 +432,35 @@ public class WindowsPackTests
                 PackDirectory = publishDir,
                 FileAssociations = fileAssociations,
                 UrlProtocols = urlProtocols,
+                AssociationLaunchMode = associationLaunchMode,
             };
 
             var runner = WindowsTestHelper.GetPackRunner(logger);
             await runner.Run(options);
         }
+    }
+
+    [Fact]
+    public async Task PackWritesAssociationLaunchModeToManifest()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var unzipDir);
+        const string element = "<associationLaunchMode>SingleInstance</associationLaunchMode>";
+
+        // the launch mode is only meaningful together with an association, and the app reads it from sq.version
+        var id = "LaunchModeTest";
+        await PackRustTestApp(id, "1.0.0", "v1", releaseDir, logger,
+            urlProtocols: "vpklaunchmode", associationLaunchMode: AssociationLaunchMode.SingleInstance);
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"), unzipDir);
+        Assert.Contains(element, File.ReadAllText(Path.Combine(unzipDir, "lib", "app", "sq.version")));
+        Assert.Contains(element, File.ReadAllText(Path.Combine(unzipDir, $"{id}.nuspec")));
+
+        await PackRustTestApp(id, "2.0.0", "v2", releaseDir, logger, associationLaunchMode: AssociationLaunchMode.SingleInstance);
+        var withoutAssociations = Path.Combine(unzipDir, "v2");
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), Path.Combine(releaseDir, $"{id}-2.0.0-full.nupkg"), withoutAssociations);
+        Assert.DoesNotContain("associationLaunchMode", File.ReadAllText(Path.Combine(withoutAssociations, "lib", "app", "sq.version")));
     }
 
     [Theory]

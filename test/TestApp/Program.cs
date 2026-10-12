@@ -63,12 +63,14 @@ try {
         .OnFileAssoc(
             (path) => {
                 debugFile("file-assoc", path, "OnFileAssoc");
+                debugFile("assoc-pid", Environment.ProcessId.ToString(), "Pid");
                 Console.WriteLine("opened file: " + path);
                 shouldExit = true;
             })
         .OnUrlProto(
             (url) => {
                 debugFile("url-proto", url, "OnUrlProto");
+                debugFile("assoc-pid", Environment.ProcessId.ToString(), "Pid");
                 Console.WriteLine("opened url: " + url);
                 shouldExit = true;
             })
@@ -105,6 +107,17 @@ try {
 
     if (args.Length == 1 && args[0] == "packagesdir") {
         Console.WriteLine(locator.PackagesDir ?? "no_packages_dir");
+        return 0;
+    }
+
+    if (args.Length == 1 && args[0] == "wait") {
+        // stays alive (serving SingleInstance activations) until the test writes the stop sentinel
+        debugFile("ready", Environment.ProcessId.ToString(), "Ready");
+        var stop = Path.Combine(AppContext.BaseDirectory, "..", "stop");
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(120);
+        while (!File.Exists(stop) && DateTime.UtcNow < deadline) {
+            Thread.Sleep(100);
+        }
         return 0;
     }
 

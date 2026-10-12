@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Core;
+using Velopack.Packaging;
 using Velopack.Packaging.Compression;
 using Velopack.TestCommon;
 using Velopack.Util;
@@ -195,6 +196,102 @@ public class WindowsAssociationTests
                 logger.Warn($"TEST: failed to clean up HKCU\\Software\\Classes\\{scheme}: {ex.Message}");
             }
         }
+    }
+
+    [Theory]
+    [InlineData("csharp")]
+    [InlineData("rust")]
+    public async Task SingleInstanceForwardsActivationToRunningApp(string variant)
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<WindowsAssociationTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+
+        var suffix = TestHelper.RandomString(8);
+        var id = $"WinAssocSingle{variant}";
+        var scheme = $"vpkassoc{suffix}s";
+        var exe = variant == "rust" ? "testapp.exe" : "TestApp.exe";
+        var appPath = Path.Combine(installDir, "current", exe);
+        Process server = null;
+
+        using var classes = Registry.CurrentUser.CreateSubKey(@"Software\Classes", true);
+        try {
+            await WindowsPackTests.PackTestAppVariant(variant, id, "1.0.0", "version 1 test", releaseDir, logger,
+                urlProtocols: scheme, associationLaunchMode: AssociationLaunchMode.SingleInstance);
+            WindowsTestHelper.RunNoCoverage(
+                Path.Combine(releaseDir, $"{id}-win-Setup.exe"),
+                ["--silent", "--installto", installDir],
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                logger);
+            AssertProtocolRegistered(classes, scheme, id, appPath, installDir);
+
+            // the instance Setup launched after installing would otherwise be the one holding the endpoint lock
+            TestHelper.WaitUntil(() => Assert.Empty(RunningInstances(appPath)), pollDelayMs: 200);
+
+            // the first instance becomes the SingleInstance server and stays alive until the stop sentinel appears
+            server = StartWaitingInstance(appPath, logger);
+            var readyFile = Path.Combine(installDir, "ready");
+            TestHelper.WaitUntil(() => Assert.True(File.Exists(readyFile), "the waiting instance did not start"), pollDelayMs: 200);
+            Assert.False(server.HasExited, "the waiting instance exited early");
+            logger.Info($"TEST: server instance {server.Id} is ready");
+
+            // the shell launches a second instance for the URL, which forwards it to the server and exits with 0
+            var url = $"{scheme}://open?title=\"hi there\"&id=1";
+            LaunchRegisteredCommand(classes, $@"{scheme}\shell\open\command", url, logger);
+
+            var urlFile = Path.Combine(installDir, "url-proto");
+            var pidFile = Path.Combine(installDir, "assoc-pid");
+            TestHelper.WaitUntil(() => {
+                Assert.Equal($"OnUrlProto: {url}", TestHelper.ReadAllTextShared(urlFile).Trim());
+                Assert.Equal($"Pid: {server.Id}", TestHelper.ReadAllTextShared(pidFile).Trim().Split('\n').Last().Trim());
+            }, pollDelayMs: 200);
+            logger.Info("TEST: the running instance received the forwarded url");
+
+            File.WriteAllText(Path.Combine(installDir, "stop"), "");
+            Assert.True(server.WaitForExit(30_000), "the server instance did not stop");
+            Assert.Equal(0, server.ExitCode);
+        } finally {
+            if (server is { HasExited: false }) {
+                try { server.Kill(); } catch { }
+            }
+
+            server?.Dispose();
+            try {
+                classes.DeleteSubKeyTree(scheme, throwOnMissingSubKey: false);
+            } catch (Exception ex) {
+                logger.Warn($"TEST: failed to clean up HKCU\\Software\\Classes\\{scheme}: {ex.Message}");
+            }
+        }
+    }
+
+    private static Process StartWaitingInstance(string appPath, ILogger logger)
+    {
+        var psi = new ProcessStartInfo(appPath) {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = Path.GetDirectoryName(appPath)!,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        psi.ArgumentList.Add("wait");
+        var p = Process.Start(psi)!;
+        p.OutputDataReceived += (_, e) => { if (e.Data != null) logger.Info("server: " + e.Data); };
+        p.ErrorDataReceived += (_, e) => { if (e.Data != null) logger.Info("server: " + e.Data); };
+        p.BeginOutputReadLine();
+        p.BeginErrorReadLine();
+        return p;
+    }
+
+    private static Process[] RunningInstances(string appPath)
+    {
+        return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(appPath)).Where(p => {
+            try {
+                return string.Equals(p.MainModule?.FileName, appPath, StringComparison.OrdinalIgnoreCase);
+            } catch {
+                return false;
+            }
+        }).ToArray();
     }
 
     // mirrors make_progid in src/bins/src/windows/associations.rs for ids/extensions which need no sanitizing
