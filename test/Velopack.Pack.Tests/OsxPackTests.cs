@@ -363,8 +363,9 @@ public class OsxPackTests
         Process server = null;
         var launchdVars = ExportLaunchdEnvironment(installDir);
         try {
-            // register ONLY the outer bundle, as a portable zip install would: LaunchServices must find the nested helper itself
-            Exe.InvokeAndThrowIfNonZero(LsRegister, ["-f", bundle], installDir);
+            // a portable zip install registers nothing explicitly: the first launch of the app through LaunchServices is all
+            // a user does, and the nested helper must be bindable afterwards
+            Exe.InvokeAndThrowIfNonZero("/usr/bin/open", ["-W", "-n", bundle, "--args", "version"], installDir);
 
             // (a) no instance running: the helper starts the app with the url, which handles it in-process and exits
             var first = $"{scheme}://first";
