@@ -741,12 +741,29 @@ public:
     /**
      * This hook is triggered when the operating system opens this app to handle a file whose extension was
      * registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
-     * On Windows the hook runs during Run(), after the regular startup logic. On macOS files arrive as
-     * Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the
-     * main thread, and replaces the UI framework's own open-file handling. The launch is never lost to an update:
+     *
+     * On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
+     * association helper bundle receives the open-file event and launches the app with it). With the default
+     * `NewInstance` launch mode the hook runs during Run(), on the calling thread, after the regular startup logic
+     * (OnFirstRun/OnRestarted); the app then continues starting normally. The launch is never lost to an update:
      * when Run() restarts the app to apply a pending update the file(s) are forwarded to the new version, which
-     * runs the hook once per file (on macOS Run() first waits up to about 2 seconds for the launch Apple Event,
-     * only in that case). Not supported on Linux.
+     * runs the hook once per file.
+     *
+     * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
+     * running hands the path to that instance and the launching process exits with code 0 inside Run(), before
+     * any update is applied. In the receiving instance the hook runs on a background thread (a Velopack IPC
+     * thread; invocations are serialized; possibly while the main thread is still inside Run(), even before
+     * OnFirstRun/OnRestarted, or at any later time), so it must be thread-safe and marshal to the UI thread
+     * itself, and the pUserData passed to Run() must remain valid for the process lifetime. Return promptly (post
+     * the work to the UI thread rather than blocking on it): the launching process waits at most 5 seconds for the
+     * hook to return, after which it handles the activation itself as a second instance. The running instance is
+     * not brought to the foreground by the OS, so activate your main window from the hook. If no instance answers
+     * within about 5 seconds, the launching process handles the activation itself, as in `NewInstance` mode.
+     *
+     * macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in
+     * a protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders"
+     * prompt, or fails with EPERM if the user denied it earlier; add the `NS*FolderUsageDescription` strings to
+     * your Info.plist. Associations require macOS 10.13+. Not supported on Linux.
      * @param cbFileAssoc The callback to run with the path of the file to open.
      * @returns A reference to the builder.
      */
@@ -758,12 +775,26 @@ public:
     /**
      * This hook is triggered when the operating system opens this app to handle a URL whose scheme was
      * registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
-     * On Windows the hook runs during Run(), after the regular startup logic. On macOS URLs arrive as
-     * Apple Events, which requires a Cocoa (NSApplication) run loop: the hook may then run at any time, on the
-     * main thread, and replaces the UI framework's own open-URL handling. The launch is never lost to an update:
+     *
+     * On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
+     * association helper bundle receives the open-URL event and launches the app with it). With the default
+     * `NewInstance` launch mode the hook runs during Run(), on the calling thread, after the regular startup logic
+     * (OnFirstRun/OnRestarted); the app then continues starting normally. The launch is never lost to an update:
      * when Run() restarts the app to apply a pending update the URL is forwarded to the new version, which runs
-     * the hook (on macOS Run() first waits up to about 2 seconds for the launch Apple Event, only in that case).
-     * Not supported on Linux.
+     * the hook.
+     *
+     * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
+     * running hands the URL to that instance and the launching process exits with code 0 inside Run(), before
+     * any update is applied. In the receiving instance the hook runs on a background thread (a Velopack IPC
+     * thread; invocations are serialized; possibly while the main thread is still inside Run(), even before
+     * OnFirstRun/OnRestarted, or at any later time), so it must be thread-safe and marshal to the UI thread
+     * itself, and the pUserData passed to Run() must remain valid for the process lifetime. Return promptly (post
+     * the work to the UI thread rather than blocking on it): the launching process waits at most 5 seconds for the
+     * hook to return, after which it handles the activation itself as a second instance. The running instance is
+     * not brought to the foreground by the OS, so activate your main window from the hook. If no instance answers
+     * within about 5 seconds, the launching process handles the activation itself, as in `NewInstance` mode.
+     *
+     * Associations require macOS 10.13+. Not supported on Linux.
      * @param cbUrlProto The callback to run with the URL to open.
      * @returns A reference to the builder.
      */

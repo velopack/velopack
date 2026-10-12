@@ -127,28 +127,56 @@ test("VelopackApp should invoke association hooks with the opened value", async 
     CurrentBinaryDir: "",
     IsPortable: true,
   };
+  // NewInstance mode: the callback runs synchronously inside run(), after onRestarted (run() consumes the
+  // VELOPACK_RESTART variable, so it is set again here).
+  process.env.VELOPACK_RESTART = "true";
   let received: string[] = [];
   VelopackApp.build()
+    .onRestarted(() => received.push("restarted"))
     .onFileAssoc((path) => received.push("file:" + path))
     .onUrlProto((url) => received.push("url:" + url))
     .setArgs(["--veloapp-urlproto", "myapp://open?a=1"])
     .setLocator(locator)
     .run();
+  expect(received).toEqual(["restarted", "url:myapp://open?a=1"]);
 
-  await vi.waitFor(() => {
-    expect(received).toEqual(["url:myapp://open?a=1"]);
-  });
-
-  // repeated [flag, value] pairs, as a restart to apply an update forwards them
+  // repeated [flag, value] pairs, as a restart to apply an update forwards them (a shell launch on Windows, without
+  // VELOPACK_RESTART, carries exactly one value)
+  process.env.VELOPACK_RESTART = "true";
   received = [];
   VelopackApp.build()
     .onFileAssoc((path) => received.push("file:" + path))
     .setArgs(["--veloapp-fileassoc", "C:\\docs\\my file.myproj", "--veloapp-fileassoc", "C:\\docs\\other.myproj"])
     .setLocator(locator)
     .run();
+  expect(received).toEqual(["file:C:\\docs\\my file.myproj", "file:C:\\docs\\other.myproj"]);
+});
 
+test("VelopackApp should log a throwing association callback and deliver the rest", async () => {
+  let locator: VelopackLocatorConfig = {
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+    PackagesDir: "",
+    RootAppDir: "",
+    UpdateExePath: updateExe(),
+    CurrentBinaryDir: "",
+    IsPortable: true,
+  };
+  let messages: string[] = [];
+  let received: string[] = [];
+  process.env.VELOPACK_RESTART = "true"; // repeated pairs are only read for restarted launches on Windows
+  VelopackApp.build()
+    .setLogger((_level, msg) => messages.push(msg))
+    .onFileAssoc((path) => {
+      received.push(path);
+      if (path === "first") throw new Error("boom from callback");
+    })
+    .setArgs(["--veloapp-fileassoc", "first", "--veloapp-fileassoc", "second"])
+    .setLocator(locator)
+    .run();
+
+  expect(received).toEqual(["first", "second"]);
   await vi.waitFor(() => {
-    expect(received).toEqual(["file:C:\\docs\\my file.myproj", "file:C:\\docs\\other.myproj"]);
+    expect(messages.some((msg) => msg.includes("file-assoc callback threw") && msg.includes("boom from callback"))).toBe(true);
   });
 });
 

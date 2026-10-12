@@ -16,6 +16,10 @@ struct UpdateManagerWrapper {
 impl Finalize for UpdateManagerWrapper {}
 type BoxedUpdateManager = JsBox<RefCell<UpdateManagerWrapper>>;
 
+/// Association activations delivered while `run()` is executing, as `(hook name, value)` pairs. `None` once `run()`
+/// has returned and the queue was delivered, after which deliveries go through the event-loop channel.
+type PendingAssociations = Arc<Mutex<Option<Vec<(&'static str, String)>>>>;
+
 /// A JSON-serialized update source descriptor, produced by the TypeScript layer.
 #[derive(serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -355,31 +359,41 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let has_file_assoc = cx.argument::<JsBoolean>(4)?.value(&mut cx);
     let has_url_proto = cx.argument::<JsBoolean>(5)?.value(&mut cx);
 
-    // Association hooks must be Send + 'static (on macOS they fire later from the Cocoa run loop), so they reach JS
-    // through a rooted callback and a Channel. On macOS the Apple Event handler holds the hooks (and this channel)
-    // for the life of the process, so it is unref'd up front or it would pin the event loop forever. Elsewhere the
-    // hook fires synchronously inside run() and only queues the JS call: the channel must stay referenced until that
-    // call has been delivered or a script which ends right after run() would exit with it still queued. The channel
-    // clones are dropped with `builder` at the end of this function, and neon's `Drop for Channel` then unrefs it
-    // behind the pending closure.
+    // Association hooks must be Send + Sync + 'static: in SingleInstance launch mode the IPC server keeps them for the
+    // life of the process and invokes them from its own thread. Values delivered while run() is executing (the
+    // process's own argv, or an IPC delivery that races the startup) are queued in `pending` and the JS callback is
+    // called synchronously below, after run() returns: that keeps the in-process order (after first-run/restarted)
+    // and needs no referenced channel. Once `pending` has been taken, later deliveries from the IPC thread go through
+    // the channel, which is unref'd up front so the server never pins the event loop. `try_send` only fails once the
+    // event loop has shut down (eg. an activation arriving while Electron is exiting); that is logged, not a panic.
     let association_cb = Arc::new(arg_cb.root(&mut cx));
-    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut association_channel = cx.channel();
-    #[cfg(target_os = "macos")]
     association_channel.unref(&mut cx);
-    let association_handler = move |hook_name: &'static str, value: String| {
-        let cb = association_cb.clone();
-        association_channel.send(move |mut cx| {
-            let cb = cb.to_inner(&mut cx);
-            let this = cx.undefined();
-            let args = vec![cx.string(hook_name).upcast(), cx.string(value).upcast()];
-            cb.call(&mut cx, this, args)?;
-            Ok(())
-        });
+    let pending: PendingAssociations = Arc::new(Mutex::new(Some(Vec::new())));
+    let association_handler = {
+        let pending = pending.clone();
+        move |hook_name: &'static str, value: String| {
+            if let Some(queue) = pending.lock().unwrap().as_mut() {
+                queue.push((hook_name, value));
+                return;
+            }
+            let cb = association_cb.clone();
+            let sent = association_channel.try_send(move |mut cx| {
+                let cb = cb.to_inner(&mut cx);
+                let this = cx.undefined();
+                let args = vec![cx.string(hook_name).upcast(), cx.string(value).upcast()];
+                cb.call(&mut cx, this, args)?;
+                Ok(())
+            });
+            if let Err(e) = sent {
+                log::warn!("VelopackApp: could not deliver {} to the event loop: {}", hook_name, e);
+            }
+        }
     };
 
     let undefined = cx.undefined();
     let cx_ref = Rc::new(RefCell::new(cx));
+    let cx_after_run = cx_ref.clone();
 
     let hook_handler = move |hook_name: &str, current_version: Version| {
         let mut cx = cx_ref.borrow_mut();
@@ -431,6 +445,24 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     logging::init_logging("lib-nodejs", Some(&log_file), false, false, Some(logger::create_shared_logger()));
     builder.run();
+
+    // Deliver the associations queued during run() synchronously, in order; a throwing callback is logged and the
+    // remaining values are still delivered.
+    let queued = pending.lock().unwrap().take().unwrap_or_default();
+    if !queued.is_empty() {
+        let mut cx = cx_after_run.borrow_mut();
+        for (hook_name, value) in queued {
+            let result = cx.try_catch(|cx| {
+                let this = cx.undefined();
+                let args = vec![cx.string(hook_name).upcast(), cx.string(value).upcast()];
+                arg_cb.call(cx, this, args)
+            });
+            if let Err(err) = result {
+                let message = err.to_string(&mut *cx).map(|s| s.value(&mut *cx)).unwrap_or_default();
+                log::warn!("VelopackApp: {} callback threw: {}", hook_name, message);
+            }
+        }
+    }
 
     Ok(undefined)
 }

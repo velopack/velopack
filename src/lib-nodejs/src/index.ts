@@ -135,13 +135,28 @@ export class VelopackApp {
   /**
    * This hook is triggered when the operating system opens this app to handle a file whose extension was
    * registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
-   * On Windows the path arrives as `--veloapp-fileassoc <path>` on the command line and the callback runs
-   * on the next event-loop tick after run(). On macOS files arrive as Apple Events, which requires a Cocoa
-   * (NSApplication) run loop such as Electron's main process: the callback may then fire at any time and
-   * replaces the framework's own open-file handling. The launch is never lost to an update: when run() restarts
-   * the app to apply a pending update the file(s) are forwarded to the new version, which invokes the callback
-   * once per file (on macOS run() first waits up to about 2 seconds for the launch Apple Event, only in that case).
-   * Not supported on Linux.
+   *
+   * On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
+   * association helper bundle receives the open-file event and launches the app with it). With the default
+   * `NewInstance` launch mode the callback runs synchronously inside run(), after the regular startup logic
+   * (onFirstRun/onRestarted); the app then continues starting normally. The launch is never lost to an update:
+   * when run() restarts the app to apply a pending update the file(s) are forwarded to the new version, which
+   * invokes the callback once per file.
+   *
+   * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
+   * running hands the path to that instance and the launching process exits with code 0 in native code, inside
+   * run(), before any update is applied (`process.on("exit")` handlers do not run, like the fast-exit hooks).
+   * In the receiving instance the callback is queued to the event loop (it always runs on the JS thread), at any
+   * time after run() has started, even before onFirstRun/onRestarted; the IPC server does not keep the event loop
+   * alive, and an activation arriving while the process is already shutting down is logged and dropped. The running
+   * instance is not brought to the foreground by the OS, so activate your main window from the callback. If no
+   * instance answers within about 5 seconds, the launching process handles the activation itself, as in
+   * `NewInstance` mode.
+   *
+   * macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in a
+   * protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders" prompt,
+   * or fails with EPERM if the user denied it earlier; add the `NS*FolderUsageDescription` strings to your
+   * Info.plist. Associations require macOS 10.13+. Not supported on Linux.
    */
   onFileAssoc(callback: VelopackAssociationHook): VelopackApp {
     this._hooks.set("file-assoc", callback);
@@ -151,13 +166,25 @@ export class VelopackApp {
   /**
    * This hook is triggered when the operating system opens this app to handle a URL whose scheme was
    * registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
-   * On Windows the URL arrives as `--veloapp-urlproto <url>` on the command line and the callback runs
-   * on the next event-loop tick after run(). On macOS URLs arrive as Apple Events, which requires a Cocoa
-   * (NSApplication) run loop such as Electron's main process: the callback may then fire at any time and
-   * replaces the framework's own open-url handling. The launch is never lost to an update: when run() restarts
-   * the app to apply a pending update the URL is forwarded to the new version, which invokes the callback
-   * (on macOS run() first waits up to about 2 seconds for the launch Apple Event, only in that case).
-   * Not supported on Linux.
+   *
+   * On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
+   * association helper bundle receives the open-URL event and launches the app with it). With the default
+   * `NewInstance` launch mode the callback runs synchronously inside run(), after the regular startup logic
+   * (onFirstRun/onRestarted); the app then continues starting normally. The launch is never lost to an update:
+   * when run() restarts the app to apply a pending update the URL is forwarded to the new version, which invokes
+   * the callback.
+   *
+   * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
+   * running hands the URL to that instance and the launching process exits with code 0 in native code, inside
+   * run(), before any update is applied (`process.on("exit")` handlers do not run, like the fast-exit hooks).
+   * In the receiving instance the callback is queued to the event loop (it always runs on the JS thread), at any
+   * time after run() has started, even before onFirstRun/onRestarted; the IPC server does not keep the event loop
+   * alive, and an activation arriving while the process is already shutting down is logged and dropped. The running
+   * instance is not brought to the foreground by the OS, so activate your main window from the callback. If no
+   * instance answers within about 5 seconds, the launching process handles the activation itself, as in
+   * `NewInstance` mode.
+   *
+   * Associations require macOS 10.13+. Not supported on Linux.
    */
   onUrlProto(callback: VelopackAssociationHook): VelopackApp {
     this._hooks.set("url-proto", callback);
