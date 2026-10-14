@@ -1,130 +1,78 @@
 using System;
-using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
-using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Microsoft.Win32.SafeHandles;
+using System.Security.Principal;
 
 namespace Velopack.Ipc
 {
     /// <summary> The connecting side. </summary>
     internal static class IpcClient
     {
+        /// <summary> Bounds one connection attempt (a busy pipe is waited for this long); callers retry. </summary>
+        private const int ConnectTimeoutMs = 10;
+        private const int ErrorSemTimeout = 121;
+
+        /// <summary>
+        /// Unix only: the runtime checks the peer's uid on both ends (server and client), so a socket placed by another
+        /// user is refused. Not used on Windows, where its owner check compares against the token's default owner (the
+        /// Administrators group when elevated); <see cref="VerifyServer"/> does the Windows check instead.
+        /// </summary>
+#if NETSTANDARD2_0
+        internal const PipeOptions CurrentUserOnly = (PipeOptions) 0x20000000;
+#elif NETFRAMEWORK
+        internal const PipeOptions CurrentUserOnly = PipeOptions.None;
+#else
+        internal const PipeOptions CurrentUserOnly = PipeOptions.CurrentUserOnly;
+#endif
+
         /// <summary>
         /// Connects to the server at <paramref name="endpoint"/>. Null means nobody is listening (the caller may retry).
-        /// Throws when the endpoint is unusable, or (Windows) when access is denied or the server process cannot be
-        /// verified as running under the current user and integrity level, in which case nothing has been sent.
+        /// Throws when the endpoint is unusable, access is denied, or (Windows) the pipe is not owned by the current
+        /// user, in which case nothing has been sent.
         /// </summary>
         public static IpcConnection? TryConnect(IpcEndpoint endpoint)
         {
-            if (VelopackRuntimeInfo.IsWindows) {
-                return ConnectWindows(endpoint);
-            }
-#if NET8_0_OR_GREATER
-            if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
-                return ConnectUnix(endpoint);
-            }
-#endif
-            throw new PlatformNotSupportedException("IPC needs the net8.0+ Velopack build on this OS.");
-        }
-
-        [SupportedOSPlatform("windows")]
-        private static IpcConnection? ConnectWindows(IpcEndpoint endpoint)
-        {
-            // SECURITY_IDENTIFICATION: a squatter cannot impersonate us beyond identification
-            var handle = IpcNative.CreateFileW(
-                endpoint.Address,
-                IpcNative.GENERIC_READ | IpcNative.GENERIC_WRITE,
-                0,
-                IntPtr.Zero,
-                IpcNative.OPEN_EXISTING,
-                IpcNative.FILE_FLAG_OVERLAPPED | IpcNative.SECURITY_SQOS_PRESENT | IpcNative.SECURITY_IDENTIFICATION,
-                IntPtr.Zero);
-            if (handle == IpcNative.INVALID_HANDLE_VALUE) {
-                var error = Marshal.GetLastWin32Error();
-                switch (error) {
-                case IpcNative.ERROR_FILE_NOT_FOUND:
-                    return null;
-                case IpcNative.ERROR_PIPE_BUSY:
-                    IpcNative.WaitNamedPipeW(endpoint.Address, 100);
-                    return null;
-                case IpcNative.ERROR_ACCESS_DENIED:
-                    throw new UnauthorizedAccessException("IPC server access denied (another user or integrity level)");
-                default:
-                    throw new Win32Exception(error, "CreateFile on the IPC pipe failed");
-                }
-            }
-
-            var safeHandle = new SafePipeHandle(handle, true);
+            // Identification: a squatter could not impersonate us beyond identifying us (a Windows concept)
+            var impersonation = VelopackRuntimeInfo.IsWindows ? TokenImpersonationLevel.Identification : TokenImpersonationLevel.None;
+            var options = PipeOptions.Asynchronous | (VelopackRuntimeInfo.IsWindows ? PipeOptions.None : CurrentUserOnly);
+            var pipe = new NamedPipeClientStream(".", endpoint.PipeName, PipeDirection.InOut, options, impersonation);
             try {
-                VerifyServer(handle);
-                return new IpcConnection(new NamedPipeClientStream(PipeDirection.InOut, true, true, safeHandle));
+                try {
+                    // never 0: that is NMPWAIT_USE_DEFAULT_WAIT, a wait for a busy pipe as long as its creator chose
+                    pipe.Connect(ConnectTimeoutMs);
+                } catch (Exception ex) when (ex is TimeoutException || (ex is IOException && (ex.HResult & 0xFFFF) == ErrorSemTimeout)) {
+                    // no instance exists, or every instance is busy (.NET Framework reports the latter as ERROR_SEM_TIMEOUT)
+                    pipe.Dispose();
+                    return null;
+                }
+
+                if (VelopackRuntimeInfo.IsWindows) {
+                    VerifyServer(pipe);
+                }
+
+                return new IpcConnection(pipe);
             } catch {
-                safeHandle.Dispose();
+                pipe.Dispose();
                 throw;
             }
         }
 
         /// <summary>
-        /// Before anything is written, the server process must run under our user SID and integrity level. Any failure
-        /// along the way (a squatter from another user typically makes <c>OpenProcess</c> fail) is a mismatch.
+        /// Before anything is written, the pipe must be owned by our user SID (the server sets it explicitly; another
+        /// user cannot make our SID the owner). Any failure along the way is a refusal.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        private static void VerifyServer(IntPtr pipe)
+        private static void VerifyServer(NamedPipeClientStream pipe)
         {
             try {
-                if (!IpcNative.GetNamedPipeServerProcessId(pipe, out var pid)) {
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "GetNamedPipeServerProcessId failed");
-                }
-
-                var process = IpcNative.OpenProcess(IpcNative.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
-                if (process == IntPtr.Zero) {
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "OpenProcess failed");
-                }
-
-                (string UserSid, string IntegritySid) server;
-                try {
-                    server = IpcNative.TokenSids(process);
-                } finally {
-                    IpcNative.CloseHandle(process);
-                }
-
-                var own = IpcNative.TokenSids(IpcNative.GetCurrentProcess());
-                if (!string.Equals(server.UserSid, own.UserSid, StringComparison.Ordinal)
-                    || !string.Equals(server.IntegritySid, own.IntegritySid, StringComparison.Ordinal)) {
-                    throw new UnauthorizedAccessException("server user or integrity level differs");
+                var owner = pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier));
+                if (owner == null || !owner.Equals(IpcEndpoint.CurrentUserSid())) {
+                    throw new UnauthorizedAccessException("the pipe is owned by another user");
                 }
             } catch (Exception ex) {
                 throw new UnauthorizedAccessException("IPC server could not be verified: " + ex.Message, ex);
             }
         }
-
-#if NET8_0_OR_GREATER
-        [SupportedOSPlatform("linux")]
-        [SupportedOSPlatform("macos")]
-        private static IpcConnection? ConnectUnix(IpcEndpoint endpoint)
-        {
-            if (!File.Exists(endpoint.Address)) {
-                return null;
-            }
-
-            var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            try {
-                socket.Connect(new UnixDomainSocketEndPoint(endpoint.Address));
-            } catch (SocketException ex)
-                when (ex.SocketErrorCode == SocketError.ConnectionRefused || ex.SocketErrorCode == SocketError.AddressNotAvailable) {
-                // a stale file from a crashed server
-                socket.Dispose();
-                return null;
-            } catch {
-                socket.Dispose();
-                throw;
-            }
-
-            return new IpcConnection(new NetworkStream(socket, true), socket);
-        }
-#endif
     }
 }

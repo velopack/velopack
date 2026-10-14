@@ -45,7 +45,6 @@ public class PlistWriterTests
         Assert.Null(ValueOf(dict, "CFBundleDocumentTypes"));
         Assert.Null(ValueOf(dict, "LSUIElement"));
         Assert.Null(ValueOf(dict, "LSMinimumSystemVersion"));
-        Assert.Null(ValueOf(dict, OsxAssociationHelper.LaunchModePlistKey));
     }
 
     /// <summary>A fake main .app with a helper binary and icon to build the association helper into.</summary>
@@ -68,9 +67,9 @@ public class PlistWriterTests
             File.WriteAllBytes(Icon, [0x69, 0x63, 0x6E, 0x73]);
         }
 
-        public string Build(string[] extensions, string[] schemes, AssociationLaunchMode mode = AssociationLaunchMode.NewInstance)
+        public string Build(string[] extensions, string[] schemes)
         {
-            var info = OsxAssociationHelper.CreateInfo("My App", "com.x.y", "1.2.0", "1.2.0-beta.1", extensions, schemes, mode);
+            var info = OsxAssociationHelper.CreateInfo("My App", "com.x.y", "1.2.0", "1.2.0-beta.1", extensions, schemes);
             return OsxAssociationHelper.Build(NullLogger.Instance, AppDir, info, HelperBinary, Icon);
         }
 
@@ -82,7 +81,7 @@ public class PlistWriterTests
     {
         using var app = new FakeApp();
 
-        var helper = app.Build([".myproj"], ["myapp"], AssociationLaunchMode.SingleInstance);
+        var helper = app.Build([".myproj"], ["myapp"]);
 
         Assert.Equal(Path.Combine(app.AppDir, "Contents", "Helpers", "My App.app"), helper);
         var exe = Path.Combine(helper, "Contents", "MacOS", "AssocHelper");
@@ -103,7 +102,6 @@ public class PlistWriterTests
         Assert.Equal("true", ValueOf(dict, "NSHighResolutionCapable")!.Name.LocalName);
         Assert.Equal("true", ValueOf(dict, "LSUIElement")!.Name.LocalName);
         Assert.Equal("10.13", ValueOf(dict, "LSMinimumSystemVersion")!.Value);
-        Assert.Equal("SingleInstance", ValueOf(dict, OsxAssociationHelper.LaunchModePlistKey)!.Value);
         Assert.Null(ValueOf(dict, "LSBackgroundOnly"));
     }
 
@@ -115,7 +113,6 @@ public class PlistWriterTests
         var helper = app.Build([], ["myapp", "myapp-beta"]);
 
         var dict = LoadDict(Path.Combine(helper, "Contents", "Info.plist"));
-        Assert.Equal("NewInstance", ValueOf(dict, OsxAssociationHelper.LaunchModePlistKey)!.Value);
         Assert.Null(ValueOf(dict, "CFBundleDocumentTypes"));
 
         var urlTypes = ValueOf(dict, "CFBundleURLTypes")!;

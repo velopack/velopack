@@ -201,7 +201,7 @@ public class WindowsAssociationTests
     [Theory]
     [InlineData("csharp")]
     [InlineData("rust")]
-    public async Task SingleInstanceForwardsActivationToRunningApp(string variant)
+    public async Task ActivationForwardingSendsActivationToRunningApp(string variant)
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsAssociationTests>();
@@ -209,7 +209,7 @@ public class WindowsAssociationTests
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
 
         var suffix = TestHelper.RandomString(8);
-        var id = $"WinAssocSingle{variant}";
+        var id = $"WinAssocForward{variant}";
         var scheme = $"vpkassoc{suffix}s";
         var exe = variant == "rust" ? "testapp.exe" : "TestApp.exe";
         var appPath = Path.Combine(installDir, "current", exe);
@@ -218,7 +218,7 @@ public class WindowsAssociationTests
         using var classes = Registry.CurrentUser.CreateSubKey(@"Software\Classes", true);
         try {
             await WindowsPackTests.PackTestAppVariant(variant, id, "1.0.0", "version 1 test", releaseDir, logger,
-                urlProtocols: scheme, associationLaunchMode: AssociationLaunchMode.SingleInstance);
+                urlProtocols: scheme, forwardActivations: true);
             WindowsTestHelper.RunNoCoverage(
                 Path.Combine(releaseDir, $"{id}-win-Setup.exe"),
                 ["--silent", "--installto", installDir],
@@ -229,7 +229,7 @@ public class WindowsAssociationTests
             // the instance Setup launched after installing would otherwise be the one holding the endpoint lock
             TestHelper.WaitUntil(() => Assert.Empty(RunningInstances(appPath)), pollDelayMs: 200);
 
-            // the first instance becomes the SingleInstance server and stays alive until the stop sentinel appears
+            // the first instance becomes the activation forwarding server and stays alive until the stop sentinel appears
             server = StartWaitingInstance(appPath, logger);
             var readyFile = Path.Combine(installDir, "ready");
             TestHelper.WaitUntil(() => Assert.True(File.Exists(readyFile), "the waiting instance did not start"), pollDelayMs: 200);

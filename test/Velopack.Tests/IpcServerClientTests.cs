@@ -1,5 +1,6 @@
 #nullable enable
 using System.Diagnostics;
+using System.IO.Pipes;
 using Velopack.Ipc;
 using Velopack.Logging;
 
@@ -100,18 +101,63 @@ public class IpcServerClientTests
     public void ConnectRefusesSquattedPipe()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "named pipes are a Windows feature");
-        // a pipe only SYSTEM may open: our own CreateFile fails with access denied, which must be an error (never
-        // "nobody listening", which would make the caller retry and eventually handle in-process)
+        // a pipe only SYSTEM may open: our own open fails with access denied, which must be an error (never "nobody
+        // listening", which would make the caller retry and eventually handle in-process)
         var ep = RandomEndpoint(NullVelopackLogger.Instance);
-        var descriptor = IpcNative.CreateSecurityDescriptor("D:P(A;;GA;;;SY)");
-        var squatter = IpcNative.CreatePipeInstance(ep.Address, descriptor, true);
+        using var squatter = CreatePipe(ep, "D:P(A;;GA;;;SY)");
+        Assert.Throws<UnauthorizedAccessException>(() => IpcClient.TryConnect(ep));
+    }
+
+    [Fact]
+    public void ConnectRefusesPipeOwnedByAnotherPrincipal()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "named pipes are a Windows feature");
+        // we may open it, but its owner is not our user SID: the default owner of an elevated process (Administrators),
+        // which only an elevated token can assign
+        var log = new ListLogger();
+        var ep = RandomEndpoint(log);
+        var user = IpcEndpoint.CurrentUserSid().Value;
+        NamedPipeServerStream squatter;
         try {
-            var ex = Assert.Throws<UnauthorizedAccessException>(() => IpcClient.TryConnect(ep));
-            Assert.Contains("access denied", ex.Message);
-        } finally {
-            IpcNative.CloseHandle(squatter);
-            IpcNative.LocalFree(descriptor);
+            squatter = CreatePipe(ep, $"O:BAD:P(A;;GA;;;{user})");
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
+            Assert.Skip("only an elevated token can make Administrators the owner");
+            return;
         }
+
+        using (squatter) {
+            var ex = Assert.Throws<UnauthorizedAccessException>(() => IpcClient.TryConnect(ep));
+            Assert.Contains("could not be verified", ex.Message);
+
+            // our server cannot take over the name: its first instance is created with FILE_FLAG_FIRST_PIPE_INSTANCE
+            Assert.False(IpcServer.Start(ep, null, conn => conn.Dispose(), log));
+        }
+    }
+
+    [Fact]
+    public void ServerPipeIsOwnedByTheUserAndRejectsRemoteClients()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "named pipes are a Windows feature");
+        var log = new ListLogger();
+        var ep = RandomEndpoint(log);
+        Assert.True(IpcServer.Start(ep, null, conn => conn.Dispose(), log));
+        using (var client = ConnectWithRetries(ep)) {
+            var owner = ((PipeStream) client.Stream).GetAccessControl().GetOwner(typeof(System.Security.Principal.SecurityIdentifier));
+            Assert.Equal(IpcEndpoint.CurrentUserSid(), owner);
+        }
+
+        // an SMB open of the same pipe (\\localhost\pipe\...) is a remote client: PIPE_REJECT_REMOTE_CLIENTS refuses it
+        using var remote = new NamedPipeClientStream("localhost", ep.PipeName, PipeDirection.InOut);
+        Assert.NotNull(Record.Exception(() => remote.Connect(5000)));
+        Assert.False(remote.IsConnected);
+    }
+
+    private static NamedPipeServerStream CreatePipe(IpcEndpoint ep, string sddl)
+    {
+        var security = new PipeSecurity();
+        security.SetSecurityDescriptorSddlForm(sddl);
+        return NamedPipeServerStreamAcl.Create(ep.PipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances,
+            PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, security);
     }
 
     [Fact]
@@ -138,11 +184,9 @@ public class IpcServerClientTests
     }
 
     [Fact]
-    public void TokenSidsOfCurrentProcess()
+    public void CurrentUserSidIsTheTokenUser()
     {
-        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "token SIDs are a Windows feature");
-        var (user, level) = IpcNative.TokenSids(IpcNative.GetCurrentProcess());
-        Assert.StartsWith("S-1-5-", user);
-        Assert.StartsWith("S-1-16-", level);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "SIDs are a Windows feature");
+        Assert.StartsWith("S-1-5-", IpcEndpoint.CurrentUserSid().Value);
     }
 }

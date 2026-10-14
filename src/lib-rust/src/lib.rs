@@ -99,6 +99,7 @@ pub mod sources;
 #[cfg(target_os = "windows")]
 maybe_pub!(known_path, wide_strings);
 maybe_pub!(
+    activation_forwarding,
     download,
     bundle,
     constants,
@@ -107,7 +108,6 @@ maybe_pub!(
     lockfile,
     logging,
     misc,
-    single_instance,
     windows_channel_tag
 );
 

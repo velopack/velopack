@@ -132,8 +132,8 @@ test("VelopackApp should invoke association hooks with the opened value", async 
     CurrentBinaryDir: "",
     IsPortable: true,
   };
-  // NewInstance mode: the callback runs synchronously inside run(), after onRestarted (run() consumes the
-  // VELOPACK_RESTART variable, so it is set again here).
+  // By default (no activation forwarding) the callback runs synchronously inside run(), after onRestarted (run()
+  // consumes the VELOPACK_RESTART variable, so it is set again here).
   process.env.VELOPACK_RESTART = "true";
   let received: string[] = [];
   VelopackApp.build()
@@ -185,7 +185,7 @@ test("VelopackApp should log a throwing association callback and deliver the res
   });
 });
 
-test("VelopackApp should deliver SingleInstance activations from the IPC thread to the JS thread", async () => {
+test("VelopackApp should deliver forwarded activations from the IPC thread to the JS thread", async () => {
   // the Rust test app (built by `npm run dev`) is the forwarding client; missing locally = skip, missing in CI = fail
   const testapp = path.join("..", "..", "target", "debug", isWindows() ? "testapp.exe" : "testapp");
   if (!fs.existsSync(testapp)) {
@@ -193,19 +193,11 @@ test("VelopackApp should deliver SingleInstance activations from the IPC thread 
     return;
   }
 
-  // an installed-looking root whose manifest selects SingleInstance (the lock is held for the rest of the process,
-  // so the root is unique to this test)
+  // an installed-looking root (the lock is held for the rest of the process, so the root is unique to this test)
   const root = path.join(os.tmpdir(), "velopack-node-ipc-" + makeId(8));
   fs.mkdirSync(path.join(root, "packages"), {recursive: true});
-  const manifest = path.join(root, "sq.version");
-  fs.writeFileSync(
-    manifest,
-    fs
-      .readFileSync("../../test/fixtures/Test.Squirrel-App.nuspec", "utf8")
-      .replace("</metadata>", "<associationLaunchMode>SingleInstance</associationLaunchMode></metadata>"),
-  );
   const locator: VelopackLocatorConfig = {
-    ManifestPath: manifest,
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
     PackagesDir: path.join(root, "packages"),
     RootAppDir: root,
     UpdateExePath: updateExe(),
@@ -217,6 +209,7 @@ test("VelopackApp should deliver SingleInstance activations from the IPC thread 
   let received: string[] = [];
   VelopackApp.build()
     .onUrlProto((url) => received.push(url))
+    .forwardActivationsToRunningInstance(true)
     .setArgs([])
     .setLocator(locator)
     .run();

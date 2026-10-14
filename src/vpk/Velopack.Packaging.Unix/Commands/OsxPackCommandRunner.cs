@@ -53,15 +53,11 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         var given = !string.IsNullOrWhiteSpace(Options.FileAssociations) || !string.IsNullOrWhiteSpace(Options.UrlProtocols);
         var inherited = OsxAssociationHelper.Find(dir.FullName);
         if (given) {
-            var (extensions, schemes) = AddAssociationMetadata(Options.FileAssociations, Options.UrlProtocols, Options.AssociationLaunchMode);
+            var (extensions, schemes) = AddAssociationMetadata(Options.FileAssociations, Options.UrlProtocols);
             BuildAssociationHelper(structure, extensions, schemes);
         } else if (inherited != null) {
-            // a helper built by `vpk bundle` (or a previous pack) is kept, and the mode it was built with is carried
-            // into the manifest so the pack step needs no association options repeated
-            var modeText = OsxBuildTools.ReadPlistValue(Path.Combine(inherited, "Contents", "Info.plist"), OsxAssociationHelper.LaunchModePlistKey);
-            var mode = Enum.TryParse<AssociationLaunchMode>(modeText?.Trim(), true, out var parsed) ? parsed : AssociationLaunchMode.NewInstance;
-            Log.Info($"Using the association helper found in the bundle ({Path.GetFileName(inherited)}, {mode}).");
-            AddAssociationMetadata("", "", mode, hasAssociations: true);
+            // a helper built by `vpk bundle` (or a previous pack) is kept as-is
+            Log.Info($"Using the association helper found in the bundle ({Path.GetFileName(inherited)}).");
         }
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
@@ -89,7 +85,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
             structure.AppDirectory,
             extensions,
             schemes,
-            Options.AssociationLaunchMode,
             Options.PackVersion,
             Options.Icon,
             Options.BundleId ?? OsxBundleCommandRunner.GetDefaultBundleId(Options.PackId, Options.PackAuthors),
@@ -118,8 +113,9 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
             entitlements = HelperFile.VelopackEntitlements;
         }
 
-        // the association helper is always signed with Velopack's entitlements (never the user's: a sandboxed
-        // caller cannot pass arguments through NSWorkspace), inside-out before the outer bundle is sealed
+        // the association helper is always signed with Velopack's entitlements (never the user's: sandboxed, it would
+        // derive its IPC socket path from a container-redirected TMPDIR and miss the running app, and its
+        // `open -n --args` launch could lose the arguments), inside-out before the outer bundle is sealed
         var assocHelpers = OsxAssociationHelper.FindAll(packDir);
 
         void SignAssociationHelpers()

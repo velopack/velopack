@@ -44,19 +44,6 @@ public class PackageManifestTests
         Assert.Empty(manifest.UrlProtocols);
     }
 
-    [Theory]
-    [InlineData("<associationLaunchMode>SingleInstance</associationLaunchMode>", "SingleInstance", true)]
-    [InlineData("<associationLaunchMode> singleinstance </associationLaunchMode>", "singleinstance", true)]
-    [InlineData("<associationLaunchMode>NewInstance</associationLaunchMode>", "NewInstance", false)]
-    [InlineData("<associationLaunchMode>Bogus</associationLaunchMode>", "Bogus", false)]
-    [InlineData("", null, false)]
-    public void ParsesAssociationLaunchMode(string extraMetadata, string? expected, bool singleInstance)
-    {
-        var manifest = Parse(extraMetadata);
-        Assert.Equal(expected, manifest.AssociationLaunchMode);
-        Assert.Equal(singleInstance, Velopack.Locators.VelopackLocator.IsSingleInstanceMode(manifest));
-    }
-
     [Fact]
     public void EmptyAndWhitespaceAssociationEntriesAreFiltered()
     {

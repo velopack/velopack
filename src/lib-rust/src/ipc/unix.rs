@@ -1,22 +1,20 @@
-//! Unix domain socket transport: `{tmp}/velopack-{uid}/{key}.sock`, in a private (0700) per-user directory with
+//! Unix domain socket location: `{tmp}/velopack-{uid}/{key}.sock`, in a private (0700) per-user directory with
 //! the socket itself at 0600. The lock file lives in the same directory on purpose: macOS purges unused `$TMPDIR`
 //! entries together, and a server whose files were purged is simply superseded by the next launch.
 
-use super::IpcEndpoint;
+use super::{IpcConnection, IpcEndpoint};
 use crate::Error;
-use std::io::{self, Read, Write};
+use std::ffi::OsString;
+use std::io;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 /// `sun_path` holds 104 bytes on macOS including the terminator.
 const MAX_SOCKET_PATH_BYTES: usize = 103;
 
 pub(crate) fn endpoint_for_key(key: &str) -> Result<IpcEndpoint, Error> {
-    let base = std::env::temp_dir();
-    let base = super::trim_root_unix(&base.to_string_lossy());
-    let dir = PathBuf::from(base).join(format!("velopack-{}", current_user()?));
+    let base = socket_base_dir(std::env::var_os("TMPDIR"));
+    let dir = base.join(format!("velopack-{}", current_user()?));
     ensure_private_dir(&dir)?;
     let address = dir.join(format!("{key}.sock"));
     if address.as_os_str().len() > MAX_SOCKET_PATH_BYTES {
@@ -30,6 +28,79 @@ pub(crate) fn endpoint_for_key(key: &str) -> Result<IpcEndpoint, Error> {
         address,
         lock_path: dir.join(format!("{key}.lock")),
     })
+}
+
+/// The directory the per-user socket directory lives in, by the same rule as the C# library
+/// (`IpcEndpoint.SocketBaseDir`), so both find each other whatever the environment of either process: on macOS always
+/// the per-user temporary directory (`confstr(_CS_DARWIN_USER_TEMP_DIR)`, `$TMPDIR` is ignored as it may be unset,
+/// eg. over ssh or in a launchd job), `/tmp` if that fails; elsewhere `tmpdir` (the value of `$TMPDIR`) when it is
+/// set and not empty, else `/tmp`. Trailing slashes are trimmed.
+pub(crate) fn socket_base_dir(tmpdir: Option<OsString>) -> PathBuf {
+    #[cfg(target_os = "macos")]
+    let base = {
+        let _ = tmpdir;
+        darwin_user_temp_dir().unwrap_or_else(|| "/tmp".into())
+    };
+    #[cfg(not(target_os = "macos"))]
+    let base = match tmpdir {
+        Some(dir) if !dir.is_empty() => dir.to_string_lossy().into_owned(),
+        _ => "/tmp".to_owned(),
+    };
+    PathBuf::from(super::trim_root_unix(&base))
+}
+
+#[cfg(target_os = "macos")]
+fn darwin_user_temp_dir() -> Option<String> {
+    let mut buf = vec![0u8; 1024];
+    // SAFETY: confstr writes at most buf.len() bytes (NUL-terminated) and returns the size the full value needs
+    let needed = unsafe { libc::confstr(libc::_CS_DARWIN_USER_TEMP_DIR, buf.as_mut_ptr().cast(), buf.len()) };
+    if needed == 0 || needed > buf.len() {
+        return None;
+    }
+    buf.truncate(needed - 1);
+    String::from_utf8(buf).ok().filter(|dir| !dir.is_empty())
+}
+
+/// Makes writes on `conn` to a peer that already went away fail with `EPIPE` instead of raising `SIGPIPE`, which
+/// would kill a host process that does not ignore it (a C/C++ app; Rust, .NET, Node and Python ignore it). On Apple
+/// targets the socket gets `SO_NOSIGPIPE`; elsewhere every thread doing IPC I/O calls [`block_sigpipe`] instead.
+pub(crate) fn suppress_sigpipe(conn: &IpcConnection) -> io::Result<()> {
+    #[cfg(target_vendor = "apple")]
+    {
+        use std::os::fd::{AsFd, AsRawFd};
+        let IpcConnection::UdSocket(stream) = conn;
+        let on: libc::c_int = 1;
+        // SAFETY: a valid socket fd and a c_int option value of the given size
+        let rc = unsafe {
+            libc::setsockopt(
+                stream.as_fd().as_raw_fd(),
+                libc::SOL_SOCKET,
+                libc::SO_NOSIGPIPE,
+                (&on as *const libc::c_int).cast(),
+                std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+            )
+        };
+        if rc != 0 {
+            return Err(io::Error::last_os_error());
+        }
+    }
+    #[cfg(not(target_vendor = "apple"))]
+    let _ = conn;
+    Ok(())
+}
+
+/// Blocks `SIGPIPE` on the calling thread (a no-op on Apple targets, see [`suppress_sigpipe`]). A write-induced
+/// `SIGPIPE` is directed at the writing thread, so it stays pending there, the write fails with `EPIPE`, and the
+/// signal is discarded when the thread exits. Only called on threads the IPC layer owns.
+pub(crate) fn block_sigpipe() {
+    #[cfg(not(target_vendor = "apple"))]
+    // SAFETY: plain signal-set manipulation on a local set; only the calling thread's mask changes
+    unsafe {
+        let mut set: libc::sigset_t = std::mem::zeroed();
+        libc::sigemptyset(&mut set);
+        libc::sigaddset(&mut set, libc::SIGPIPE);
+        libc::pthread_sigmask(libc::SIG_BLOCK, &set, std::ptr::null_mut());
+    }
 }
 
 /// Creates `dir` with mode 0700 (an existing directory is fine: two simultaneous starts both create it) and
@@ -58,71 +129,6 @@ pub(crate) fn current_user() -> Result<String, Error> {
     Ok(unsafe { libc::getuid() }.to_string())
 }
 
-pub(crate) struct Connection {
-    stream: UnixStream,
-}
-
-impl Connection {
-    pub(crate) fn set_timeout(&mut self, timeout: Option<Duration>) {
-        let _ = self.stream.set_read_timeout(timeout);
-        let _ = self.stream.set_write_timeout(timeout);
-    }
-
-    pub(crate) fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.stream.read(buf).map_err(timeout_error)
-    }
-
-    pub(crate) fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.stream.write(buf).map_err(timeout_error)
-    }
-
-    pub(crate) fn flush(&mut self) -> io::Result<()> {
-        self.stream.flush()
-    }
-}
-
-/// A socket timeout surfaces as `WouldBlock` on some platforms; callers only see `TimedOut`.
-fn timeout_error(e: io::Error) -> io::Error {
-    if e.kind() == io::ErrorKind::WouldBlock {
-        io::Error::new(io::ErrorKind::TimedOut, "IPC operation timed out")
-    } else {
-        e
-    }
-}
-
-pub(crate) struct Listener {
-    listener: UnixListener,
-}
-
-impl Listener {
-    pub(crate) fn accept(&mut self) -> io::Result<Connection> {
-        let (stream, _) = self.listener.accept()?;
-        Ok(Connection { stream })
-    }
-}
-
-/// Unlinks a stale socket file (only the lock holder binds, so it cannot belong to a live server), binds, and
-/// restricts the socket to the owner.
-pub(crate) fn bind(ep: &IpcEndpoint) -> Result<Listener, Error> {
-    match std::fs::remove_file(&ep.address) {
-        Ok(()) => {}
-        Err(e) if e.kind() == io::ErrorKind::NotFound => {}
-        Err(e) => return Err(Error::Io(e)),
-    }
-    let listener = UnixListener::bind(&ep.address)?;
-    std::fs::set_permissions(&ep.address, std::fs::Permissions::from_mode(0o600))?;
-    Ok(Listener { listener })
-}
-
-/// `Ok(None)` when there is no socket file or nobody accepts on it (a stale file from a crashed server).
-pub(crate) fn connect(ep: &IpcEndpoint) -> Result<Option<Connection>, Error> {
-    match UnixStream::connect(&ep.address) {
-        Ok(stream) => Ok(Some(Connection { stream })),
-        Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused) => Ok(None),
-        Err(e) => Err(Error::Io(e)),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +150,24 @@ mod tests {
         let link = tmp.path().join("link");
         std::os::unix::fs::symlink(&target, &link).unwrap();
         assert!(ensure_private_dir(&link).is_err());
+    }
+
+    #[test]
+    fn test_socket_base_dir() {
+        #[cfg(target_os = "macos")]
+        {
+            // always the per-user temporary directory, whatever TMPDIR says
+            let base = socket_base_dir(None);
+            assert!(base.to_string_lossy().contains("/var/folders/"), "{base:?}");
+            assert_eq!(socket_base_dir(Some("/elsewhere/".into())), base);
+            assert_eq!(socket_base_dir(Some("".into())), base);
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            assert_eq!(socket_base_dir(None), PathBuf::from("/tmp"));
+            assert_eq!(socket_base_dir(Some("".into())), PathBuf::from("/tmp"));
+            assert_eq!(socket_base_dir(Some("/run/user/1000/tmp/".into())), PathBuf::from("/run/user/1000/tmp"));
+        }
     }
 
     #[test]

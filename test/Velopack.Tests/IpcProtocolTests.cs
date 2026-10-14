@@ -4,6 +4,7 @@ using Velopack.Ipc;
 
 namespace Velopack.Tests;
 
+// The JSON itself is CompiledJson's; these tests pin the wire format the Rust library (velopack::ipc) speaks.
 public class IpcProtocolTests
 {
     private static IpcMessage Association(params string[] values)
@@ -16,23 +17,30 @@ public class IpcProtocolTests
         return m;
     }
 
+    private static string Json(IpcMessage message)
+    {
+        var frame = IpcFraming.Encode(message);
+        Assert.Equal(frame.Length - 4, frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24));
+        return Encoding.UTF8.GetString(frame, 4, frame.Length - 4);
+    }
+
+    private static IpcMessage Decode(string json) => IpcFraming.Decode(Encoding.UTF8.GetBytes(json));
+
     [Fact]
     public void SerializesTheSameShapeAsRust()
     {
         Assert.Equal(
             """{"version":1,"type":"association","items":[{"flag":"--veloapp-urlproto","value":"myapp://x"}]}""",
-            IpcJson.Serialize(Association("myapp://x")));
-        Assert.Equal("""{"version":1,"type":"ack"}""", IpcJson.Serialize(IpcMessage.Ack()));
-        Assert.Equal(
-            """{"version":1,"type":"error","message":"unknown message type"}""",
-            IpcJson.Serialize(IpcMessage.Error(IpcProtocol.ErrUnknownMessageType)));
-        Assert.Equal("""{"version":1,"type":"ack","id":"7"}""", IpcJson.Serialize(IpcMessage.Ack().ReplyTo(new IpcMessage { Id = "7" })));
+            Json(Association("myapp://x")));
+        Assert.Equal("""{"version":1,"type":"ack"}""", Json(IpcMessage.Ack()));
+        Assert.Equal("""{"version":1,"type":"error","message":"unknown message type"}""", Json(IpcMessage.Error(IpcProtocol.ErrUnknownMessageType)));
+        Assert.Equal("""{"version":1,"type":"ack","id":"7"}""", Json(IpcMessage.Ack().ReplyTo(new IpcMessage { Id = "7" })));
         // empty items are omitted, like serde's skip_serializing_if
-        Assert.Equal("""{"version":1,"type":"association"}""", IpcJson.Serialize(Association()));
+        Assert.Equal("""{"version":1,"type":"association"}""", Json(Association()));
     }
 
     [Fact]
-    public void RoundTripsEveryFieldAndEscapes()
+    public void RoundTripsEveryField()
     {
         var original = new IpcMessage(IpcProtocol.TypeAssociation) {
             Id = "corr-\"1\"",
@@ -42,120 +50,54 @@ public class IpcProtocolTests
                 new(VelopackApp.HookCliUrlProto, "myapp://open?q=\"a b\"&x=\u20AC/\\"),
             },
         };
-        var json = IpcJson.Serialize(original);
-        // non-ASCII is raw, control characters are \u00XX, quotes and backslashes are escaped
-        Assert.Contains("j\u00F6rg", json);
-        Assert.Contains("\\u0009", json);
-        Assert.Contains("\\u0001", json);
-        Assert.Contains("\\\"Docs\\\"", json);
-        Assert.DoesNotContain("\n", json);
+        var json = Json(original);
+        Assert.DoesNotContain("\n", json); // compact
 
-        var parsed = IpcJson.Deserialize(json);
-        Assert.Equal(original.Version, parsed.Version);
-        Assert.Equal(original.Type, parsed.Type);
-        Assert.Equal(original.Id, parsed.Id);
-        Assert.Equal(original.Message, parsed.Message);
+        var parsed = Decode(json);
+        Assert.Equal((original.Version, original.Type, original.Id, original.Message), (parsed.Version, parsed.Type, parsed.Id, parsed.Message));
         Assert.Equal(original.Items.Select(i => (i.Flag, i.Value)), parsed.Items!.Select(i => (i.Flag, i.Value)));
     }
 
     [Fact]
-    public void ParsesEscapesSurrogatePairsUnknownFieldsAndWhitespace()
+    public void ParsesWhatRustSendsAndIgnoresUnknownFields()
     {
-        var json = """
-                   { "extra" : { "a" : [ 1 , 2.5e3 , true , null , { "deep" : "x" } ] , "b" : "\u0041" } ,
-                     "type" : "association" , "id" : "7" , "version" : 1 ,
-                     "items" : [ { "flag" : "--veloapp-urlproto" , "junk" : [ ] , "value" : "\ud83d\ude00 \/ \b\f\n\r\t \" \\ \u20ac" } ] }
-                   """;
-        var m = IpcJson.Deserialize(json);
-        Assert.Equal(1, m.Version);
-        Assert.Equal("association", m.Type);
-        Assert.Equal("7", m.Id);
-        Assert.Null(m.Message);
+        // serde_json emits raw UTF-8; any field order, escapes and unknown fields of any shape are accepted
+        var m = Decode(
+            """
+            { "extra" : { "a" : [ 1 , 2.5e3 , true , null , { "deep" : "x" } ] } , "type" : "association" , "id" : "7" ,
+              "version" : 1 , "items" : [ { "flag" : "--veloapp-urlproto" , "junk" : [ ] , "value" : "\ud83d\ude00 \/ \" \\ €" } ] }
+            """);
+        Assert.Equal((1, "association", "7", (string?) null), (m.Version, m.Type, m.Id, m.Message));
         var item = Assert.Single(m.Items!);
-        Assert.Equal("--veloapp-urlproto", item.Flag);
-        Assert.Equal("\U0001F600 / \b\f\n\r\t \" \\ \u20AC", item.Value);
+        Assert.Equal(("--veloapp-urlproto", "\U0001F600 / \" \\ \u20AC"), (item.Flag, item.Value));
 
-        // null id/message/items are accepted as absent
-        m = IpcJson.Deserialize("""{"version":1,"type":"ack","id":null,"items":null,"message":null}""");
-        Assert.Null(m.Id);
-        Assert.Null(m.Items);
-        Assert.Null(m.Message);
+        // null id/message/items are accepted as absent; a missing version decodes as 0 (rejected by ServeRequest)
+        m = Decode("""{"version":1,"type":"ack","id":null,"items":null,"message":null}""");
+        Assert.Equal(((string?) null, (List<IpcItem>?) null, (string?) null), (m.Id, m.Items, m.Message));
+        Assert.Equal(0, Decode("""{"type":"ack"}""").Version);
     }
 
     [Theory]
     [InlineData("not json")]
-    [InlineData("")]
-    [InlineData("""{"type":"ack"}""")]
     [InlineData("""{"version":1}""")]
     [InlineData("""{"version":"1","type":"ack"}""")]
-    [InlineData("""{"version":1.0,"type":"ack"}""")]
-    [InlineData("""{"version":-1,"type":"ack"}""")]
+    [InlineData("""{"version":1.5,"type":"ack"}""")]
     [InlineData("""{"version":1,"type":"ack"} trailing""")]
     [InlineData("""{"version":1,"type":"ack",}""")]
     [InlineData("""{"version":1,"type":"ack""")]
     [InlineData("""{"version":1,"type":"a\qb"}""")]
-    [InlineData("""{"version":1,"type":"a\u12"}""")]
+    [InlineData("""{"version":1,"type":"association","items":[{"flag":"--veloapp-urlproto","value":null}]}""")]
     [InlineData("[1]")]
     public void RejectsMalformedMessages(string json)
     {
-        Assert.Throws<FormatException>(() => IpcJson.Deserialize(json));
+        Assert.Throws<FormatException>(() => Decode(json));
     }
 
     [Fact]
-    public void DeeplyNestedUnknownValuesAreSkippedWithoutRecursion()
+    public void RejectsInvalidUtf8AndOversizedMessages()
     {
-        // a recursive skip would overflow a thread-pool thread's stack at a few thousand levels and kill the serving
-        // app; serde_json ignores unknown values iteratively at any depth, and so does IpcJson
-        string Nested(int depth, string open, string close) =>
-            string.Concat(Enumerable.Repeat(open, depth)) + "0" + string.Concat(Enumerable.Repeat(close, depth));
-        var arrays = """{"version":1,"type":"ack","x":""" + Nested(100_000, "[", "]") + "}";
-        var objects = """{"version":1,"type":"ack","x":""" + Nested(100_000, """{"a":""", "}") + ""","id":"7"}""";
-        var inItems = """{"version":1,"type":"association","items":[{"flag":"f","junk":""" + Nested(100_000, """[{"a":""", "}]") +
-                      ""","value":"v"}]}""";
-        Assert.True(IpcJson.Deserialize(arrays).IsAck);
-        Assert.Equal("7", IpcJson.Deserialize(objects).Id);
-        Assert.Equal("v", Assert.Single(IpcJson.Deserialize(inItems).Items!).Value);
-        Assert.True(Serve(arrays, m => IpcMessage.Ack().ReplyTo(m))!.IsAck);
-
-        // the skipped value is still validated
-        foreach (var bad in new[] { "[1,]", """{"a":1,}""", "[1 2]", """{"a" 1}""", "[}", "{]", "[", "{\"a\":" }) {
-            Assert.Throws<FormatException>(() => IpcJson.Deserialize("""{"version":1,"type":"ack","x":""" + bad + "}"));
-        }
-    }
-
-    [Fact]
-    public void FrameRoundTripsThroughAStream()
-    {
-        var message = Association("myapp://x");
-        var frame = IpcFraming.Encode(message);
-        var json = Encoding.UTF8.GetString(frame, 4, frame.Length - 4);
-        Assert.Equal(IpcJson.Serialize(message), json);
-        Assert.Equal(json.Length, frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24));
-
-        var stream = new MemoryStream();
-        IpcFraming.WriteFrame(stream, message);
-        IpcFraming.WriteFrame(stream, IpcMessage.Ack());
-        stream.Position = 0;
-        Assert.Equal("myapp://x", IpcFraming.Decode(IpcFraming.ReadFrame(stream)).Items![0].Value);
-        Assert.True(IpcFraming.Decode(IpcFraming.ReadFrame(stream)).IsAck);
-        Assert.Equal(stream.Length, stream.Position);
-    }
-
-    [Fact]
-    public void RejectsBadFrameLengthsAndTruncation()
-    {
-        Assert.Throws<InvalidDataException>(() => IpcFraming.ReadFrame(new MemoryStream(new byte[] { 0, 0, 0, 0 })));
-        var huge = BitConverter.GetBytes((uint) IpcProtocol.MaxMessageBytes + 1);
-        Assert.Throws<InvalidDataException>(() => IpcFraming.ReadFrame(new MemoryStream(huge)));
-        var truncated = BitConverter.GetBytes(10u).Concat(Encoding.UTF8.GetBytes("{\"ver")).ToArray();
-        Assert.Throws<EndOfStreamException>(() => IpcFraming.ReadFrame(new MemoryStream(truncated)));
-        Assert.Throws<EndOfStreamException>(() => IpcFraming.ReadFrame(new MemoryStream(new byte[] { 1, 0 })));
-        // the connection applies the same rules (via a plain stream)
-        using var conn = new IpcConnection(new MemoryStream(truncated));
-        Assert.Throws<EndOfStreamException>(() => conn.Receive());
-        // invalid UTF-8 inside a frame is a malformed message
-        var badUtf8 = BitConverter.GetBytes(2u).Concat(new byte[] { 0xC3, 0x28 }).ToArray();
-        Assert.Throws<FormatException>(() => IpcFraming.Decode(IpcFraming.ReadFrame(new MemoryStream(badUtf8))));
+        Assert.Throws<FormatException>(() => IpcFraming.Decode(new byte[] { 0xC3, 0x28 }));
+        Assert.Throws<InvalidDataException>(() => IpcFraming.Encode(Association(new string('x', IpcProtocol.MaxMessageBytes))));
     }
 
     /// <summary> An in-memory duplex: reads come from the request bytes, writes land in Output. </summary>
@@ -178,14 +120,13 @@ public class IpcProtocolTests
         public override void Write(byte[] buffer, int offset, int count) => Output.Write(buffer, offset, count);
     }
 
-    private static IpcMessage? Serve(string payload, Func<IpcMessage, IpcMessage> handler)
+    private static byte[] Frame(string payload)
     {
         var bytes = Encoding.UTF8.GetBytes(payload);
-        var input = BitConverter.GetBytes((uint) bytes.Length).Concat(bytes).ToArray();
-        return ServeRaw(input, handler);
+        return BitConverter.GetBytes((uint) bytes.Length).Concat(bytes).ToArray();
     }
 
-    private static IpcMessage? ServeRaw(byte[] input, Func<IpcMessage, IpcMessage> handler)
+    private static IpcMessage? Serve(byte[] input, Func<IpcMessage, IpcMessage> handler)
     {
         var duplex = new DuplexStream(input);
         using (var conn = new IpcConnection(duplex)) {
@@ -197,9 +138,29 @@ public class IpcProtocolTests
         }
 
         duplex.Output.Position = 0;
-        var reply = IpcFraming.Decode(IpcFraming.ReadFrame(duplex.Output));
+        using var reader = new IpcConnection(duplex.Output);
+        var reply = reader.Receive();
         Assert.Equal(duplex.Output.Length, duplex.Output.Position); // exactly one reply frame
         return reply;
+    }
+
+    [Fact]
+    public void FramesRoundTripAndBadFramesAreRejected()
+    {
+        var stream = new MemoryStream();
+        var conn = new IpcConnection(stream);
+        conn.Send(Association("myapp://x"));
+        conn.Send(IpcMessage.Ack());
+        stream.Position = 0;
+        Assert.Equal("myapp://x", conn.Receive().Items![0].Value);
+        Assert.True(conn.Receive().IsAck);
+
+        Assert.Throws<InvalidDataException>(() => new IpcConnection(new MemoryStream(new byte[] { 0, 0, 0, 0 })).Receive());
+        var huge = BitConverter.GetBytes((uint) IpcProtocol.MaxMessageBytes + 1);
+        Assert.Throws<InvalidDataException>(() => new IpcConnection(new MemoryStream(huge)).Receive());
+        var truncated = BitConverter.GetBytes(10u).Concat(Encoding.UTF8.GetBytes("{\"ver")).ToArray();
+        Assert.Throws<EndOfStreamException>(() => new IpcConnection(new MemoryStream(truncated)).Receive());
+        Assert.Throws<EndOfStreamException>(() => new IpcConnection(new MemoryStream(new byte[] { 1, 0 })).Receive());
     }
 
     [Fact]
@@ -207,27 +168,32 @@ public class IpcProtocolTests
     {
         Func<IpcMessage, IpcMessage> unreachable = _ => throw new InvalidOperationException("handler must not run");
 
-        var reply = Serve("not json", unreachable)!;
+        var reply = Serve(Frame("not json"), unreachable)!;
         Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrInvalidMessage), (reply.Type, reply.Message));
 
-        reply = Serve("""{"version":2,"type":"ack","id":"x"}""", unreachable)!;
-        Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrUnsupportedVersion), (reply.Type, reply.Message));
-        Assert.Equal("x", reply.Id);
+        reply = Serve(Frame("""{"version":2,"type":"ack","id":"x"}"""), unreachable)!;
+        Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrUnsupportedVersion, "x"), (reply.Type, reply.Message, reply.Id));
 
-        reply = Serve("""{"version":0,"type":"ack"}""", unreachable)!;
+        foreach (var invalid in new[] { """{"version":0,"type":"ack"}""", """{"type":"ack"}""", """{"version":-1,"type":"ack"}""" }) {
+            reply = Serve(Frame(invalid), unreachable)!;
+            Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrInvalidMessage), (reply.Type, reply.Message));
+        }
+
+        // a nesting deeper than the JSON reader allows is an invalid message, never a crash of the serving app
+        var deep = """{"version":1,"type":"ack","x":""" + new string('[', 100_000) + new string(']', 100_000) + "}";
+        reply = Serve(Frame(deep), unreachable)!;
         Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrInvalidMessage), (reply.Type, reply.Message));
 
         // the handler's reply (error or ack) passes through, and it is responsible for the id
-        reply = Serve("""{"version":1,"type":"bogus","id":"abc"}""", m => IpcMessage.Error(IpcProtocol.ErrUnknownMessageType).ReplyTo(m))!;
-        Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrUnknownMessageType), (reply.Type, reply.Message));
-        Assert.Equal("abc", reply.Id);
+        reply = Serve(Frame("""{"version":1,"type":"bogus","id":"abc"}"""), m => IpcMessage.Error(IpcProtocol.ErrUnknownMessageType).ReplyTo(m))!;
+        Assert.Equal((IpcProtocol.TypeError, IpcProtocol.ErrUnknownMessageType, "abc"), (reply.Type, reply.Message, reply.Id));
 
-        reply = Serve("""{"version":1,"type":"association","id":"42","items":[]}""", m => IpcMessage.Ack().ReplyTo(m))!;
+        reply = Serve(Frame("""{"version":1,"type":"association","id":"42","items":[]}"""), m => IpcMessage.Ack().ReplyTo(m))!;
         Assert.True(reply.IsAck);
         Assert.Equal("42", reply.Id);
 
         // a framing error gets no reply at all
-        Assert.Null(ServeRaw(new byte[] { 0, 0, 0, 0 }, unreachable));
-        Assert.Null(ServeRaw(BitConverter.GetBytes(10u).Concat(Encoding.UTF8.GetBytes("{\"ver")).ToArray(), unreachable));
+        Assert.Null(Serve(new byte[] { 0, 0, 0, 0 }, unreachable));
+        Assert.Null(Serve(BitConverter.GetBytes(10u).Concat(Encoding.UTF8.GetBytes("{\"ver")).ToArray(), unreachable));
     }
 }

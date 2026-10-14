@@ -1,43 +1,31 @@
 using System;
 using System.IO;
 using System.IO.Pipes;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using Velopack.Logging;
 
 namespace Velopack.Ipc
 {
     /// <summary>
-    /// One end of an IPC connection: reads and writes whole frames, bounded by <see cref="SetTimeout"/>. On Windows the
-    /// stream is an overlapped named pipe (a timed operation is <c>ReadAsync</c>/<c>WriteAsync</c> + <c>Task.Wait</c>;
-    /// on timeout the stream is disposed, which cancels the pending I/O on every target framework). On Unix it is a
-    /// <see cref="NetworkStream"/> over a Unix domain socket, whose own receive/send timeouts apply. Any other stream
-    /// (tests) is used synchronously.
+    /// One end of an IPC connection: reads and writes whole frames, bounded by <see cref="SetTimeout"/>. The stream is
+    /// an asynchronous pipe (a named pipe on Windows, a Unix domain socket elsewhere); a timed operation is
+    /// <c>ReadAsync</c>/<c>WriteAsync</c> + <c>Task.Wait</c>, and on timeout the stream is disposed, which cancels the
+    /// pending I/O on every target framework.
     /// </summary>
     internal sealed class IpcConnection : IDisposable
     {
-        private readonly Stream _stream;
-        private readonly Socket? _socket;
-        private readonly bool _overlapped;
         private TimeSpan? _timeout;
 
-        public IpcConnection(Stream stream, Socket? socket = null)
+        public IpcConnection(Stream stream)
         {
-            _stream = stream;
-            _socket = socket;
-            _overlapped = stream is PipeStream;
+            Stream = stream;
         }
 
+        /// <summary> The underlying stream (a <see cref="PipeStream"/> outside of tests). </summary>
+        public Stream Stream { get; }
+
         /// <summary> Applies to every later <see cref="Receive"/> and <see cref="Send"/> (null = wait forever). </summary>
-        public void SetTimeout(TimeSpan? timeout)
-        {
-            _timeout = timeout;
-            if (_socket != null) {
-                var ms = timeout.HasValue ? Math.Max(1, (int) timeout.Value.TotalMilliseconds) : 0;
-                _socket.ReceiveTimeout = ms;
-                _socket.SendTimeout = ms;
-            }
-        }
+        public void SetTimeout(TimeSpan? timeout) => _timeout = timeout;
 
         /// <summary>
         /// Receives one message. Throws <see cref="TimeoutException"/>, <see cref="IOException"/> (incl.
@@ -50,7 +38,7 @@ namespace Velopack.Ipc
         public void Send(IpcMessage message)
         {
             var frame = IpcFraming.Encode(message);
-            Write(frame);
+            Await(Stream.WriteAsync(frame, 0, frame.Length));
         }
 
         /// <summary>
@@ -68,8 +56,8 @@ namespace Velopack.Ipc
         /// Serves one request/reply exchange: receives a message (within <see cref="IpcProtocol.ServerIoTimeout"/>),
         /// validates the envelope, answers with the handler's reply (the handler copies the <c>id</c>) and flushes so
         /// the client has the reply before the caller closes the connection. A framing or I/O error ends the exchange
-        /// without a reply; a malformed message or version 0 is answered with <c>invalid message</c>, a newer version
-        /// with <c>unsupported version</c>.
+        /// without a reply; a malformed message or a missing version is answered with <c>invalid message</c>, a newer
+        /// version with <c>unsupported version</c>.
         /// </summary>
         public void ServeRequest(Func<IpcMessage, IpcMessage> handler, IVelopackLogger? log = null)
         {
@@ -85,7 +73,7 @@ namespace Velopack.Ipc
             IpcMessage reply;
             try {
                 var request = IpcFraming.Decode(payload);
-                if (request.Version == 0) {
+                if (request.Version <= 0) {
                     reply = IpcMessage.Error(IpcProtocol.ErrInvalidMessage).ReplyTo(request);
                 } else if (request.Version > IpcProtocol.ProtocolVersion) {
                     reply = IpcMessage.Error(IpcProtocol.ErrUnsupportedVersion).ReplyTo(request);
@@ -110,10 +98,10 @@ namespace Velopack.Ipc
         /// </summary>
         public void Flush()
         {
-            if (VelopackRuntimeInfo.IsWindows && _stream is PipeStream pipe) {
+            if (VelopackRuntimeInfo.IsWindows && Stream is PipeStream pipe) {
                 pipe.WaitForPipeDrain();
             } else {
-                _stream.Flush();
+                Stream.Flush();
             }
         }
 
@@ -130,52 +118,17 @@ namespace Velopack.Ipc
         {
             var offset = 0;
             while (offset < buffer.Length) {
-                var read = Read(buffer, offset, buffer.Length - offset);
-                if (read <= 0) {
+                var task = Stream.ReadAsync(buffer, offset, buffer.Length - offset);
+                Await(task);
+                if (task.Result <= 0) {
                     throw new EndOfStreamException("the connection was closed inside a frame");
                 }
 
-                offset += read;
+                offset += task.Result;
             }
         }
 
-        private int Read(byte[] buffer, int offset, int count)
-        {
-            if (_overlapped) {
-                return Await(_stream.ReadAsync(buffer, offset, count));
-            }
-
-            try {
-                return _stream.Read(buffer, offset, count);
-            } catch (IOException ex) when (IsSocketTimeout(ex)) {
-                throw new TimeoutException("IPC read timed out", ex);
-            }
-        }
-
-        private void Write(byte[] buffer)
-        {
-            if (_overlapped) {
-                Await(_stream.WriteAsync(buffer, 0, buffer.Length));
-                return;
-            }
-
-            try {
-                _stream.Write(buffer, 0, buffer.Length);
-            } catch (IOException ex) when (IsSocketTimeout(ex)) {
-                throw new TimeoutException("IPC write timed out", ex);
-            }
-        }
-
-        private static bool IsSocketTimeout(IOException ex) =>
-            ex.InnerException is SocketException se && (se.SocketErrorCode == SocketError.TimedOut || se.SocketErrorCode == SocketError.WouldBlock);
-
-        /// <summary> Waits for an overlapped operation; on timeout the stream is disposed (cancelling it) and the faulted task observed. </summary>
-        private int Await(Task<int> task)
-        {
-            Await((Task) task);
-            return task.Result;
-        }
-
+        /// <summary> Waits for an operation; on timeout the stream is disposed (cancelling it) and the faulted task observed. </summary>
         private void Await(Task task)
         {
             bool completed;
@@ -198,7 +151,7 @@ namespace Velopack.Ipc
         public void Dispose()
         {
             try {
-                _stream.Dispose();
+                Stream.Dispose();
             } catch {
                 // closing a broken pipe/socket is not an error
             }

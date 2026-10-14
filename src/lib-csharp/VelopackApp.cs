@@ -7,7 +7,6 @@ using System.Runtime.Versioning;
 using Velopack.Ipc;
 using Velopack.Locators;
 using Velopack.Logging;
-using Velopack.Osx;
 using Velopack.Util;
 
 namespace Velopack
@@ -46,6 +45,7 @@ namespace Velopack
         private Action<string>? _urlProto;
         private string[]? _args;
         private bool _autoApply = true;
+        private bool _forwardActivations;
         private string? _customAumid;
         private IVelopackLocator? _customLocator;
         private IVelopackLogger? _customLogger;
@@ -110,6 +110,18 @@ namespace Velopack
         }
 
         /// <summary>
+        /// Forward association activations (<see cref="OnFileAssoc"/> / <see cref="OnUrlProto"/>) to an already running
+        /// instance of the installed app instead of handling them in a new instance. This is OFF by default and only has
+        /// an effect when one of those callbacks is registered and the app is installed. See <see cref="OnFileAssoc"/>
+        /// for the threading rules this implies.
+        /// </summary>
+        public VelopackApp ForwardActivationsToRunningInstance(bool enabled = true)
+        {
+            _forwardActivations = enabled;
+            return this;
+        }
+
+        /// <summary>
         /// This hook is triggered when the application is started for the first time after installation.
         /// </summary>
         public VelopackApp OnFirstRun(VelopackHook hook)
@@ -140,17 +152,17 @@ namespace Velopack
         /// forwarded to the new version.
         /// </para>
         /// <para>
-        /// With the <c>--associationLaunchMode SingleInstance</c> packaging option, a launch while an instance of the
-        /// app is already running is handed to that instance instead, and the launching process exits with code 0 from
-        /// inside <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then
-        /// invoked <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the
-        /// main thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
+        /// With <see cref="ForwardActivationsToRunningInstance"/>, a launch while an instance of the app is already
+        /// running is handed to that instance instead, and the launching process exits with code 0 from inside
+        /// <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then invoked
+        /// <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the main
+        /// thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
         /// afterwards. It must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the
         /// UI thread rather than blocking on it): the launching process waits at most ~5 seconds for the callback to
-        /// return before it handles the activation itself in a second instance. The OS does not bring the running
-        /// instance to the foreground (the short-lived launching process was the activated one), so activate your main
-        /// window from the callback. Plain launches are never forwarded, and if no instance answers within ~5 seconds
-        /// the launching process handles the activation itself as above.
+        /// return before it handles the activation itself in a second instance. On Windows the launching process lets
+        /// the running instance take the foreground, so the callback may bring its window to the foreground; on macOS
+        /// the association helper activates the running app. Plain launches are never forwarded, and if no instance
+        /// answers within ~5 seconds the launching process handles the activation itself as above.
         /// </para>
         /// <para>
         /// On macOS the file is opened by the helper, so the application only receives a path string: its first access
@@ -179,17 +191,17 @@ namespace Velopack
         /// URL is forwarded to the new version.
         /// </para>
         /// <para>
-        /// With the <c>--associationLaunchMode SingleInstance</c> packaging option, a launch while an instance of the
-        /// app is already running is handed to that instance instead, and the launching process exits with code 0 from
-        /// inside <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then
-        /// invoked <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the
-        /// main thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
+        /// With <see cref="ForwardActivationsToRunningInstance"/>, a launch while an instance of the app is already
+        /// running is handed to that instance instead, and the launching process exits with code 0 from inside
+        /// <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then invoked
+        /// <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the main
+        /// thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
         /// afterwards. It must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the
         /// UI thread rather than blocking on it): the launching process waits at most ~5 seconds for the callback to
-        /// return before it handles the activation itself in a second instance. The OS does not bring the running
-        /// instance to the foreground (the short-lived launching process was the activated one), so activate your main
-        /// window from the callback. Plain launches are never forwarded, and if no instance answers within ~5 seconds
-        /// the launching process handles the activation itself as above.
+        /// return before it handles the activation itself in a second instance. On Windows the launching process lets
+        /// the running instance take the foreground, so the callback may bring its window to the foreground; on macOS
+        /// the association helper activates the running app. Plain launches are never forwarded, and if no instance
+        /// answers within ~5 seconds the launching process handles the activation itself as above.
         /// </para>
         /// <para>Not supported on Linux; the callback is never invoked there.</para>
         /// </summary>
@@ -329,16 +341,15 @@ namespace Velopack
 
             var myVersion = locator.CurrentlyInstalledVersion;
 
-            // SingleInstance: the first instance becomes the IPC server; a later association launch forwards its
+            // activation forwarding: the first instance becomes the IPC server; a later association launch forwards its
             // values to it and exits (before any auto-apply). A plain launch just continues as another instance.
-            SingleInstanceServer? server = null;
-            if (myVersion != null && (_fileAssoc != null || _urlProto != null)
-                && locator is VelopackLocator { AssociationSingleInstance: true } vl
-                && !string.IsNullOrEmpty(vl.AppId) && !string.IsNullOrEmpty(vl.RootAppDir)) {
+            ActivationServer? server = null;
+            if (_forwardActivations && myVersion != null && (_fileAssoc != null || _urlProto != null)
+                && locator is VelopackLocator vl && !string.IsNullOrEmpty(vl.AppId) && !string.IsNullOrEmpty(vl.RootAppDir)) {
                 // only items this build has a callback for are forwarded: the running instance (the same build) would
                 // refuse the whole message over one unhandled item, and they are ignored locally anyway
                 var forwardable = associations.Where(a => GetAssociationCallback(a.Flag) != null).ToList();
-                if (SingleInstance.Elect(vl, forwardable, log, out server) == Election.Forwarded) {
+                if (ActivationForwarding.Elect(vl, forwardable, log, out server) == Election.Forwarded) {
                     log.Info($"Forwarded {forwardable.Count} association(s) to the running instance, exiting.");
                     locator.Process.Exit(0);
                     return;
@@ -361,14 +372,12 @@ namespace Velopack
         /// (restarting to apply an update), true if startup should continue.
         /// </summary>
         private bool RunInstalledStartup(IVelopackLocator locator, SemanticVersion myVersion, string[] args,
-            List<(string Flag, string Value)> associations, bool firstrun, bool restarted, SingleInstanceServer? server)
+            List<IpcItem> associations, bool firstrun, bool restarted, ActivationServer? server)
         {
             var log = locator.Log;
 
-            // LaunchServices only learns of the nested association helper (its URL schemes / document types) through
-            // an explicit registration, which a portable zip install otherwise never gets.
-            if (VelopackRuntimeInfo.IsOSX && locator is VelopackLocator { RootAppDir: { } rootAppDir }) {
-                LaunchServices.RegisterAssociationHelpers(rootAppDir, log);
+            if (VelopackRuntimeInfo.IsOSX) {
+                RegisterAssociationHelpers(locator, myVersion);
             }
 
             var localPackages = locator.GetLocalPackages();
@@ -387,9 +396,9 @@ namespace Velopack
                     // Hand the associations on as repeated [flag, value] pairs (leading the arguments) so the recovered
                     // values survive the restart intact; without any, the arguments are forwarded as they are.
                     var restartArgs = new List<string>();
-                    foreach (var (flag, value) in associations) {
-                        restartArgs.Add(flag);
-                        restartArgs.Add(value);
+                    foreach (var association in associations) {
+                        restartArgs.Add(association.Flag);
+                        restartArgs.Add(association.Value);
                     }
 
                     if (associations.Count == 0) {
@@ -406,7 +415,7 @@ namespace Velopack
                     }
 
                     if (applying) {
-                        // exiting releases the SingleInstance lock, so the restarted process can take it
+                        // exiting releases the activation forwarding lock, so the restarted process can take it
                         locator.Process.Exit(0);
                         return false;
                     }
@@ -420,7 +429,7 @@ namespace Velopack
             // cleanup and the first-run/restarted hooks (arbitrary user code, eg. a welcome window), since the lock has
             // been held since the election and association launches would otherwise stall for the whole connect window
             if (server != null) {
-                SingleInstance.Start(server, this, log);
+                ActivationForwarding.Start(server, this, log);
             }
 
             // clean up old versions of the app
@@ -459,6 +468,40 @@ namespace Velopack
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// LaunchServices only learns of the nested association helper bundle(s) (their URL schemes / document types)
+        /// through an explicit registration, which a portable zip install otherwise never gets. Once per version and
+        /// install location (a marker in the packages dir), <c>UpdateMac register-helpers</c> is started without waiting
+        /// for it. Failures are warnings.
+        /// </summary>
+        private static void RegisterAssociationHelpers(IVelopackLocator locator, SemanticVersion version)
+        {
+            try {
+                if (locator.RootAppDir is not { } root || locator.PackagesDir is not { } packages || locator.UpdateExePath is not { } updateMac) {
+                    return;
+                }
+
+                var helpers = Path.Combine(root, "Contents", "Helpers");
+                if (!Directory.Exists(helpers)
+                    || !Directory.GetDirectories(helpers, "*.app").Any(app => File.Exists(Path.Combine(app, "Contents", "MacOS", "AssocHelper")))) {
+                    return;
+                }
+
+                var marker = Path.Combine(packages, ".velopack-helpers-registered");
+                var expected = $"{version}\n{root}";
+                if (File.Exists(marker) && File.ReadAllText(marker) == expected) {
+                    return;
+                }
+
+                locator.Log.Info("Registering the association helper(s) with LaunchServices.");
+                locator.Process.StartProcess(updateMac, new[] { "register-helpers" }, root, false);
+                Directory.CreateDirectory(packages);
+                File.WriteAllText(marker, expected);
+            } catch (Exception ex) {
+                locator.Log.Warn($"Could not register the association helper(s) with LaunchServices: {ex.Message}");
+            }
         }
 
         internal Action<string>? GetAssociationCallback(string flag) => flag == HookCliFileAssoc ? _fileAssoc : _urlProto;
@@ -505,11 +548,11 @@ namespace Velopack
         /// <param name="args">The application arguments (without the executable path).</param>
         /// <param name="rawCommandLine">The unparsed process command line, or null to read the pairs from <paramref name="args"/>.</param>
         /// <param name="log">Receives a warning for a flag without a value.</param>
-        internal static List<(string Flag, string Value)> ParseAssociationArgs(string[] args, string? rawCommandLine, IVelopackLogger? log = null)
+        internal static List<IpcItem> ParseAssociationArgs(string[] args, string? rawCommandLine, IVelopackLogger? log = null)
         {
             var flag = args.Length > 0 ? CanonicalAssociationFlag(args[0]) : null;
             if (flag == null) {
-                return new List<(string Flag, string Value)>();
+                return new List<IpcItem>();
             }
 
             if (rawCommandLine != null) {
@@ -517,10 +560,10 @@ namespace Velopack
                 if (value != null) {
                     if (value.Length == 0) {
                         log?.Warn($"{flag} was passed without a value, ignoring.");
-                        return new List<(string Flag, string Value)>();
+                        return new List<IpcItem>();
                     }
 
-                    return new List<(string Flag, string Value)> { (flag, value) };
+                    return new List<IpcItem> { new IpcItem(flag, value) };
                 }
 
                 // the flag is not on the real command line (SetArgs): the OS never passes more than one pair
@@ -540,9 +583,9 @@ namespace Velopack
         /// forwards association activations. Parsing stops at the first element which is not an association flag; a flag
         /// with nothing, or an empty string, after it is dropped with a warning.
         /// </summary>
-        internal static List<(string Flag, string Value)> AssociationPairsFromArgs(string[] args, IVelopackLogger? log = null)
+        internal static List<IpcItem> AssociationPairsFromArgs(string[] args, IVelopackLogger? log = null)
         {
-            var pairs = new List<(string Flag, string Value)>();
+            var pairs = new List<IpcItem>();
             for (var i = 0; i < args.Length; i += 2) {
                 var flag = CanonicalAssociationFlag(args[i]);
                 if (flag == null) {
@@ -550,7 +593,7 @@ namespace Velopack
                 }
 
                 if (i + 1 < args.Length && args[i + 1].Length > 0) {
-                    pairs.Add((flag, args[i + 1]));
+                    pairs.Add(new IpcItem(flag, args[i + 1]));
                 } else {
                     log?.Warn($"{flag} was passed without a value, ignoring.");
                 }

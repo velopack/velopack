@@ -238,7 +238,6 @@ public class OsxPackTests
 
     private const string LsRegister =
         "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
-    private const string LaunchModeElement = "<associationLaunchMode>SingleInstance</associationLaunchMode>";
 
     [Fact]
     public async Task PackWithAssociationsBuildsHelperBundle()
@@ -255,7 +254,7 @@ public class OsxPackTests
         var scheme = $"velotest{suffix}";
 
         await PackCSharpTestApp(id, "1.0.0", "version 1 test", releaseDir, logger, packTitle: title,
-            fileAssociations: ext, urlProtocols: scheme, launchMode: AssociationLaunchMode.SingleInstance);
+            fileAssociations: ext, urlProtocols: scheme);
         ExtractDittoZip(Path.Combine(releaseDir, $"{id}-osx-Portable.zip"), unzipDir);
         var bundle = Path.Combine(unzipDir, $"{title}.app");
         Assert.True(Directory.Exists(bundle), $"Expected {bundle} to exist");
@@ -278,7 +277,6 @@ public class OsxPackTests
         Assert.Equal(icon, PlistValue(dict, "CFBundleIconFile")?.Value);
         Assert.Equal("true", PlistValue(dict, "LSUIElement")?.Name.LocalName);
         Assert.Equal(OsxAssociationHelper.MinimumSystemVersion, PlistValue(dict, "LSMinimumSystemVersion")?.Value);
-        Assert.Equal("SingleInstance", PlistValue(dict, OsxAssociationHelper.LaunchModePlistKey)?.Value);
         Assert.Contains(scheme, PlistValue(dict, "CFBundleURLTypes")?.ToString());
         Assert.Contains(ext.TrimStart('.'), PlistValue(dict, "CFBundleDocumentTypes")?.ToString());
 
@@ -286,12 +284,10 @@ public class OsxPackTests
         var main = LoadPlistDict(Path.Combine(bundle, "Contents", "Info.plist"));
         Assert.Null(PlistValue(main, "CFBundleURLTypes"));
         Assert.Null(PlistValue(main, "CFBundleDocumentTypes"));
-
-        Assert.Contains(LaunchModeElement, File.ReadAllText(Path.Combine(bundle, "Contents", "Resources", "sq.version")));
     }
 
     [Fact]
-    public async Task BundleThenPackKeepsHelperAndMode()
+    public async Task BundleThenPackKeepsHelper()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsOSX, "macOS only");
         using var logger = _output.BuildLoggerFor<OsxPackTests>();
@@ -305,7 +301,7 @@ public class OsxPackTests
         var publishDir = Path.Combine(workDir, "publish");
         TestApp.PreparePublishDir(rid, "version 1 test", publishDir, logger);
 
-        // `vpk bundle` builds the helper and records the mode in its Info.plist
+        // `vpk bundle` builds the helper
         var appDir = new OsxBundleCommandRunner(logger).Bundle(new OsxBundleOptions {
             EntryExecutableName = "TestApp",
             ReleaseDir = new DirectoryInfo(bundleDir),
@@ -313,14 +309,11 @@ public class OsxPackTests
             PackVersion = "1.0.0",
             PackDirectory = publishDir,
             UrlProtocols = $"velotest{TestHelper.RandomString(6)}",
-            AssociationLaunchMode = AssociationLaunchMode.SingleInstance,
         });
         var bundledHelper = OsxAssociationHelper.Find(appDir);
         Assert.NotNull(bundledHelper);
-        Assert.Equal("SingleInstance",
-            PlistValue(LoadPlistDict(Path.Combine(bundledHelper, "Contents", "Info.plist")), OsxAssociationHelper.LaunchModePlistKey)?.Value);
 
-        // `vpk pack --packDir X.app` with no association options keeps the helper and carries its mode into the manifest
+        // `vpk pack --packDir X.app` with no association options keeps the helper
         var console = new Velopack.Vpk.Logging.BasicConsole(logger, new Velopack.Vpk.VelopackDefaults(false));
         await new OsxPackCommandRunner(logger, console).Run(new OsxPackOptions {
             EntryExecutableName = "TestApp",
@@ -335,7 +328,6 @@ public class OsxPackTests
         var helper = OsxAssociationHelper.Find(bundle);
         Assert.NotNull(helper);
         Assert.Equal(Path.GetFileName(bundledHelper), Path.GetFileName(helper));
-        Assert.Contains(LaunchModeElement, File.ReadAllText(Path.Combine(bundle, "Contents", "Resources", "sq.version")));
     }
 
     [Fact]
@@ -356,7 +348,7 @@ public class OsxPackTests
         var logFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Logs", $"velopack_{id}.log");
 
         await PackCSharpTestApp(id, "1.0.0", "version 1 test", releaseDir, logger,
-            urlProtocols: scheme, launchMode: AssociationLaunchMode.SingleInstance);
+            urlProtocols: scheme, forwardActivations: true);
         ExtractDittoZip(Path.Combine(releaseDir, $"{id}-osx-Portable.zip"), installDir);
         Assert.NotNull(OsxAssociationHelper.Find(bundle));
 
@@ -366,8 +358,13 @@ public class OsxPackTests
             // a portable zip install registers nothing explicitly: the first launch of the app through LaunchServices is all
             // a user does, and the nested helper must be bindable afterwards
             Exe.InvokeAndThrowIfNonZero("/usr/bin/open", ["-W", "-n", bundle, "--args", "version"], installDir);
+            // that launch started `UpdateMac register-helpers` without waiting for it
+            TestHelper.WaitUntil(
+                () => Assert.NotEqual(0, Exe.InvokeProcess("/usr/bin/pgrep", ["-f", "UpdateMac register-helpers"], installDir).ExitCode),
+                pollDelayMs: 200);
 
-            // (a) no instance running: the helper starts the app with the url, which handles it in-process and exits
+            // (a) no instance running: no endpoint answers, so the helper starts the app with the url as argv, which handles it
+            // in-process and exits
             var first = $"{scheme}://first";
             OpenUrl(first, bundle, logger);
             WaitForActivation(urlFile, $"OnUrlProto: {first}", 1, logFile, logger);
@@ -378,7 +375,8 @@ public class OsxPackTests
                 () => Assert.NotEqual(0, Exe.InvokeProcess("/usr/bin/pgrep", ["-f", appExe], installDir).ExitCode),
                 pollDelayMs: 200);
 
-            // (b) a running SingleInstance server receives the next activation on its IPC thread
+            // (b) with activation forwarding enabled, the helper sends the next activation straight to the running instance's
+            // endpoint (no second app process), where it arrives on the IPC thread
             server = StartWaitingInstance(appExe, logger);
             var readyFile = Path.Combine(contents, "ready");
             TestHelper.WaitUntil(() => Assert.True(File.Exists(readyFile), "the waiting instance did not start"), pollDelayMs: 200);
@@ -679,14 +677,14 @@ public class OsxPackTests
 
     private static async Task PackCSharpTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
         string packTitle = null, string fileAssociations = null, string urlProtocols = null,
-        AssociationLaunchMode launchMode = AssociationLaunchMode.NewInstance)
+        bool forwardActivations = false)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
         {
             var rid = RID.Parse(VelopackRuntimeInfo.SystemRid);
             var publishDir = Path.Combine(workDir, "publish");
-            TestApp.PreparePublishDir(rid, testString, publishDir, logger);
+            TestApp.PreparePublishDir(rid, testString, publishDir, logger, forwardActivations: forwardActivations);
 
             var console = new Velopack.Vpk.Logging.BasicConsole(logger, new Velopack.Vpk.VelopackDefaults(false));
             var options = new Velopack.Packaging.Unix.Commands.OsxPackOptions {
@@ -699,7 +697,6 @@ public class OsxPackTests
                 PackTitle = packTitle,
                 FileAssociations = fileAssociations,
                 UrlProtocols = urlProtocols,
-                AssociationLaunchMode = launchMode,
             };
 
             var runner = new Velopack.Packaging.Unix.Commands.OsxPackCommandRunner(logger, console);

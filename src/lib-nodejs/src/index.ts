@@ -30,6 +30,7 @@ declare module "./load" {
     customArgs: string[] | null,
     locator: string | null,
     autoApply: boolean,
+    forwardActivations: boolean,
     hasFileAssoc: boolean,
     hasUrlProto: boolean,
   ): void;
@@ -64,6 +65,7 @@ export class VelopackApp {
   private _customArgs: string[] | null = null;
   private _customLocator: VelopackLocatorConfig | null = null;
   private _autoApply = true;
+  private _forwardActivations = false;
 
   /**
    * Build a new VelopackApp instance.
@@ -137,22 +139,14 @@ export class VelopackApp {
    * registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
    *
    * On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
-   * association helper bundle receives the open-file event and launches the app with it). With the default
-   * `NewInstance` launch mode the callback runs synchronously inside run(), after the regular startup logic
-   * (onFirstRun/onRestarted); the app then continues starting normally. The launch is never lost to an update:
-   * when run() restarts the app to apply a pending update the file(s) are forwarded to the new version, which
-   * invokes the callback once per file.
+   * association helper bundle receives the open-file event and launches the app with it). By default the
+   * callback runs synchronously inside run(), after the regular startup logic (onFirstRun/onRestarted); the app
+   * then continues starting normally. The launch is never lost to an update: when run() restarts the app to apply
+   * a pending update the file(s) are forwarded to the new version, which invokes the callback once per file.
    *
-   * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
-   * running hands the path to that instance and the launching process exits with code 0 in native code, inside
-   * run(), before any update is applied (`process.on("exit")` handlers do not run, like the fast-exit hooks).
-   * The receiving instance always invokes the callback on the JS thread: an activation that arrives while run() is
-   * still executing is invoked synchronously at the end of run(), after onFirstRun/onRestarted (like the process's
-   * own command line); one arriving later is dispatched to the event loop. The IPC server does not keep the event
-   * loop alive, and an activation arriving while the process is already shutting down is logged and dropped. The
-   * running instance is not brought to the foreground by the OS, so activate your main window from the callback.
-   * If no instance answers within about 5 seconds, the launching process handles the activation itself, as in
-   * `NewInstance` mode.
+   * With forwardActivationsToRunningInstance(), a file opened while the app is already running is handed to that
+   * instance instead (see there). On Windows the callback may bring the app's window to the foreground (the
+   * forwarding process allows it); on macOS the association helper activates the running app.
    *
    * macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in a
    * protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders" prompt,
@@ -169,27 +163,37 @@ export class VelopackApp {
    * registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
    *
    * On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
-   * association helper bundle receives the open-URL event and launches the app with it). With the default
-   * `NewInstance` launch mode the callback runs synchronously inside run(), after the regular startup logic
-   * (onFirstRun/onRestarted); the app then continues starting normally. The launch is never lost to an update:
-   * when run() restarts the app to apply a pending update the URL is forwarded to the new version, which invokes
-   * the callback.
+   * association helper bundle receives the open-URL event and launches the app with it). By default the
+   * callback runs synchronously inside run(), after the regular startup logic (onFirstRun/onRestarted); the app
+   * then continues starting normally. The launch is never lost to an update: when run() restarts the app to apply
+   * a pending update the URL is forwarded to the new version, which invokes the callback.
    *
-   * With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
-   * running hands the URL to that instance and the launching process exits with code 0 in native code, inside
-   * run(), before any update is applied (`process.on("exit")` handlers do not run, like the fast-exit hooks).
-   * The receiving instance always invokes the callback on the JS thread: an activation that arrives while run() is
-   * still executing is invoked synchronously at the end of run(), after onFirstRun/onRestarted (like the process's
-   * own command line); one arriving later is dispatched to the event loop. The IPC server does not keep the event
-   * loop alive, and an activation arriving while the process is already shutting down is logged and dropped. The
-   * running instance is not brought to the foreground by the OS, so activate your main window from the callback.
-   * If no instance answers within about 5 seconds, the launching process handles the activation itself, as in
-   * `NewInstance` mode.
+   * With forwardActivationsToRunningInstance(), a URL opened while the app is already running is handed to that
+   * instance instead (see there). On Windows the callback may bring the app's window to the foreground (the
+   * forwarding process allows it); on macOS the association helper activates the running app.
    *
    * Associations require macOS 10.13+. Not supported on Linux.
    */
   onUrlProto(callback: VelopackAssociationHook): VelopackApp {
     this._hooks.set("url-proto", callback);
+    return this;
+  }
+
+  /**
+   * Forwards file/URL association activations to an already running instance of this app instead of starting a
+   * new one. OFF by default; must be set before run(), and only applies to an installed app with an onFileAssoc /
+   * onUrlProto callback. The first instance serves activations; a later launch carrying one hands it over and
+   * exits with code 0 in native code, inside run(), before any update is applied (`process.on("exit")` handlers do
+   * not run, like the fast-exit hooks). If no instance answers within about 5 seconds, or it refuses, the launch
+   * handles the activation itself as usual.
+   *
+   * The receiving instance always invokes the callback on the JS thread: an activation that arrives while run() is
+   * still executing is invoked synchronously at the end of run(), after onFirstRun/onRestarted (like the process's
+   * own command line); one arriving later is dispatched to the event loop. The IPC server does not keep the event
+   * loop alive, and an activation arriving while the process is already shutting down is logged and dropped.
+   */
+  forwardActivationsToRunningInstance(enabled: boolean = true): VelopackApp {
+    this._forwardActivations = enabled;
     return this;
   }
 
@@ -242,6 +246,7 @@ export class VelopackApp {
       this._customArgs,
       this._customLocator ? JSON.stringify(this._customLocator) : null,
       this._autoApply,
+      this._forwardActivations,
       this._hooks.has("file-assoc"),
       this._hooks.has("url-proto"),
     );

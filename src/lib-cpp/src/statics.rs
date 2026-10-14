@@ -18,6 +18,7 @@ pub struct AppOptions {
     pub file_assoc_hook: vpkc_association_callback_t,
     pub url_proto_hook: vpkc_association_callback_t,
     pub auto_apply: Option<bool>,
+    pub forward_activations: bool,
     pub args: Option<Vec<String>>,
     pub locator: Option<VelopackLocatorConfig>,
 }

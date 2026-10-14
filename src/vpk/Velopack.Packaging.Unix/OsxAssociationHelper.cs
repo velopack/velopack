@@ -8,14 +8,13 @@ namespace Velopack.Packaging.Unix;
 /// <summary>
 /// Builds the nested <c>Contents/Helpers/{Name}.app</c> bundle which owns the app's CFBundleURLTypes /
 /// CFBundleDocumentTypes on macOS. The helper (the <c>assochelper</c> rust binary) receives the open-URL /
-/// open-file events and launches the main app with <c>--veloapp-urlproto</c> / <c>--veloapp-fileassoc</c> argv pairs.
+/// open-file events and forwards them to a running instance that accepts activations, or else launches the main app
+/// with <c>--veloapp-urlproto</c> / <c>--veloapp-fileassoc</c> argv pairs.
 /// Cross-platform (no mac tools) so it is testable on Windows, except <see cref="BuildForBundle"/>.
 /// </summary>
 public static class OsxAssociationHelper
 {
     public const string ExecutableName = "AssocHelper";
-
-    public const string LaunchModePlistKey = "VelopackAssociationLaunchMode";
 
     public const string MinimumSystemVersion = "10.13";
 
@@ -36,7 +35,7 @@ public static class OsxAssociationHelper
 
     /// <summary>Creates the Info.plist content of a helper for the given main app.</summary>
     public static OsxAppInfo CreateInfo(string displayName, string mainBundleId, string shortVersion, string version,
-        string[] extensions, string[] schemes, AssociationLaunchMode mode)
+        string[] extensions, string[] schemes)
     {
         return new OsxAppInfo {
             CFBundleName = displayName,
@@ -51,7 +50,6 @@ public static class OsxAssociationHelper
             NSHighResolutionCapable = true,
             LSUIElement = true,
             LSMinimumSystemVersion = MinimumSystemVersion,
-            VelopackAssociationLaunchMode = mode.ToString(),
             DocumentExtensions = extensions ?? [],
             UrlSchemes = schemes ?? [],
         };
@@ -89,7 +87,7 @@ public static class OsxAssociationHelper
     /// from its final <c>Contents/Info.plist</c> (read with PlistBuddy, so macOS only) so a prebuilt .app or a user
     /// <c>--plist</c> is matched in Finder "Open With". The fallbacks apply when the plist lacks the key.
     /// </summary>
-    public static string BuildForBundle(ILogger log, string appBundlePath, string[] extensions, string[] schemes, AssociationLaunchMode mode,
+    public static string BuildForBundle(ILogger log, string appBundlePath, string[] extensions, string[] schemes,
         string packVersion, string iconOption, string fallbackBundleId, string fallbackDisplayName)
     {
         var structure = new OsxStructureBuilder(appBundlePath);
@@ -135,8 +133,7 @@ public static class OsxAssociationHelper
             SemanticVersion.Parse(packVersion).Version.ToString(),
             packVersion,
             extensions,
-            schemes,
-            mode);
+            schemes);
         return Build(log, appBundlePath, info, HelperFile.GetAssocHelperPath(), icon);
     }
 

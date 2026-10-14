@@ -422,9 +422,6 @@ pub struct Manifest {
     pub file_associations: String,
     /// Comma-separated URL scheme names (eg. "myapp") this app registers as a handler for.
     pub url_protocols: String,
-    /// What an association activation does while the app is already running: `SingleInstance` forwards it to the
-    /// running instance over IPC; anything else (including absent) starts a new instance.
-    pub association_launch_mode: String,
 }
 
 /// Parse manifest object from an XML string.
@@ -482,8 +479,6 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.file_associations = text;
                 } else if el_name == "urlProtocols" {
                     obj.url_protocols = text;
-                } else if el_name == "associationLaunchMode" {
-                    obj.association_launch_mode = text;
                 }
             }
             Ok(XmlEvent::EndElement { .. }) => {
@@ -715,14 +710,4 @@ fn test_read_manifest_associations_empty_elements() {
     let manifest = read_manifest_from_string(&xml).unwrap();
     assert_eq!(manifest.file_associations, "");
     assert_eq!(manifest.url_protocols, "");
-}
-
-#[test]
-fn test_read_manifest_association_launch_mode() {
-    let xml = manifest_xml_with_extra("<associationLaunchMode>SingleInstance</associationLaunchMode>");
-    assert_eq!(read_manifest_from_string(&xml).unwrap().association_launch_mode, "SingleInstance");
-    let xml = manifest_xml_with_extra("<associationLaunchMode>singleinstance</associationLaunchMode>");
-    assert_eq!(read_manifest_from_string(&xml).unwrap().association_launch_mode, "singleinstance");
-    let xml = manifest_xml_with_extra("");
-    assert_eq!(read_manifest_from_string(&xml).unwrap().association_launch_mode, "");
 }

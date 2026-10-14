@@ -96,7 +96,6 @@
       Compression="$(VelopackAppImageCompression)"
       FileAssociations="$(VelopackFileAssociations)"
       UrlProtocols="$(VelopackUrlProtocols)"
-      AssociationLaunchMode="$(VelopackAssociationLaunchMode)"
     />
   </Target>
 

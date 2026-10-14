@@ -57,7 +57,7 @@ public class IpcInteropTests
     }
 
     private static TestVelopackLocator Locator(string root, IVelopackLogger log) =>
-        new(AppId, "1.0.0", Path.Combine(root, "packages"), null, root, null, logger: log) { AssociationSingleInstance = true };
+        new(AppId, "1.0.0", Path.Combine(root, "packages"), null, root, null, logger: log);
 
     /// <summary> The real C# server (election + association handler) with recording callbacks. </summary>
     private static List<(string Flag, string Value)> StartCSharpServer(string root, IVelopackLogger log)
@@ -66,8 +66,8 @@ public class IpcInteropTests
         var app = VelopackApp.Build()
             .OnFileAssoc(v => { lock (received) received.Add((VelopackApp.HookCliFileAssoc, v)); })
             .OnUrlProto(v => { lock (received) received.Add((VelopackApp.HookCliUrlProto, v)); });
-        Assert.Equal(Election.Server, SingleInstance.Elect(Locator(root, log), new(), log, out var server));
-        SingleInstance.Start(server!, app, log);
+        Assert.Equal(Election.Server, ActivationForwarding.Elect(Locator(root, log), new(), log, out var server));
+        ActivationForwarding.Start(server!, app, log);
         Assert.Contains(((ListLogger) log).Entries, e => e.Contains("serving association activations"));
         return received;
     }
@@ -309,8 +309,8 @@ public class IpcInteropTests
         server.WaitForLine("Server");
         server.WaitForLine("ready");
 
-        var associations = new List<(string Flag, string Value)> { (VelopackApp.HookCliUrlProto, "myapp://y") };
-        Assert.Equal(Election.Forwarded, SingleInstance.Elect(Locator(root, log), associations, log, out var none));
+        var associations = new List<IpcItem> { new(VelopackApp.HookCliUrlProto, "myapp://y") };
+        Assert.Equal(Election.Forwarded, ActivationForwarding.Elect(Locator(root, log), associations, log, out var none));
         Assert.Null(none);
 
         // the ack is sent after the hook ran, so the line is already there
@@ -363,6 +363,7 @@ public class IpcInteropTests
         VelopackApp.Build()
             .SetLocator(locator)
             .SetArgs(new[] { "--not-an-association", "x" })
+            .ForwardActivationsToRunningInstance()
             .OnUrlProto(_ => Assert.Fail("no activation was launched"))
             .Run();
         Assert.Null(locator.ExitCode);

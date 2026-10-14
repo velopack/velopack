@@ -348,20 +348,20 @@ public class WindowsPackTests
     }
 
     internal static async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger,
-        string fileAssociations = null, string urlProtocols = null, AssociationLaunchMode associationLaunchMode = AssociationLaunchMode.NewInstance)
+        string fileAssociations = null, string urlProtocols = null, bool forwardActivations = false)
     {
         if (variant == "csharp") {
             await PackTestApp(id, version, testString, releaseDir, logger,
-                fileAssociations: fileAssociations, urlProtocols: urlProtocols, associationLaunchMode: associationLaunchMode);
+                fileAssociations: fileAssociations, urlProtocols: urlProtocols, forwardActivations: forwardActivations);
         } else if (variant == "rust") {
-            await PackRustTestApp(id, version, testString, releaseDir, logger, fileAssociations, urlProtocols, associationLaunchMode);
+            await PackRustTestApp(id, version, testString, releaseDir, logger, fileAssociations, urlProtocols, forwardActivations);
         } else {
             throw new ArgumentException($"Unknown variant: {variant}");
         }
     }
 
     internal static async Task PackRustTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        string fileAssociations = null, string urlProtocols = null, AssociationLaunchMode associationLaunchMode = AssociationLaunchMode.NewInstance)
+        string fileAssociations = null, string urlProtocols = null, bool forwardActivations = false)
     {
         using var _ = TempUtil.GetTempDirectory(out var packDir);
 
@@ -370,7 +370,10 @@ public class WindowsPackTests
             throw new FileNotFoundException($"Rust testapp not found at: {rustBinary}. Run 'cargo build -p velopack_bins' first.");
         File.Copy(rustBinary, Path.Combine(packDir, "testapp.exe"));
 
-        File.WriteAllText(Path.Combine(packDir, "test_string.txt"), testString);
+        File.WriteAllText(Path.Combine(packDir, TestApp.TestStringFileName), testString);
+        if (forwardActivations) {
+            File.WriteAllText(Path.Combine(packDir, TestApp.ForwardActivationsFileName), "");
+        }
 
         logger.Info($"TEST: Packing Rust testapp v{version} with test string '{testString}'");
 
@@ -383,7 +386,6 @@ public class WindowsPackTests
             PackDirectory = packDir,
             FileAssociations = fileAssociations,
             UrlProtocols = urlProtocols,
-            AssociationLaunchMode = associationLaunchMode,
         };
 
         var runner = WindowsTestHelper.GetPackRunner(logger);
@@ -392,13 +394,14 @@ public class WindowsPackTests
 
     internal static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
         bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null,
-        string fileAssociations = null, string urlProtocols = null, AssociationLaunchMode associationLaunchMode = AssociationLaunchMode.NewInstance)
+        string fileAssociations = null, string urlProtocols = null, bool forwardActivations = false)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
         {
             var publishDir = Path.Combine(workDir, "publish");
-            TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger, singleFile: assemblyNameOverride != null);
+            TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger, singleFile: assemblyNameOverride != null,
+                forwardActivations: forwardActivations);
 
             if (addNewFile) {
                 File.WriteAllText(Path.Combine(publishDir, "NewFile.txt"), "New File Test");
@@ -432,35 +435,11 @@ public class WindowsPackTests
                 PackDirectory = publishDir,
                 FileAssociations = fileAssociations,
                 UrlProtocols = urlProtocols,
-                AssociationLaunchMode = associationLaunchMode,
             };
 
             var runner = WindowsTestHelper.GetPackRunner(logger);
             await runner.Run(options);
         }
-    }
-
-    [Fact]
-    public async Task PackWritesAssociationLaunchModeToManifest()
-    {
-        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
-        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var unzipDir);
-        const string element = "<associationLaunchMode>SingleInstance</associationLaunchMode>";
-
-        // the launch mode is only meaningful together with an association, and the app reads it from sq.version
-        var id = "LaunchModeTest";
-        await PackRustTestApp(id, "1.0.0", "v1", releaseDir, logger,
-            urlProtocols: "vpklaunchmode", associationLaunchMode: AssociationLaunchMode.SingleInstance);
-        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"), unzipDir);
-        Assert.Contains(element, File.ReadAllText(Path.Combine(unzipDir, "lib", "app", "sq.version")));
-        Assert.Contains(element, File.ReadAllText(Path.Combine(unzipDir, $"{id}.nuspec")));
-
-        await PackRustTestApp(id, "2.0.0", "v2", releaseDir, logger, associationLaunchMode: AssociationLaunchMode.SingleInstance);
-        var withoutAssociations = Path.Combine(unzipDir, "v2");
-        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), Path.Combine(releaseDir, $"{id}-2.0.0-full.nupkg"), withoutAssociations);
-        Assert.DoesNotContain("associationLaunchMode", File.ReadAllText(Path.Combine(withoutAssociations, "lib", "app", "sq.version")));
     }
 
     [Theory]

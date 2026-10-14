@@ -130,15 +130,6 @@ namespace Velopack.Locators
 
         internal CombinedVelopackLogger? CombinedLogger { get; set; }
 
-        /// <summary>
-        /// True when the package manifest's <c>associationLaunchMode</c> is <c>SingleInstance</c>: association
-        /// activations are forwarded to the running instance instead of starting a new one.
-        /// </summary>
-        internal bool AssociationSingleInstance { get; set; }
-
-        internal static bool IsSingleInstanceMode(PackageManifest manifest) =>
-            string.Equals(manifest.AssociationLaunchMode?.Trim(), "SingleInstance", StringComparison.OrdinalIgnoreCase);
-
         /// <inheritdoc/>
         public void AddLogger(IVelopackLogger logger)
         {

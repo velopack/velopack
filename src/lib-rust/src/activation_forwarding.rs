@@ -1,8 +1,8 @@
-//! `SingleInstance` association launches: the first instance of an app holds the endpoint lock and serves
-//! association activations over IPC; a later launch carrying `--veloapp-fileassoc` / `--veloapp-urlproto`
-//! arguments forwards them to that instance and exits. Everything here keeps the association VALUES out of the
-//! logs (only counts and lengths are logged). Public only with the `public-utils` feature, for the Rust test app's
-//! `ipc-elect` command (the cross-language election tests).
+//! Activation forwarding (`VelopackApp::forward_activations_to_running_instance`): the first instance of an app
+//! holds the endpoint lock and serves association activations over IPC; a later launch carrying
+//! `--veloapp-fileassoc` / `--veloapp-urlproto` arguments forwards them to that instance and exits. Everything here
+//! keeps the association VALUES out of the logs (only counts and lengths are logged). Public only with the
+//! `public-utils` feature, for the Rust test app's `ipc-elect` command (the cross-language election tests).
 
 use crate::app::{canonical_association_flag, Association, AssociationHook};
 use crate::constants::HOOK_CLI_FILE_ASSOC;
@@ -33,8 +33,8 @@ fn lock_once(ep: &IpcEndpoint) -> Result<Option<LockFile>, std::io::Error> {
 /// Decides this process's role. The endpoint is keyed on the app id, the install root and the current user; the
 /// lock makes the choice race-free. A plain launch (no `associations`) never forwards. A launch with
 /// associations keeps trying for [`ipc::CONNECT_WINDOW`] to either reach the server or take over the lock; when
-/// neither happens, or the delivery fails in any way, it handles the activation itself (never losing it, at the
-/// price of a possible duplicate).
+/// neither happens, or the delivery fails in any way (including a message over [`ipc::MAX_MESSAGE_BYTES`]), it
+/// handles the activation itself (never losing it, at the price of a possible duplicate).
 pub fn elect(locator: &VelopackLocator, associations: &[Association]) -> Election {
     #[cfg(not(target_os = "linux"))]
     let root = locator.get_root_dir();
@@ -43,7 +43,7 @@ pub fn elect(locator: &VelopackLocator, associations: &[Association]) -> Electio
     let ep = match IpcEndpoint::for_app(&locator.get_manifest_id(), &root) {
         Ok(ep) => ep,
         Err(e) => {
-            warn!("SingleInstance: IPC unavailable, handling activations in-process: {e}");
+            warn!("Activation forwarding: IPC unavailable, handling activations in-process: {e}");
             return Election::Standalone;
         }
     };
@@ -53,7 +53,7 @@ pub fn elect(locator: &VelopackLocator, associations: &[Association]) -> Electio
         Ok(None) if associations.is_empty() => return Election::Standalone,
         Ok(None) => {}
         Err(e) => {
-            warn!("SingleInstance: cannot use the endpoint lock, handling activations in-process: {e}");
+            warn!("Activation forwarding: cannot use the endpoint lock, handling activations in-process: {e}");
             return Election::Standalone;
         }
     }
@@ -66,46 +66,34 @@ pub fn elect(locator: &VelopackLocator, associations: &[Association]) -> Electio
             value: value.clone(),
         })
         .collect();
-    if serde_json::to_vec(&msg).map(|b| b.len()).unwrap_or(usize::MAX) > ipc::MAX_MESSAGE_BYTES {
-        warn!("SingleInstance: activation is too large to forward, handling it in-process");
-        return Election::Standalone;
-    }
 
     let deadline = Instant::now() + ipc::CONNECT_WINDOW;
     loop {
-        match ipc::connect(&ep) {
-            Ok(Some(conn)) => {
-                return match ipc::request(conn, &msg, ipc::EXCHANGE_TIMEOUT) {
-                    Ok(reply) if reply.is_ack() => Election::Forwarded,
-                    Ok(reply) => {
-                        warn!(
-                            "SingleInstance: running instance answered '{}' ({}), handling the activation in-process",
-                            reply.message_type,
-                            reply.message.as_deref().unwrap_or("")
-                        );
-                        Election::Standalone
-                    }
-                    Err(e) => {
-                        warn!("SingleInstance: forwarding failed, handling the activation in-process: {e}");
-                        Election::Standalone
-                    }
-                };
+        match ipc::request(&ep, &msg, ipc::EXCHANGE_TIMEOUT) {
+            Ok(Some(reply)) if reply.is_ack() => return Election::Forwarded,
+            Ok(Some(reply)) => {
+                warn!(
+                    "Activation forwarding: running instance answered '{}' ({}), handling the activation in-process",
+                    reply.message_type,
+                    reply.message.as_deref().unwrap_or("")
+                );
+                return Election::Standalone;
             }
             Ok(None) => {}
             Err(e) => {
-                warn!("SingleInstance: cannot connect to the running instance, handling the activation in-process: {e}");
+                warn!("Activation forwarding: could not reach the running instance, handling the activation in-process: {e}");
                 return Election::Standalone;
             }
         }
         if Instant::now() >= deadline {
-            warn!("SingleInstance: no running instance answered, handling the activation in-process");
+            warn!("Activation forwarding: no running instance answered, handling the activation in-process");
             return Election::Standalone;
         }
         match lock_once(&ep) {
             Ok(Some(lock)) => return Election::Server(ep, lock),
             Ok(None) => std::thread::sleep(ipc::RETRY_INTERVAL),
             Err(e) => {
-                warn!("SingleInstance: cannot use the endpoint lock, handling the activation in-process: {e}");
+                warn!("Activation forwarding: cannot use the endpoint lock, handling the activation in-process: {e}");
                 return Election::Standalone;
             }
         }
@@ -116,14 +104,13 @@ pub fn elect(locator: &VelopackLocator, associations: &[Association]) -> Electio
 /// connection thread, serialized through one mutex, and the `ack` is sent only after they have returned. A
 /// failure to start simply leaves the process without a server (the lock is released).
 pub fn start(ep: IpcEndpoint, lock: LockFile, file_hook: Option<AssociationHook>, url_hook: Option<AssociationHook>) {
-    let gate = Arc::new(Mutex::new(()));
+    let gate = Mutex::new(());
     let handler = Arc::new(move |mut conn: IpcConnection| {
-        let (file_hook, url_hook, gate) = (file_hook.clone(), url_hook.clone(), gate.clone());
-        ipc::serve_request(&mut conn, move |msg| handle(msg, file_hook.as_ref(), url_hook.as_ref(), &gate));
+        ipc::serve_request(&mut conn, |msg| handle(msg, file_hook.as_ref(), url_hook.as_ref(), &gate));
     });
     match ipc::start_server(&ep, Some(lock), handler) {
-        Ok(()) => info!("SingleInstance: serving association activations for this app."),
-        Err(e) => warn!("SingleInstance: could not start the IPC server, later activations start new instances: {e}"),
+        Ok(()) => info!("Activation forwarding: serving association activations for this app."),
+        Err(e) => warn!("Activation forwarding: could not start the IPC server, later activations start new instances: {e}"),
     }
 }
 
@@ -172,7 +159,7 @@ mod tests {
             ..Default::default()
         };
         let manifest = Manifest {
-            id: "SingleInstanceTest".into(),
+            id: "ActivationForwardingTest".into(),
             ..Default::default()
         };
         VelopackLocator::new_with_manifest(config, manifest)

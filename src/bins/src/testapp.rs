@@ -5,12 +5,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 use std::{env, fs, fs::OpenOptions, io::Write, process};
+use velopack::activation_forwarding::{elect, start, Election};
 use velopack::bundle::Manifest;
 use velopack::constants::{HOOK_CLI_FILE_ASSOC, HOOK_CLI_URL_PROTO};
 use velopack::ipc::{self, IpcConnection, IpcEndpoint, IpcItem, IpcMessage};
 use velopack::locator::{VelopackLocator, VelopackLocatorConfig};
 use velopack::lockfile::LockFile;
-use velopack::single_instance::{elect, start, Election};
 use velopack::{locator, sources, UpdateCheck, UpdateManager, VelopackApp};
 
 fn main() -> Result<()> {
@@ -38,8 +38,12 @@ fn main() -> Result<()> {
     let out_dir = exe_dir.join("..");
     let (file_dir, url_dir) = (out_dir.clone(), out_dir.clone());
 
+    // injected at pack time, like test_string.txt
+    let forward_activations = exe_dir.join("forward_activations.txt").exists();
+
     VelopackApp::build()
         .set_auto_apply_on_startup(should_auto_update)
+        .forward_activations_to_running_instance(forward_activations)
         .on_file_assoc(move |path| record_association(&file_dir, "file-assoc", "OnFileAssoc", &path))
         .on_url_proto(move |url| record_association(&url_dir, "url-proto", "OnUrlProto", &url))
         .run();
@@ -66,7 +70,7 @@ fn main() -> Result<()> {
     }
 
     if args.len() == 1 && args[0] == "wait" {
-        // stays alive (serving SingleInstance activations) until the test writes the stop sentinel
+        // stays alive (serving forwarded activations) until the test writes the stop sentinel
         append_line(&out_dir.join("ready"), &format!("Ready: {}", process::id()));
         let stop = out_dir.join("stop");
         let deadline = Instant::now() + Duration::from_secs(120);
@@ -167,7 +171,7 @@ fn ipc_command(command: &str, args: &[String]) -> Result<i32> {
                     value: value.clone(),
                 }];
             }
-            let reply = ipc::request(connect_with_retries(&ep)?, &msg, ipc::EXCHANGE_TIMEOUT)?;
+            let reply = request_with_retries(&ep, &msg)?;
             println!("{} {}", reply.message_type, reply.message.as_deref().unwrap_or(""));
             Ok(if reply.is_ack() { 0 } else { 1 })
         }
@@ -239,11 +243,11 @@ fn ipc_command(command: &str, args: &[String]) -> Result<i32> {
     }
 }
 
-fn connect_with_retries(ep: &IpcEndpoint) -> Result<IpcConnection> {
+fn request_with_retries(ep: &IpcEndpoint, msg: &IpcMessage) -> Result<IpcMessage> {
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
-        if let Some(conn) = ipc::connect(ep)? {
-            return Ok(conn);
+        if let Some(reply) = ipc::request(ep, msg, ipc::EXCHANGE_TIMEOUT)? {
+            return Ok(reply);
         }
         if Instant::now() >= deadline {
             bail!("no server at {}", ep.address.display());

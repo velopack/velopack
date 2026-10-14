@@ -72,7 +72,6 @@ public class PlistWriter
             }
 
             WriteProperty(xmlWriter, nameof(_task.LSMinimumSystemVersion), _task.LSMinimumSystemVersion);
-            WriteProperty(xmlWriter, nameof(_task.VelopackAssociationLaunchMode), _task.VelopackAssociationLaunchMode);
 
             WriteUrlTypes(xmlWriter);
             WriteDocumentTypes(xmlWriter);

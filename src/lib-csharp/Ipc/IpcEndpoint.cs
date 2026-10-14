@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using Velopack.Logging;
 
@@ -15,6 +17,7 @@ namespace Velopack.Ipc
     internal sealed class IpcEndpoint
     {
         private const string KeyPrefix = "velopack-ipc-v1";
+        private const string PipePrefix = @"\\.\pipe\";
         /// <summary> <c>sun_path</c> holds 104 bytes on macOS including the terminator. </summary>
         private const int MaxSocketPathBytes = 103;
 
@@ -32,22 +35,8 @@ namespace Velopack.Ipc
             LockPath = lockPath;
         }
 
-        /// <summary>
-        /// Whether this build can do IPC on this OS: always on Windows; on Linux/macOS only the net8.0+ builds
-        /// (Unix domain sockets and file modes are not available to netstandard2.0/net472).
-        /// </summary>
-        public static bool IsSupported {
-            get {
-                if (VelopackRuntimeInfo.IsWindows) {
-                    return true;
-                }
-#if NET8_0_OR_GREATER
-                return VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX;
-#else
-                return false;
-#endif
-            }
-        }
+        /// <summary> The name <c>NamedPipeClientStream</c> takes: the pipe name on Windows, the absolute socket path elsewhere. </summary>
+        public string PipeName => VelopackRuntimeInfo.IsWindows ? Address.Substring(PipePrefix.Length) : Address;
 
         /// <summary>
         /// The endpoint of the installed app with manifest id <paramref name="appId"/> at install root
@@ -57,11 +46,6 @@ namespace Velopack.Ipc
         {
             if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(root)) {
                 log.Warn("IPC endpoint needs an app id and an install root; IPC disabled.");
-                return null;
-            }
-
-            if (!IsSupported) {
-                log.Warn("SingleInstance association launch mode needs the net8.0+ Velopack build on this OS; using NewInstance.");
                 return null;
             }
 
@@ -89,12 +73,12 @@ namespace Velopack.Ipc
                 if (VelopackRuntimeInfo.IsWindows) {
                     return WindowsEndpoint(key);
                 }
-#if NET8_0_OR_GREATER
+
                 if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
                     return UnixEndpoint(key);
                 }
-#endif
-                log.Warn("IPC is not supported by this build on this OS.");
+
+                log.Warn("IPC is not supported on this OS.");
                 return null;
             } catch (Exception ex) {
                 log.Warn(ex, "IPC endpoint location could not be prepared; IPC disabled.");
@@ -127,10 +111,9 @@ namespace Velopack.Ipc
 
             var lockDir = Path.Combine(localAppData, "velopack", "ipc");
             Directory.CreateDirectory(lockDir);
-            return new IpcEndpoint(key, @"\\.\pipe\velopack-" + key, Path.Combine(lockDir, key + ".lock"));
+            return new IpcEndpoint(key, PipePrefix + "velopack-" + key, Path.Combine(lockDir, key + ".lock"));
         }
 
-#if NET8_0_OR_GREATER
         /// <summary>
         /// Lock and socket live in the same per-user private directory on purpose: macOS purges unused <c>$TMPDIR</c>
         /// entries together, and a server whose files were purged is simply superseded by the next launch.
@@ -139,7 +122,7 @@ namespace Velopack.Ipc
         [SupportedOSPlatform("macos")]
         private static IpcEndpoint UnixEndpoint(string key)
         {
-            var baseDir = TrimRootUnix(Path.GetTempPath());
+            var baseDir = SocketBaseDir(Environment.GetEnvironmentVariable("TMPDIR"));
             var dir = Path.Combine(baseDir, "velopack-" + CurrentUser());
             EnsurePrivateDir(dir);
             var address = Path.Combine(dir, key + ".sock");
@@ -152,30 +135,47 @@ namespace Velopack.Ipc
         }
 
         /// <summary>
-        /// Creates the directory with mode 0700 (an existing one is fine: two simultaneous starts both create it), then
-        /// refuses a symlink and tightens a loose mode (which throws when we are not the owner).
+        /// The directory the per-user socket directory lives in, by the same rule as the Rust library
+        /// (<c>ipc::unix::socket_base_dir</c>), so both find each other whatever the environment of either process: on
+        /// macOS always the per-user temporary directory (<c>confstr(_CS_DARWIN_USER_TEMP_DIR)</c>; <c>$TMPDIR</c> is
+        /// ignored as it may be unset, eg. over ssh or in a launchd job), <c>/tmp</c> if that fails; elsewhere
+        /// <paramref name="tmpdir"/> (the value of <c>$TMPDIR</c>) when it is set and not empty, else <c>/tmp</c>.
+        /// Trailing slashes are trimmed.
+        /// </summary>
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        internal static string SocketBaseDir(string? tmpdir)
+        {
+            var dir = VelopackRuntimeInfo.IsOSX
+                ? IpcNative.DarwinUserTempDir() ?? "/tmp"
+                : string.IsNullOrEmpty(tmpdir) ? "/tmp" : tmpdir!;
+            return TrimRootUnix(dir);
+        }
+
+        /// <summary>
+        /// Creates the directory (an existing one is fine: two simultaneous starts both create it), refuses a symlink and
+        /// sets mode 0700, which fails for a directory another user owns (unless we are root; the peer uid checks of
+        /// <see cref="IpcClient.CurrentUserOnly"/> still refuse a foreign server or client then). Any failure disables IPC.
         /// </summary>
         [SupportedOSPlatform("linux")]
         [SupportedOSPlatform("macos")]
         internal static void EnsurePrivateDir(string dir)
         {
-            const UnixFileMode owner = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
-            Directory.CreateDirectory(dir, owner);
-            if (new DirectoryInfo(dir).LinkTarget != null) {
+            Directory.CreateDirectory(dir);
+            if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) {
                 throw new IOException($"{dir} is a symlink");
             }
 
-            if ((File.GetUnixFileMode(dir) & ~owner) != 0) {
-                File.SetUnixFileMode(dir, owner);
+            if (IpcNative.chmod(dir, 0x1C0 /* 0700 */) != 0) {
+                throw new IOException($"chmod 0700 {dir} failed (errno {Marshal.GetLastWin32Error()})");
             }
         }
-#endif
 
         /// <summary> The string SID of the process token user on Windows, the decimal uid elsewhere. </summary>
         private static string CurrentUser()
         {
             if (VelopackRuntimeInfo.IsWindows) {
-                return IpcNative.TokenSids(IpcNative.GetCurrentProcess()).UserSid;
+                return CurrentUserSid().Value;
             }
 
             if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
@@ -183,6 +183,14 @@ namespace Velopack.Ipc
             }
 
             throw new PlatformNotSupportedException();
+        }
+
+        /// <summary> The SID of the current user, the only principal an IPC pipe server grants access to. </summary>
+        [SupportedOSPlatform("windows")]
+        internal static SecurityIdentifier CurrentUserSid()
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return identity.User ?? throw new InvalidOperationException("the process token has no user SID");
         }
 
         /// <summary>

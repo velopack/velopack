@@ -329,12 +329,6 @@ impl VelopackLocator {
         split_manifest_list(&self.manifest.url_protocols)
     }
 
-    /// Returns whether association activations should be forwarded to an already running instance of this app
-    /// (`vpk pack --associationLaunchMode SingleInstance`) rather than starting a new instance (the default).
-    pub fn get_manifest_association_single_instance(&self) -> bool {
-        self.manifest.association_launch_mode.trim().eq_ignore_ascii_case("SingleInstance")
-    }
-
     /// Returns the Application User Model ID for this app.
     /// If a custom AUMID was specified during packaging, it will be returned.
     /// Otherwise, falls back to "velopack.{AppId}".
@@ -732,21 +726,6 @@ fn test_locator_manifest_associations_getters() {
     let locator = VelopackLocator::new_with_manifest(VelopackLocatorConfig::default(), manifest);
     assert_eq!(locator.get_manifest_file_associations(), vec![".myproj", ".mytpl"]);
     assert_eq!(locator.get_manifest_url_protocols(), vec!["myapp", "myapp-beta"]);
-}
-
-#[test]
-fn test_locator_manifest_association_single_instance() {
-    let locator = |mode: &str| {
-        let manifest = Manifest {
-            association_launch_mode: mode.to_owned(),
-            ..Default::default()
-        };
-        VelopackLocator::new_with_manifest(VelopackLocatorConfig::default(), manifest)
-    };
-    assert!(!locator("").get_manifest_association_single_instance());
-    assert!(!locator("NewInstance").get_manifest_association_single_instance());
-    assert!(locator("SingleInstance").get_manifest_association_single_instance());
-    assert!(locator(" singleinstance ").get_manifest_association_single_instance());
 }
 
 #[test]

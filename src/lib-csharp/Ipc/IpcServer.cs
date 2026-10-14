@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
-using System.Net.Sockets;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Threading;
-using Microsoft.Win32.SafeHandles;
 using Velopack.Logging;
 using Velopack.Util;
 
@@ -14,7 +13,8 @@ namespace Velopack.Ipc
     /// <summary>
     /// The accepting side. <see cref="Start"/> binds synchronously (so a failure is reported) and then accepts
     /// connections for the rest of the process on a background <c>Velopack IPC</c> thread, which hands every
-    /// connection to the callback on the thread pool. There is no stop API.
+    /// connection to the callback on the thread pool. The next server instance is created before the current one is
+    /// handed out, so the address never disappears. There is no stop API.
     /// </summary>
     internal static class IpcServer
     {
@@ -23,30 +23,29 @@ namespace Velopack.Ipc
         private static readonly List<LockFile> HeldLocks = new();
 
         /// <summary>
-        /// Returns false (with a logged warning) when the endpoint could not be bound, eg. because another process
-        /// already owns the pipe name; <paramref name="lockFile"/> is then disposed.
+        /// Returns false (with a logged warning) when the endpoint could not be bound, eg. because a pipe of that name
+        /// created by another user denies us a new instance; <paramref name="lockFile"/> is then disposed.
         /// </summary>
         public static bool Start(IpcEndpoint endpoint, LockFile? lockFile, Action<IpcConnection> onConnection, IVelopackLogger log)
         {
             try {
-                Func<IpcConnection> accept;
+                Func<NamedPipeServerStream> create;
                 if (VelopackRuntimeInfo.IsWindows) {
-                    accept = BindWindows(endpoint, log);
-                }
-#if NET8_0_OR_GREATER
-                else if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
-                    accept = BindUnix(endpoint);
-                }
-#endif
-                else {
-                    throw new PlatformNotSupportedException("IPC needs the net8.0+ Velopack build on this OS.");
+                    create = WindowsInstanceFactory(endpoint);
+                } else {
+                    // a socket file left by a crashed server; only the lock holder (or a caller-chosen key) gets here
+                    File.Delete(endpoint.Address);
+                    create = () => new NamedPipeServerStream(endpoint.Address, PipeDirection.InOut,
+                        NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte,
+                        PipeOptions.Asynchronous | IpcClient.CurrentUserOnly);
                 }
 
+                var waiting = create();
                 if (lockFile != null) {
                     lock (HeldLocks) HeldLocks.Add(lockFile);
                 }
 
-                var thread = new Thread(() => AcceptLoop(accept, onConnection, log)) {
+                var thread = new Thread(() => AcceptLoop(waiting, create, onConnection, log)) {
                     IsBackground = true,
                     Name = "Velopack IPC",
                 };
@@ -59,18 +58,36 @@ namespace Velopack.Ipc
             }
         }
 
-        private static void AcceptLoop(Func<IpcConnection> accept, Action<IpcConnection> onConnection, IVelopackLogger log)
+        private static void AcceptLoop(NamedPipeServerStream? waiting, Func<NamedPipeServerStream> create,
+            Action<IpcConnection> onConnection, IVelopackLogger log)
         {
             while (true) {
-                IpcConnection connection;
+                NamedPipeServerStream current;
                 try {
-                    connection = accept();
+                    current = waiting ?? create();
+                    waiting = null;
                 } catch (Exception ex) {
-                    log.Warn($"IPC: accept failed: {ex.Message}");
+                    log.Warn($"IPC: could not create a server instance: {ex.Message}");
                     Thread.Sleep(IpcProtocol.RetryInterval);
                     continue;
                 }
 
+                try {
+                    current.WaitForConnection();
+                } catch (Exception ex) {
+                    // eg. the client connected and went away again; this instance is spent
+                    log.Debug($"IPC: WaitForConnection failed, recreating the instance: {ex.Message}");
+                    current.Dispose();
+                    continue;
+                }
+
+                try {
+                    waiting = create();
+                } catch (Exception ex) {
+                    log.Warn($"IPC: could not create the next server instance: {ex.Message}");
+                }
+
+                var connection = new IpcConnection(current);
                 ThreadPool.QueueUserWorkItem(_ => {
                     try {
                         onConnection(connection);
@@ -84,80 +101,33 @@ namespace Velopack.Ipc
         }
 
         /// <summary>
-        /// Creates the first pipe instance (failing if the name is already taken) with a DACL granting access only to
-        /// the current user and a mandatory label at the current integrity level (named pipes carry no label by
-        /// default, which would let a medium-integrity process push activations into an elevated instance). The
-        /// returned accept function always keeps one unconnected instance waiting, so the name never disappears.
+        /// The descriptor of every pipe the Windows server creates (the same as the Rust server's
+        /// <c>O:{user}D:P(A;;GA;;;{user})</c>): owned by the current user, which is what clients verify (an elevated process
+        /// would otherwise default to the Administrators group), and access granted to that user only, so elevated and
+        /// non-elevated instances of the same user can talk in both directions. Remote clients are rejected by the pipe mode.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        private static Func<IpcConnection> BindWindows(IpcEndpoint endpoint, IVelopackLogger log)
+        internal static PipeSecurity CreatePipeSecurity()
         {
-            var (user, level) = IpcNative.TokenSids(IpcNative.GetCurrentProcess());
-            var descriptor = IpcNative.CreateSecurityDescriptor($"D:P(A;;GA;;;{user})S:(ML;;NW;;;{level})");
-            NamedPipeServerStream? waiting = WrapServerPipe(IpcNative.CreatePipeInstance(endpoint.Address, descriptor, true));
-
-            return () => {
-                while (true) {
-                    var current = waiting ?? WrapServerPipe(IpcNative.CreatePipeInstance(endpoint.Address, descriptor, false));
-                    waiting = null;
-                    try {
-                        current.WaitForConnection();
-                    } catch (Exception ex) {
-                        // eg. the client connected and went away again; this instance is spent
-                        log.Debug($"IPC: WaitForConnection failed, recreating the instance: {ex.Message}");
-                        current.Dispose();
-                        continue;
-                    }
-
-                    // the next instance exists before this one is handed out, so the name stays reachable
-                    try {
-                        waiting = WrapServerPipe(IpcNative.CreatePipeInstance(endpoint.Address, descriptor, false));
-                    } catch (Exception ex) {
-                        log.Warn($"IPC: could not create the next pipe instance: {ex.Message}");
-                    }
-
-                    return new IpcConnection(current);
-                }
-            };
+            var user = IpcEndpoint.CurrentUserSid();
+            var security = new PipeSecurity();
+            security.SetOwner(user);
+            security.SetAccessRuleProtection(true, false);
+            security.AddAccessRule(new PipeAccessRule(user, PipeAccessRights.FullControl, AccessControlType.Allow));
+            return security;
         }
 
+        /// <summary> The first instance is created with <c>FILE_FLAG_FIRST_PIPE_INSTANCE</c>, so a squatted name fails the start. </summary>
         [SupportedOSPlatform("windows")]
-        private static NamedPipeServerStream WrapServerPipe(IntPtr handle)
+        private static Func<NamedPipeServerStream> WindowsInstanceFactory(IpcEndpoint endpoint)
         {
-            var safeHandle = new SafePipeHandle(handle, true);
-            try {
-                return new NamedPipeServerStream(PipeDirection.InOut, true, false, safeHandle);
-            } catch {
-                safeHandle.Dispose();
-                throw;
-            }
-        }
-
-#if NET8_0_OR_GREATER
-        /// <summary> Unlinks a stale socket file (only the lock holder binds), binds, and restricts the socket to the owner. </summary>
-        [SupportedOSPlatform("linux")]
-        [SupportedOSPlatform("macos")]
-        private static Func<IpcConnection> BindUnix(IpcEndpoint endpoint)
-        {
-            if (File.Exists(endpoint.Address)) {
-                File.Delete(endpoint.Address);
-            }
-
-            var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            try {
-                listener.Bind(new UnixDomainSocketEndPoint(endpoint.Address));
-                listener.Listen(16);
-                File.SetUnixFileMode(endpoint.Address, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            } catch {
-                listener.Dispose();
-                throw;
-            }
-
+            var descriptor = CreatePipeSecurity().GetSecurityDescriptorBinaryForm();
+            var first = true;
             return () => {
-                var socket = listener.Accept();
-                return new IpcConnection(new NetworkStream(socket, true), socket);
+                var stream = IpcNative.CreatePipeServer(endpoint.PipeName, descriptor, first);
+                first = false;
+                return stream;
             };
         }
-#endif
     }
 }

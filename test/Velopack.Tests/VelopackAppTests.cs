@@ -31,6 +31,9 @@ public class VelopackAppTests
         _output = output;
     }
 
+    private static List<(string Flag, string Value)> Parse(string[] args, string rawCommandLine) =>
+        VelopackApp.ParseAssociationArgs(args, rawCommandLine).Select(a => (a.Flag, a.Value)).ToList();
+
     [Theory]
     // simple quoted path, as the shell substitutes %1
     [InlineData(@"""C:\Apps\MyApp\current\MyApp.exe"" --veloapp-fileassoc ""C:\Users\me\My Documents\file.myproj""",
@@ -58,7 +61,7 @@ public class VelopackAppTests
         new[] { "--veloapp-urlproto", "myapp://hosted" }, "myapp://hosted")]
     public void RecoversValueFromRawCommandLine(string rawCommandLine, string[] args, string expected)
     {
-        var associations = VelopackApp.ParseAssociationArgs(args, rawCommandLine);
+        var associations = Parse(args, rawCommandLine);
         Assert.Equal(new[] { (args[0].ToLowerInvariant(), expected) }, associations);
     }
 
@@ -85,7 +88,7 @@ public class VelopackAppTests
         var args = new[] { "--veloapp-urlproto", @"myapp://open?q=""quoted"" value" };
         Assert.Equal(
             new[] { (VelopackApp.HookCliUrlProto, @"myapp://open?q=""quoted"" value") },
-            VelopackApp.ParseAssociationArgs(args, null));
+            Parse(args, null));
 
         // several pairs of mixed kinds, eg. a macOS launch forwarded through an update
         args = new[] {
@@ -97,15 +100,15 @@ public class VelopackAppTests
                 (VelopackApp.HookCliFileAssoc, "/Users/me/b c.myproj"),
                 (VelopackApp.HookCliUrlProto, "myapp://x"),
             },
-            VelopackApp.ParseAssociationArgs(args, null));
+            Parse(args, null));
 
         // parsing stops at the first element which is not a flag; the rest is left to the app
         args = new[] { "--veloapp-urlproto", "myapp://x", "other", "--veloapp-urlproto", "myapp://y" };
-        Assert.Equal(new[] { (VelopackApp.HookCliUrlProto, "myapp://x") }, VelopackApp.ParseAssociationArgs(args, null));
+        Assert.Equal(new[] { (VelopackApp.HookCliUrlProto, "myapp://x") }, Parse(args, null));
 
         // a flag with nothing, or an empty string, after it is dropped
         args = new[] { "--veloapp-urlproto", "", "--veloapp-fileassoc", @"C:\x.myproj" };
-        Assert.Equal(new[] { (VelopackApp.HookCliFileAssoc, @"C:\x.myproj") }, VelopackApp.ParseAssociationArgs(args, null));
+        Assert.Equal(new[] { (VelopackApp.HookCliFileAssoc, @"C:\x.myproj") }, Parse(args, null));
     }
 
     [Fact]
@@ -115,23 +118,23 @@ public class VelopackAppTests
         var args = new[] { "--veloapp-urlproto", "myapp://fallback" };
         Assert.Equal(
             new[] { (VelopackApp.HookCliUrlProto, "myapp://fallback") },
-            VelopackApp.ParseAssociationArgs(args, @"""C:\Apps\MyApp.exe"" --something-else"));
+            Parse(args, @"""C:\Apps\MyApp.exe"" --something-else"));
 
         // ... and the OS never passes more than one value, so only the first pair is taken (several pairs are only
         // ever forwarded by a restart, which reads argv without a raw command line)
         args = new[] { "--veloapp-urlproto", "myapp://first", "--veloapp-fileassoc", @"C:\second.myproj" };
         Assert.Equal(
             new[] { (VelopackApp.HookCliUrlProto, "myapp://first") },
-            VelopackApp.ParseAssociationArgs(args, @"""C:\Apps\MyApp.exe"" --something-else"));
-        Assert.Equal(2, VelopackApp.ParseAssociationArgs(args, null).Count);
+            Parse(args, @"""C:\Apps\MyApp.exe"" --something-else"));
+        Assert.Equal(2, Parse(args, null).Count);
     }
 
     [Fact]
     public void IgnoresEmptyValueAfterFlag()
     {
-        Assert.Empty(VelopackApp.ParseAssociationArgs(new[] { "--veloapp-urlproto" }, null));
-        Assert.Empty(VelopackApp.ParseAssociationArgs(new[] { "--veloapp-urlproto" }, @"MyApp.exe --veloapp-urlproto "));
-        Assert.Empty(VelopackApp.ParseAssociationArgs(new[] { "--veloapp-urlproto", "" }, @"MyApp.exe --veloapp-urlproto """""));
+        Assert.Empty(Parse(new[] { "--veloapp-urlproto" }, null));
+        Assert.Empty(Parse(new[] { "--veloapp-urlproto" }, @"MyApp.exe --veloapp-urlproto "));
+        Assert.Empty(Parse(new[] { "--veloapp-urlproto", "" }, @"MyApp.exe --veloapp-urlproto """""));
     }
 
     [Theory]
@@ -141,8 +144,8 @@ public class VelopackAppTests
     [InlineData((object) new[] { "C:\\file.myproj", "--veloapp-fileassoc" })]
     public void IgnoresNonAssociationArgs(string[] args)
     {
-        Assert.Empty(VelopackApp.ParseAssociationArgs(args, "MyApp.exe --veloapp-fileassoc x"));
-        Assert.Empty(VelopackApp.ParseAssociationArgs(args, null));
+        Assert.Empty(Parse(args, "MyApp.exe --veloapp-fileassoc x"));
+        Assert.Empty(Parse(args, null));
     }
 
     [Fact]
@@ -282,7 +285,7 @@ public class VelopackAppTests
     }
 
     /// <summary>
-    /// A root for one SingleInstance test. The IPC servers these tests start live for the whole test process, holding
+    /// A root for one activation forwarding test. The IPC servers these tests start live for the whole test process, holding
     /// the lock of their endpoint (keyed on the root path), and <see cref="TempUtil.GetTempDirectory"/> reuses its
     /// <c>temp.N</c> names once disposed, so every test needs a root path no other test can get again.
     /// </summary>
@@ -302,11 +305,11 @@ public class VelopackAppTests
         return new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, null, tempPath, null, logger: logger);
     }
 
-    /// <summary> An installed-looking locator whose manifest says SingleInstance, rooted at <paramref name="root"/>. </summary>
-    private static TestVelopackLocator SingleInstanceLocator(string root, IVelopackLogger logger)
+    /// <summary> An installed-looking locator rooted at <paramref name="root"/>. </summary>
+    private static TestVelopackLocator ForwardingLocator(string root, IVelopackLogger logger)
     {
         var packages = Path.Combine(root, "packages");
-        return new TestVelopackLocator("MyCoolApp", "1.0.0", packages, null, root, null, logger: logger) { AssociationSingleInstance = true };
+        return new TestVelopackLocator("MyCoolApp", "1.0.0", packages, null, root, null, logger: logger);
     }
 
     private static IpcMessage UrlActivation(string value) => new(IpcProtocol.TypeAssociation) {
@@ -324,17 +327,18 @@ public class VelopackAppTests
     }
 
     [Fact]
-    public void RunSingleInstanceBecomesServerAndReceivesForwarded()
+    public void RunForwardActivationsBecomesServerAndReceivesForwarded()
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var root = UniqueRoot(tempPath);
-        var locator = SingleInstanceLocator(root, logger);
+        var locator = ForwardingLocator(root, logger);
 
         var received = new List<(string Value, int ThreadId)>();
         VelopackApp.Build()
             .SetLocator(locator)
             .SetArgs(new[] { "--veloapp-urlproto", "myapp://a" })
+            .ForwardActivationsToRunningInstance()
             .OnUrlProto(v => { lock (received) received.Add((v, Environment.CurrentManagedThreadId)); })
             .Run();
 
@@ -372,12 +376,12 @@ public class VelopackAppTests
     }
 
     [Fact]
-    public void RunSingleInstanceServerIsUpBeforeFirstRunHook()
+    public void RunForwardActivationsServerIsUpBeforeFirstRunHook()
     {
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var root = UniqueRoot(tempPath);
-        var locator = SingleInstanceLocator(root, logger);
+        var locator = ForwardingLocator(root, logger);
 
         var received = new List<string>();
         var firstRunEntered = new ManualResetEventSlim();
@@ -388,6 +392,7 @@ public class VelopackAppTests
                 VelopackApp.Build()
                     .SetLocator(locator)
                     .SetArgs(new string[0])
+                    .ForwardActivationsToRunningInstance()
                     .OnFirstRun(_ => {
                         firstRunEntered.Set();
                         releaseFirstRun.Wait(TimeSpan.FromSeconds(10));
@@ -418,7 +423,7 @@ public class VelopackAppTests
     }
 
     [Fact]
-    public void RunSingleInstanceForwardsAndExits()
+    public void RunForwardActivationsForwardsAndExits()
     {
         // POSIX record locks are per process, so a second election in the same process cannot observe a held lock
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
@@ -427,19 +432,20 @@ public class VelopackAppTests
         var root = UniqueRoot(tempPath);
 
         // instance A: elected server, serving the url callback
-        var locatorA = SingleInstanceLocator(root, logger);
+        var locatorA = ForwardingLocator(root, logger);
         var receivedA = new List<string>();
         var appA = VelopackApp.Build().OnUrlProto(v => { lock (receivedA) receivedA.Add(v); });
-        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
-        SingleInstance.Start(server!, appA, logger);
+        Assert.Equal(Election.Server, ActivationForwarding.Elect(locatorA, new(), logger, out var server));
+        ActivationForwarding.Start(server!, appA, logger);
 
         // instance B: launched for an association, forwards it and exits with 0 before anything else
-        var locatorB = SingleInstanceLocator(root, logger);
+        var locatorB = ForwardingLocator(root, logger);
         var receivedB = new List<string>();
         var value = "myapp://open?q=\"a b\"";
         VelopackApp.Build()
             .SetLocator(locatorB)
             .SetArgs(new[] { "--veloapp-urlproto", value })
+            .ForwardActivationsToRunningInstance()
             .OnUrlProto(receivedB.Add)
             .Run();
 
@@ -450,7 +456,7 @@ public class VelopackAppTests
     }
 
     [Fact]
-    public void RunSingleInstancePlainLaunchContinues()
+    public void RunForwardActivationsPlainLaunchContinues()
     {
         // POSIX record locks are per process, so a second election in the same process cannot observe a held lock;
         // IpcInteropTests.RustServerCSharpPlainLaunchContinues covers Unix cross-process
@@ -460,14 +466,15 @@ public class VelopackAppTests
         var root = UniqueRoot(tempPath);
 
         // another instance holds the lock
-        var locatorA = SingleInstanceLocator(root, logger);
-        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
-        SingleInstance.Start(server!, VelopackApp.Build().OnUrlProto(_ => { }), logger);
+        var locatorA = ForwardingLocator(root, logger);
+        Assert.Equal(Election.Server, ActivationForwarding.Elect(locatorA, new(), logger, out var server));
+        ActivationForwarding.Start(server!, VelopackApp.Build().OnUrlProto(_ => { }), logger);
 
-        var locatorB = SingleInstanceLocator(root, logger);
+        var locatorB = ForwardingLocator(root, logger);
         VelopackApp.Build()
             .SetLocator(locatorB)
             .SetArgs(new[] { "--not-an-association", "x" })
+            .ForwardActivationsToRunningInstance()
             .OnUrlProto(_ => { })
             .Run();
 
@@ -475,7 +482,7 @@ public class VelopackAppTests
     }
 
     [Fact]
-    public void RunSingleInstanceForwardsOnlyItemsWithACallback()
+    public void RunForwardActivationsForwardsOnlyItemsWithACallback()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
         var logger = new ListLogger(_output);
@@ -483,19 +490,20 @@ public class VelopackAppTests
         var root = UniqueRoot(tempPath);
 
         // instance A: url callback only (the server refuses a message carrying any item it has no callback for)
-        var locatorA = SingleInstanceLocator(root, logger);
+        var locatorA = ForwardingLocator(root, logger);
         var receivedA = new List<string>();
-        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
-        SingleInstance.Start(server!, VelopackApp.Build().OnUrlProto(v => { lock (receivedA) receivedA.Add(v); }), logger);
+        Assert.Equal(Election.Server, ActivationForwarding.Elect(locatorA, new(), logger, out var server));
+        ActivationForwarding.Start(server!, VelopackApp.Build().OnUrlProto(v => { lock (receivedA) receivedA.Add(v); }), logger);
 
         // instance B (the same build): a mixed launch, eg. the macOS helper coalescing a file and a url, forwards only
         // the url and exits; the file item has no callback here either and is dropped
-        var locatorB = SingleInstanceLocator(root, logger);
+        var locatorB = ForwardingLocator(root, logger);
         Environment.SetEnvironmentVariable("VELOPACK_RESTART", "true"); // several pairs are only read for restarted launches
         try {
             VelopackApp.Build()
                 .SetLocator(locatorB)
                 .SetArgs(new[] { "--veloapp-fileassoc", @"C:\x.myproj", "--veloapp-urlproto", "myapp://a" })
+                .ForwardActivationsToRunningInstance()
                 .OnUrlProto(_ => Assert.Fail("B must not handle the url itself"))
                 .Run();
         } finally {
@@ -508,25 +516,26 @@ public class VelopackAppTests
     }
 
     [Fact]
-    public void RunSingleInstanceInvalidUnicodeIsHandledInProcess()
+    public void RunForwardActivationsInvalidUnicodeIsHandledInProcess()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
         var logger = new ListLogger(_output);
         using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var root = UniqueRoot(tempPath);
 
-        var locatorA = SingleInstanceLocator(root, logger);
+        var locatorA = ForwardingLocator(root, logger);
         var receivedA = new List<string>();
-        Assert.Equal(Election.Server, SingleInstance.Elect(locatorA, new(), logger, out var server));
-        SingleInstance.Start(server!, VelopackApp.Build().OnFileAssoc(receivedA.Add), logger);
+        Assert.Equal(Election.Server, ActivationForwarding.Elect(locatorA, new(), logger, out var server));
+        ActivationForwarding.Start(server!, VelopackApp.Build().OnFileAssoc(receivedA.Add), logger);
 
         // NTFS allows a lone surrogate in a file name; JSON cannot carry it, so it is handled in-process, not altered
         var lone = "C:\\Users\\me\\bad\uD800name.myproj";
-        var locatorB = SingleInstanceLocator(root, logger);
+        var locatorB = ForwardingLocator(root, logger);
         var receivedB = new List<string>();
         VelopackApp.Build()
             .SetLocator(locatorB)
             .SetArgs(new[] { "--veloapp-fileassoc", lone })
+            .ForwardActivationsToRunningInstance()
             .OnFileAssoc(receivedB.Add)
             .Run();
 
@@ -534,6 +543,32 @@ public class VelopackAppTests
         Assert.Equal(new[] { lone }, receivedB);
         Assert.Empty(receivedA);
         Assert.Contains(logger.Entries, e => e.Contains("not valid Unicode"));
+    }
+
+    [Fact]
+    public void RunDoesNotForwardActivationsByDefault()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "per-process POSIX locks");
+        var logger = new ListLogger(_output);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var root = UniqueRoot(tempPath);
+
+        // another instance serves activations, but this launch did not opt in: it neither forwards nor serves
+        var receivedA = new List<string>();
+        Assert.Equal(Election.Server, ActivationForwarding.Elect(ForwardingLocator(root, logger), new(), logger, out var server));
+        ActivationForwarding.Start(server!, VelopackApp.Build().OnUrlProto(v => { lock (receivedA) receivedA.Add(v); }), logger);
+
+        var locatorB = ForwardingLocator(root, logger);
+        var receivedB = new List<string>();
+        VelopackApp.Build()
+            .SetLocator(locatorB)
+            .SetArgs(new[] { "--veloapp-urlproto", "myapp://a" })
+            .OnUrlProto(receivedB.Add)
+            .Run();
+
+        Assert.Null(locatorB.ExitCode);
+        Assert.Equal(new[] { "myapp://a" }, receivedB);
+        Assert.Empty(receivedA);
     }
 
     [Fact]

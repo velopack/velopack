@@ -50,6 +50,4 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public string FileAssociations { get; set; }
 
     public string UrlProtocols { get; set; }
-
-    public AssociationLaunchMode AssociationLaunchMode { get; set; }
 }

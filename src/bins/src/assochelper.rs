@@ -3,9 +3,11 @@
 //! `vpk pack` ships this binary as a nested app bundle (`{Main}.app/Contents/Helpers/{Name}.app`) whose
 //! Info.plist owns the `CFBundleURLTypes` / `CFBundleDocumentTypes` declarations, so Launch Services sends
 //! every activation here instead of to the main app. The helper owns its own `NSApplication` (so installing
-//! the delegate never conflicts with the main app's UI framework), collects the opened URLs / files, and
-//! launches the main app with the same `--veloapp-urlproto <url>` / `--veloapp-fileassoc <path>` argv pairs
-//! that the Windows registry command uses. It never parses or validates the values; the libraries do.
+//! the delegate never conflicts with the main app's UI framework) and collects the opened URLs / files. Each batch
+//! goes straight to a running instance of the main app that forwards activations (over the library's IPC, which is
+//! then activated with `open`); otherwise the main app is launched with the same `--veloapp-urlproto <url>` /
+//! `--veloapp-fileassoc <path>` argv pairs that the Windows registry command uses. It never parses or validates the
+//! values; the libraries do.
 
 /// Flattens the activated items into `--veloapp-fileassoc <path>` / `--veloapp-urlproto <url>` argv pairs,
 /// in arrival order, skipping empty values.
@@ -43,29 +45,23 @@ fn main() {
 #[cfg(target_os = "macos")]
 mod mac {
     use super::activation_args;
-    use block2::RcBlock;
     use log::{error, info, warn};
     use objc2::rc::Retained;
     use objc2::runtime::{ProtocolObject, Sel};
-    use objc2::{available, define_class, msg_send, sel, DefinedClass, MainThreadMarker, MainThreadOnly};
-    use objc2_app_kit::{NSApplication, NSApplicationDelegate, NSRunningApplication, NSWorkspace, NSWorkspaceOpenConfiguration};
-    use objc2_foundation::{NSArray, NSError, NSNotification, NSObject, NSObjectNSDelayedPerforming, NSObjectProtocol, NSString, NSURL};
+    use objc2::{define_class, msg_send, sel, DefinedClass, MainThreadMarker, MainThreadOnly};
+    use objc2_app_kit::{NSApplication, NSApplicationDelegate};
+    use objc2_foundation::{NSArray, NSNotification, NSObject, NSObjectNSDelayedPerforming, NSObjectProtocol, NSURL};
     use std::cell::{Cell, RefCell};
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
-    use std::time::{Duration, Instant};
-    use velopack::locator::LocationContext;
+    use velopack::ipc::{self, IpcEndpoint, IpcItem, IpcMessage};
+    use velopack::locator::{auto_locate_app_manifest, LocationContext};
     use velopack::logging::{default_logfile_path, init_logging};
 
-    /// Coalesces a burst of `openURLs:` calls into one launch of the main app.
-    const FLUSH_DELAY: f64 = 0.25;
-    /// How often the idle check runs.
-    const IDLE_INTERVAL: f64 = 0.5;
+    /// Coalesces a burst of `openURLs:` calls into one delivery; also how long the helper waits for more items
+    /// after a delivery before it exits.
+    const BATCH_DELAY: f64 = 0.25;
     /// A helper that received nothing by then was started by a stray / aborted activation.
-    const NO_ACTIVATION_TIMEOUT: Duration = Duration::from_secs(5);
-    /// The helper never lives longer than this, whatever is still in flight.
-    const HARD_TIMEOUT: Duration = Duration::from_secs(30);
+    const NO_ACTIVATION_TIMEOUT: f64 = 5.0;
 
     pub fn main() {
         let main_app = match locate_main_app() {
@@ -79,9 +75,16 @@ mod mac {
         init_logging("assoc", Some(&log_file), false, false, None);
         info!("Association helper started for {:?}", main_app);
 
+        // the endpoint a running instance serves on, derived exactly like the library does in the main app
+        let endpoint = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(main_app.clone(), None))
+            .and_then(|locator| IpcEndpoint::for_app(&locator.get_manifest_id(), &locator.get_root_dir()));
+        let endpoint = endpoint
+            .map_err(|e| warn!("Activations can not be forwarded to a running instance: {}", e))
+            .ok();
+
         let mtm = MainThreadMarker::new().expect("the association helper must start on the main thread");
         let app = NSApplication::sharedApplication(mtm);
-        let delegate = Delegate::new(mtm, main_app);
+        let delegate = Delegate::new(mtm, main_app, endpoint);
         app.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
         app.run();
     }
@@ -101,14 +104,11 @@ mod mac {
 
     struct Ivars {
         main_app: PathBuf,
+        endpoint: Option<IpcEndpoint>,
         /// Flattened `--veloapp-*` argv pairs waiting for the next flush.
         pending: RefCell<Vec<String>>,
         flush_scheduled: Cell<bool>,
-        /// `NSWorkspace` launches whose completion handler has not run yet.
-        in_flight: Arc<AtomicUsize>,
-        /// True once the main app was launched at least once.
-        launched: Cell<bool>,
-        started: Instant,
+        received_any: Cell<bool>,
     }
 
     define_class!(
@@ -124,9 +124,7 @@ mod mac {
         unsafe impl NSApplicationDelegate for Delegate {
             #[unsafe(method(applicationDidFinishLaunching:))]
             fn did_finish_launching(&self, _notification: &NSNotification) {
-                // Never flushes: a flush with zero items is a no-op, so a late openURLs: can not cause a
-                // second, plain launch of the main app.
-                self.schedule(sel!(velopackIdleCheck), IDLE_INTERVAL);
+                self.schedule(sel!(velopackNoActivationCheck), NO_ACTIVATION_TIMEOUT);
             }
 
             /// AppKit routes file opens here as well (and then never calls `application:openFile(s):`).
@@ -142,61 +140,56 @@ mod mac {
                 let urls = items.iter().filter(|(is_file, v)| !*is_file && !v.is_empty()).count();
                 let lengths: Vec<usize> = items.iter().map(|(_, v)| v.chars().count()).collect();
                 info!("Received {} file(s) and {} url(s), value lengths {:?}", files, urls, lengths);
-                self.ivars().pending.borrow_mut().extend(activation_args(&items));
-                self.schedule_flush();
+                let ivars = self.ivars();
+                ivars.received_any.set(true);
+                ivars.pending.borrow_mut().extend(activation_args(&items));
+                if !ivars.flush_scheduled.replace(true) {
+                    self.schedule(sel!(velopackFlush), BATCH_DELAY);
+                }
             }
         }
 
         impl Delegate {
+            /// Delivers the batch (blocking the main thread; items arriving meanwhile wait in the event queue and
+            /// start the next batch), then exits unless another item arrives within the next batch window.
             #[unsafe(method(velopackFlush))]
             fn flush(&self) {
                 let ivars = self.ivars();
                 ivars.flush_scheduled.set(false);
                 let args = std::mem::take(&mut *ivars.pending.borrow_mut());
-                if args.is_empty() {
-                    return;
+                if !args.is_empty() {
+                    deliver(&ivars.main_app, ivars.endpoint.as_ref(), &args);
                 }
-                ivars.launched.set(true);
-                launch_main(&ivars.main_app, args, ivars.in_flight.clone());
+                self.schedule(sel!(velopackExitCheck), BATCH_DELAY);
             }
 
-            #[unsafe(method(velopackIdleCheck))]
-            fn idle_check(&self) {
+            #[unsafe(method(velopackExitCheck))]
+            fn exit_check(&self) {
                 let ivars = self.ivars();
-                let elapsed = ivars.started.elapsed();
-                let idle = ivars.pending.borrow().is_empty()
-                    && !ivars.flush_scheduled.get()
-                    && ivars.in_flight.load(Ordering::SeqCst) == 0;
-                let done = if elapsed > HARD_TIMEOUT {
-                    warn!("Association helper exceeded {:?}, exiting.", HARD_TIMEOUT);
-                    true
-                } else if idle && ivars.launched.get() {
-                    info!("Association helper is idle, exiting.");
-                    true
-                } else if idle && elapsed > NO_ACTIVATION_TIMEOUT {
-                    warn!("No activation arrived within {:?}, exiting without launching the app.", NO_ACTIVATION_TIMEOUT);
-                    true
-                } else {
-                    false
-                };
-                if done {
+                if ivars.pending.borrow().is_empty() && !ivars.flush_scheduled.get() {
+                    info!("Association helper is done, exiting.");
                     NSApplication::sharedApplication(self.mtm()).terminate(None);
-                } else {
-                    self.schedule(sel!(velopackIdleCheck), IDLE_INTERVAL);
+                }
+            }
+
+            #[unsafe(method(velopackNoActivationCheck))]
+            fn no_activation_check(&self) {
+                if !self.ivars().received_any.get() {
+                    warn!("No activation arrived within {}s, exiting without launching the app.", NO_ACTIVATION_TIMEOUT);
+                    NSApplication::sharedApplication(self.mtm()).terminate(None);
                 }
             }
         }
     );
 
     impl Delegate {
-        fn new(mtm: MainThreadMarker, main_app: PathBuf) -> Retained<Self> {
+        fn new(mtm: MainThreadMarker, main_app: PathBuf, endpoint: Option<IpcEndpoint>) -> Retained<Self> {
             let this = Self::alloc(mtm).set_ivars(Ivars {
                 main_app,
+                endpoint,
                 pending: RefCell::new(Vec::new()),
                 flush_scheduled: Cell::new(false),
-                in_flight: Arc::new(AtomicUsize::new(0)),
-                launched: Cell::new(false),
-                started: Instant::now(),
+                received_any: Cell::new(false),
             });
             // SAFETY: NSObject's init takes no arguments and returns an initialized instance.
             unsafe { msg_send![super(this), init] }
@@ -208,61 +201,46 @@ mod mac {
             // SAFETY: the selectors used name argument-less methods defined on this class above.
             unsafe { object.performSelector_withObject_afterDelay(selector, None, delay) };
         }
+    }
 
-        fn schedule_flush(&self) {
-            if !self.ivars().flush_scheduled.replace(true) {
-                self.schedule(sel!(velopackFlush), FLUSH_DELAY);
+    /// Hands `args` (never empty) to a running instance that forwards activations and brings it to the front, or
+    /// else launches a new instance with them (its own election then forwards them if an instance is starting up).
+    fn deliver(main_app: &Path, endpoint: Option<&IpcEndpoint>, args: &[String]) {
+        let count = args.len() / 2;
+        let mut open = std::process::Command::new("/usr/bin/open");
+        match endpoint.map(|ep| forward(ep, args)) {
+            Some(Ok(())) => {
+                info!("Forwarded {} activation(s) to the running app, activating it.", count);
+                open.arg(main_app);
             }
+            not_forwarded => {
+                let reason = not_forwarded.and_then(Result::err).unwrap_or_else(|| "no IPC endpoint".into());
+                info!("Launching the app with {} activation(s) ({}).", count, reason);
+                open.arg("-n").arg(main_app).arg("--args").args(args);
+            }
+        }
+        match open.status() {
+            Ok(status) if status.success() => {}
+            Ok(status) => error!("open exited with {}.", status),
+            Err(e) => error!("Failed to run open ({}).", e),
         }
     }
 
-    /// Launches the main app with `args` (never empty) as a new instance, so it is its own TCC-responsible
-    /// process and the arguments are not dropped when another instance is already running.
-    fn launch_main(main_app: &Path, args: Vec<String>, in_flight: Arc<AtomicUsize>) {
-        if !available!(macos = 10.15) {
-            launch_with_open(main_app, &args);
-            return;
-        }
-        let ns_args: Vec<Retained<NSString>> = args.iter().map(|a| NSString::from_str(a)).collect();
-        let config = NSWorkspaceOpenConfiguration::configuration();
-        config.setCreatesNewApplicationInstance(true);
-        config.setArguments(&NSArray::from_retained_slice(&ns_args));
-        config.setActivates(true);
-        let url = NSURL::fileURLWithPath(&NSString::from_str(&main_app.to_string_lossy()));
-
-        in_flight.fetch_add(1, Ordering::SeqCst);
-        let main_app = main_app.to_path_buf();
-        let in_flight = in_flight.clone();
-        // May run on any thread: it touches nothing but its captures and the in_flight counter.
-        let completion = RcBlock::new(move |_app: *mut NSRunningApplication, error: *mut NSError| {
-            if error.is_null() {
-                info!("Launched the app with {} argument(s) via NSWorkspace.", args.len());
-            } else {
-                // SAFETY: AppKit passes a valid NSError for the duration of the callback.
-                let error = unsafe { &*error };
-                warn!(
-                    "NSWorkspace could not launch the app ({} {}), falling back to open.",
-                    error.domain(),
-                    error.code()
-                );
-                launch_with_open(&main_app, &args);
-            }
-            in_flight.fetch_sub(1, Ordering::SeqCst);
-        });
-        NSWorkspace::sharedWorkspace().openApplicationAtURL_configuration_completionHandler(&url, &config, Some(&completion));
-    }
-
-    /// Fallback for macOS 10.13 / 10.14 (no `NSWorkspaceOpenConfiguration`) or a failed `NSWorkspace` launch.
-    fn launch_with_open(main_app: &Path, args: &[String]) {
-        match std::process::Command::new("/usr/bin/open")
-            .arg("-n")
-            .arg(main_app)
-            .arg("--args")
-            .args(args)
-            .spawn()
-        {
-            Ok(_) => info!("Launched the app with {} argument(s) via open.", args.len()),
-            Err(e) => error!("Failed to launch the app via open ({}).", e),
+    /// Sends one `association` message with all pairs of `args`; `Ok` only when the running instance acked it.
+    fn forward(ep: &IpcEndpoint, args: &[String]) -> Result<(), String> {
+        let mut msg = IpcMessage::new(ipc::TYPE_ASSOCIATION);
+        msg.items = args
+            .chunks(2)
+            .map(|pair| IpcItem {
+                flag: pair[0].clone(),
+                value: pair[1].clone(),
+            })
+            .collect();
+        match ipc::request(ep, &msg, ipc::EXCHANGE_TIMEOUT) {
+            Ok(Some(reply)) if reply.is_ack() => Ok(()),
+            Ok(Some(reply)) => Err(format!("the running app answered '{}'", reply.message.unwrap_or(reply.message_type))),
+            Ok(None) => Err("no running instance forwards activations".into()),
+            Err(e) => Err(e.to_string()),
         }
     }
 }

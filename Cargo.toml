@@ -100,7 +100,7 @@ unic-langid = "0.9"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false }
 objc2-app-kit = { version = "0.3", default-features = false }
-block2 = "0.6"
+interprocess = "2.4"
 
 # default to small, optimized workspace release binaries
 [profile.release]

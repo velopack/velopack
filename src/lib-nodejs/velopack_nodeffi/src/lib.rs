@@ -356,10 +356,11 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let locator = args_get_locator(&mut cx, 2)?;
 
     let auto_apply = cx.argument::<JsBoolean>(3)?.value(&mut cx);
-    let has_file_assoc = cx.argument::<JsBoolean>(4)?.value(&mut cx);
-    let has_url_proto = cx.argument::<JsBoolean>(5)?.value(&mut cx);
+    let forward_activations = cx.argument::<JsBoolean>(4)?.value(&mut cx);
+    let has_file_assoc = cx.argument::<JsBoolean>(5)?.value(&mut cx);
+    let has_url_proto = cx.argument::<JsBoolean>(6)?.value(&mut cx);
 
-    // Association hooks must be Send + Sync + 'static: in SingleInstance launch mode the IPC server keeps them for the
+    // Association hooks must be Send + Sync + 'static: with activation forwarding the IPC server keeps them for the
     // life of the process and invokes them from its own thread. Values delivered while run() is executing (the
     // process's own argv, or an IPC delivery that races the startup) are queued in `pending` and the JS callback is
     // called synchronously below, after run() returns: that keeps the in-process order (after first-run/restarted)
@@ -407,7 +408,8 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let mut builder = VelopackApp::build()
         .on_restarted(|semver| hook_handler("restarted", semver))
         .on_first_run(|semver| hook_handler("first-run", semver))
-        .set_auto_apply_on_startup(auto_apply);
+        .set_auto_apply_on_startup(auto_apply)
+        .forward_activations_to_running_instance(forward_activations);
 
     #[cfg(target_os = "windows")]
     {

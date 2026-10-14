@@ -55,6 +55,9 @@ cargo test
 expect CI's arch-suffixed vendored binaries (`update_x64.exe` etc.) — do not fake those locally by
 copying files into `target/release`.
 
+`npm test` in `src/lib-nodejs` rebuilds `update.exe` without the `windows` feature: run `cargo build --features windows`
+again before running packaging tests.
+
 ## Repository Structure
 
 ```
@@ -144,23 +147,14 @@ icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
 
 ## File & URL associations
 
-`vpk pack --fileAssociations ".myproj,.mytpl" --urlProtocols "myapp" --associationLaunchMode NewInstance|SingleInstance`
-(Windows pack, macOS pack and bundle; all three removed from Linux pack; MSBuild `VelopackFileAssociations` /
-`VelopackUrlProtocols` / `VelopackAssociationLaunchMode`). Lists are normalized in
+`vpk pack --fileAssociations ".myproj,.mytpl" --urlProtocols "myapp"` (Windows pack, macOS pack and bundle; removed from
+Linux pack; MSBuild `VelopackFileAssociations` / `VelopackUrlProtocols`). Lists are normalized in
 `Velopack.Packaging/AppAssociations.cs` (trim, lowercase, distinct, leading `.`, RFC 3986 schemes, both capped at 64
-characters, reserved schemes like http/mailto/ms-* rejected). The launch mode (`Velopack.Packaging.AssociationLaunchMode`,
-default `NewInstance`) says what an activation does while the app is already running (see VelopackApp below).
-`PackageBuilder.AddAssociationMetadata` writes `fileAssociations` / `urlProtocols` to the nuspec and
-`<associationLaunchMode>SingleInstance</associationLaunchMode>` ONLY when the mode is SingleInstance AND at least one
-association exists (otherwise it warns that the mode is ignored); the element lands in `sq.version`, where the
-libraries read it (Rust `Manifest.association_launch_mode` / `get_manifest_association_single_instance()`, C#
-`PackageManifest.AssociationLaunchMode` / `VelopackLocator.AssociationSingleInstance`; absent or any other value =
-NewInstance, trimmed + case-insensitive; older libraries ignore the element). MSI never reads it.
-`vpk bundle` → `vpk pack --packDir X.app` workflow (macOS): `vpk bundle` builds the association helper bundle and
-records the mode in the helper's Info.plist (`VelopackAssociationLaunchMode`); `vpk pack` keeps an inherited helper
-(logs it; mode read with PlistBuddy, absent → NewInstance) and writes the mode to the manifest, unless pack is given
-its own `--fileAssociations`/`--urlProtocols`, which rebuild the helper. The pack step needs no association options
-repeated.
+characters, reserved schemes like http/mailto/ms-* rejected); `PackageBuilder.AddAssociationMetadata` writes them to the
+nuspec. Packaging does NOT decide what an activation does while the app is already running: that is the runtime
+activation-forwarding opt-in (see VelopackApp below); no vpk option, MSBuild property, manifest element or plist key.
+`vpk bundle` → `vpk pack --packDir X.app` (macOS): `vpk bundle` builds the helper bundle; `vpk pack` keeps an inherited
+helper as-is (logged) unless given its own `--fileAssociations`/`--urlProtocols`, which rebuild it.
 
 - **Windows**: the lists are written to the nuspec (`fileAssociations` / `urlProtocols`), read back through the
   `Manifest`/locator (`get_manifest_file_associations()` etc., which filter empty entries) and registered by Update.exe in
@@ -210,43 +204,49 @@ repeated.
   installed (dev build: the locator/manager cannot be created, the installed-startup part is skipped) and when the
   auto-apply fails (logged; both libraries then deliver the pairs in the running process). Values are never written
   to the log (only their length). Rust reads argv lossily (`args_os`), never panicking on non-Unicode file names.
-  **SingleInstance** (`src/lib-rust/src/single_instance.rs`, `src/lib-csharp/Ipc/SingleInstance.cs`; only when a
-  callback is registered, the app is installed and the manifest says SingleInstance — no OS cfg, the manifest alone
-  decides): `elect()` derives the app's IPC endpoint and tries the endpoint lock ONCE. Acquired → this process is the
-  server. Held with no association args → plain extra instance, continues normally (never forwarded). Held with
-  association args → connect + send one `association` message with all pairs (canonical flags) and wait for the
-  `ack`, retrying connect/lock every 100 ms for up to 5 s (`CONNECT_WINDOW`); `ack` → log the count and `exit(0)`
-  BEFORE the auto-apply (for Node/Python that exit happens in native code, like the fast-exit hooks). No server
-  answered, an `error` reply, any send/verification failure or a message over the 1 MiB cap → `Standalone`: the
-  activation is handled in-process exactly like NewInstance (at-least-once: a slow callback can be handled twice,
-  never lost; a request is never retried after it was sent). C# additionally keeps values with unpaired UTF-16
-  surrogates (NTFS file names recovered from the raw command line) in-process, since JSON cannot carry them
-  (`SingleInstance.cs`). The server starts (`start()`) inside the installed-startup path right after the auto-apply
-  decision, BEFORE package cleanup and the `OnFirstRun`/`OnRestarted` hooks (the lock is already held from the
-  election, so a listener that comes up late would make every activation spin for the whole window and duplicate).
-  Received activations run the callbacks **on a Velopack IPC background thread**, serialized under a mutex, possibly
-  before `OnFirstRun`/`OnRestarted` or while the main thread is still inside `Run()`; the `ack` is sent only after the
-  callback returned for every item, so callbacks must return promptly (post to the UI thread, do not block on it;
-  the client gives up after 5 s and handles the value itself). Invalid items (unknown flag, empty value, no callback
-  registered for that flag) → `error("unhandled association")` and nothing is invoked, so the client forwards only the
-  items it has a callback for itself (a mixed helper burst keeps the hooked items in the running instance); a C#
-  exception / Rust panic in the callback is logged and still acked. The OS does not bring the running instance to the foreground (the
-  short-lived forwarding process was the activated one): activate the main window from the callback. If the server
-  cannot start, later activations simply start new instances (warning logged). Bindings: Node queues in-run
-  deliveries and calls the JS callbacks synchronously after `run()` (after onFirstRun/onRestarted); later IPC-thread
-  deliveries arrive via an unref'd neon channel (`try_send`, so the server never keeps the event loop alive; an
-  activation arriving while the loop is shutting down is logged and dropped). Python callbacks on the IPC thread hold
-  the GIL (`Python::try_attach`) and are skipped during interpreter shutdown. C: `p_user_data` must stay valid for
-  the process lifetime.
+  **Activation forwarding** — runtime opt-in, default OFF: C# `ForwardActivationsToRunningInstance(bool enabled = true)`,
+  Rust `forward_activations_to_running_instance(enabled)`, Node `forwardActivationsToRunningInstance(enabled = true)`,
+  Python `forward_activations_to_running_instance(enabled=True)`, C `vpkc_app_set_forward_activations_to_running_instance`,
+  C++ `ForwardActivationsToRunningInstance(bEnabled = true)` (Node/Python/C/C++ just pass the flag to the Rust builder).
+  Code: `src/lib-rust/src/activation_forwarding.rs`, `src/lib-csharp/Ipc/ActivationForwarding.cs`. Active only when
+  enabled, an association callback is registered and the app is installed (any OS). `elect()` derives the app's IPC
+  endpoint and tries the endpoint lock ONCE. Acquired → this process is the server. Held with no association args →
+  plain extra instance, continues normally (never forwarded). Held with association args → send one `association`
+  message with the pairs this build has a callback for (canonical flags) and wait for the `ack`, retrying
+  connect/lock every 100 ms for up to 5 s (`CONNECT_WINDOW`); `ack` → log the count and `exit(0)` BEFORE the
+  auto-apply (for Node/Python that exit happens in native code, like the fast-exit hooks). No server answered, an
+  `error` reply, any send/verification failure or a message over the 1 MiB cap → `Standalone`: handled in-process as
+  if forwarding were off (at-least-once: a slow callback can be handled twice, never lost; a request is never retried
+  after it was sent). C# additionally keeps values with unpaired UTF-16 surrogates (NTFS names recovered from the raw
+  command line) in-process, since JSON cannot carry them. On Windows the client calls
+  `AllowSetForegroundWindow(server pid)` after verifying the pipe and before sending, so the callback may bring its
+  window to the foreground; on macOS the helper activates the running app with `open`. The server starts inside the
+  installed-startup path right after the auto-apply decision, BEFORE package cleanup and the
+  `OnFirstRun`/`OnRestarted` hooks (the lock is held since the election; a late listener would make every activation
+  spin for the whole window and duplicate). Received activations run the callbacks **on a Velopack IPC background
+  thread**, serialized under one mutex/gate, possibly before `OnFirstRun`/`OnRestarted` or while the main thread is
+  still inside `Run()`; the `ack` is sent only after the callback returned for every item, so callbacks must return
+  promptly (post to the UI thread, do not block on it). Invalid items (unknown flag, empty value, no callback for that
+  flag) → `error("unhandled association")` and nothing is invoked; a C# exception / Rust panic in a callback is logged
+  and still acked. If the server cannot start, later activations simply start new instances (warning logged).
+  Bindings: Node queues deliveries made while `run()` executes (own argv, or an IPC delivery racing startup) and calls
+  the JS callback synchronously after `run()` returns; later IPC-thread deliveries go through a neon channel that is
+  unref'd up front (`try_send`, so the server never pins the event loop; failure after loop shutdown is logged).
+  Python callbacks on the IPC thread take the GIL via `Python::try_attach` and are skipped during interpreter
+  shutdown. C: `p_user_data` must stay valid for the process lifetime.
   Tests: `test/Velopack.Pack.Tests/WindowsAssociationTests.cs` covers registration + raw-command-line recovery,
   `UrlProtoLaunchSurvivesAutoApply` (TestApp auto-applies for any `--veloapp-*` args[0]) and
-  `SingleInstanceForwardsActivationToRunningApp` (C# + Rust test apps; both have a `wait` command that writes
-  `ready`/`assoc-pid` and polls for a `stop` sentinel). `VelopackAppTests` (C#) and the `app.rs`/`single_instance.rs`
-  tests (Rust) cover the election in-process (Windows only where a second election must see a held lock; the Unix
-  cross-process cases are in `IpcInteropTests`). `src/lib-nodejs/test/VelopackApp.test.ts` elects the vitest process
-  as server and has the Rust testapp (`ipc-send`) forward a url, covering the neon-channel delivery after `run()`.
-- **macOS**: LaunchServices ignores argv, so the libraries contain no AppKit code at all. Instead vpk ships a small
-  Rust helper app (`src/bins/src/assochelper.rs`, cargo bin `assochelper`, lipo'd by `build-rust.yml` into the vendored
+  `ActivationForwardingSendsActivationToRunningApp` (`csharp` + `rust` variants). Both test apps (`test/TestApp`,
+  `src/bins/src/testapp.rs`) enable forwarding iff `forward_activations.txt` exists next to the main exe, written at
+  pack time by `TestApp.PreparePublishDir(..., forwardActivations: true)` like `test_string.txt`; both have a `wait`
+  command that writes `ready`/`assoc-pid` and polls for a `stop` sentinel. In-process: C# `VelopackAppTests`
+  `RunForwardActivations*` / `RunDoesNotForwardActivationsByDefault`, Rust `activation_forwarding.rs` tests and
+  `app.rs` `test_run_forwarding_*` (Windows only where a second election must see a held lock: POSIX record locks are
+  per process; the Unix cross-process cases are in `IpcInteropTests`). `src/lib-nodejs/test/VelopackApp.test.ts`
+  elects the vitest process as server and has the Rust testapp (`ipc-send`) forward a url, covering the channel
+  delivery after `run()`.
+- **macOS**: LaunchServices ignores argv, so the libraries contain no AppKit code. vpk ships a small Rust helper app
+  (`src/bins/src/assochelper.rs`, cargo bin `assochelper`, lipo'd by `build-rust.yml` into the vendored
   `AssocHelperMac`, `HelperFile.GetAssocHelperPath()`) as a NESTED bundle `{Main}.app/Contents/Helpers/{Name}.app`
   (`Name` = the main display name with `/`/`:` → `_`; exe `Contents/MacOS/AssocHelper`; id `{mainBundleId}.velopack-assoc`
   with chars outside `[A-Za-z0-9.-]` → `-`; same display name + icon as the main app so it looks right in Finder "Open
@@ -254,51 +254,52 @@ repeated.
   `Velopack.Packaging.Unix/OsxAssociationHelper.cs` (`Build`/`Find`/`FindAll`, cross-platform and unit-tested on
   Windows in `PlistWriterTests`; `BuildForBundle` reads the identity from the bundle's final Info.plist with
   PlistBuddy and is what both `vpk pack` and `vpk bundle` call, so a user `--plist` names the helper). The helper's
-  Info.plist owns `CFBundleURLTypes` / `CFBundleDocumentTypes` plus the
-  private `VelopackAssociationLaunchMode` key; the main Info.plist never declares association keys (a user `--plist`
-  is left alone; if it does declare them vpk warns, because LS may then route activations to the main bundle where the
-  app's own framework gets them and the Velopack callbacks never fire). Icon order for the helper: `--icon`, else
-  `Contents/Resources/{CFBundleIconFile}[.icns]`, else `{CFBundleIconName}.icns`, else the default Velopack icon (with
-  a warning when the real icon lives in `Assets.car`). The helper owns its own `NSApplication` (objc2 /
-  objc2-app-kit, `define_class!` delegate `VelopackAssocHelperDelegate`): `application:openURLs:` turns file URLs into
-  `--veloapp-fileassoc <path>` and everything else into `--veloapp-urlproto <absoluteString>`, coalesces a burst for
-  0.25 s, then launches the MAIN app with those argv pairs via `NSWorkspace openApplicationAtURL:configuration:`
-  (`createsNewApplicationInstance` so the args are never dropped on an already-running app and the launched process is
-  its own TCC-responsible process; `activates`), falling back to `/usr/bin/open -n <app> --args ...` before 10.15 or
-  when that call reports an error. It never sets `VELOPACK_RESTART`, never launches the app with zero items, and quits
-  on a 0.5 s idle check once a launch completed (or after 5 s with nothing received, 30 s hard cap). It logs only
-  counts/kinds/lengths into the main app's `~/Library/Logs/velopack_{id}.log`. Everything else (parsing, SingleInstance
-  forwarding) is the same library code as on Windows.
+  Info.plist owns `CFBundleURLTypes` / `CFBundleDocumentTypes`; the main Info.plist never declares association keys (a
+  user `--plist` is left alone; if it does declare them vpk warns, because LS may then route activations to the main
+  bundle where the app's own framework gets them and the Velopack callbacks never fire). Icon order for the helper:
+  `--icon`, else `Contents/Resources/{CFBundleIconFile}[.icns]`, else `{CFBundleIconName}.icns`, else the default
+  Velopack icon (with a warning when the real icon lives in `Assets.car`). The helper owns its own `NSApplication`
+  (objc2 / objc2-app-kit, `define_class!` delegate `VelopackAssocHelperDelegate`; no NSWorkspace):
+  `application:openURLs:` turns file URLs into `--veloapp-fileassoc <path>` and everything else into
+  `--veloapp-urlproto <absoluteString>` and coalesces a burst for 250 ms (`BATCH_DELAY`). A flush first tries to
+  forward the batch over IPC to a running instance (endpoint derived from the main bundle's manifest exactly as the
+  library does; one `association` request via `ipc::request`): on `ack` it runs `/usr/bin/open <Main.app>` to
+  activate the app, otherwise (no endpoint, nobody listening, `error`, timeout) `/usr/bin/open -n <Main.app> --args
+  <pairs>` (the new instance's own election may still forward). It never sets `VELOPACK_RESTART` and never launches
+  the app with zero items. It exits when a flush finished and nothing new arrived within the next 250 ms, or after
+  5 s (`NO_ACTIVATION_TIMEOUT`) with nothing received. It logs only counts/kinds/lengths into the main app's
+  `~/Library/Logs/velopack_{id}.log`.
   **Signing** (`OsxPackCommandRunner.CodeSign`): the helper is ALWAYS signed with `HelperFile.VelopackEntitlements`
-  (hardened runtime + timestamp), never with the user's `--signEntitlements`, because `NSWorkspaceOpenConfiguration`
-  arguments are silently ignored when the calling process is sandboxed. Default `--deep` path: deep-sign the outer
-  bundle, re-sign each helper (non-deep), then reseal the outer bundle once more with `deep: false` so the outer seal
-  covers the helper (80/90/100). `--signDisableDeep`: UpdateMac → helpers → outer bundle, inside-out. Notarization,
-  staple and spctl are unchanged and cover the nested bundle. `vpk bundle` never signs (the user signs inside-out or
-  `--deep`).
+  (hardened runtime + timestamp), never with the user's `--signEntitlements` (sandboxed it would derive its socket path
+  from a container-redirected temp dir and miss the running app, and its `open -n --args` launch could lose the
+  arguments). Default `--deep` path: deep-sign the outer bundle, re-sign each helper (non-deep), then reseal the outer
+  bundle once more with `deep: false` so the outer seal covers the helper. `--signDisableDeep`: UpdateMac → helpers →
+  outer bundle, inside-out. Notarization, staple and spctl cover the nested bundle. `vpk bundle` never signs.
   **LaunchServices registration**: LS NEVER scans a nested `Contents/Helpers/*.app` on its own (verified on macOS 26
-  with `lsregister -dump`: after `lsregister -f` of the outer bundle, and after the app's first launch, only the outer
-  bundle has a record), so the helper's schemes / document types are bindable only after an explicit `LSRegisterURL`
-  on it. Both libraries do that at every installed start (`VelopackApp.Run` → C# `Osx/LaunchServices.cs`
-  `RegisterAssociationHelpers`, Rust `launch_services.rs` `register_association_helpers`: outer bundle first, then each
-  `Contents/Helpers/*.app` with an `AssocHelper`; plain CoreFoundation/CoreServices FFI, non-zero OSStatus or a missing
-  API is a warning, never a failure). UpdateMac `apply` calls the same Rust function right after the post-swap `touch`
-  of the bundle. The `.pkg` postinstall runs `lsregister -f` on the bundle and each helper as the console user (a root
-  registration would land in root's LS database), and the pkg component plist sets `BundleIsRelocatable` false for
-  `:0` and every `:0:ChildBundles:{n}` via PlistBuddy so Installer cannot "relocate" the helper onto a stale copy
-  elsewhere on disk. Tests: `OsxPackTests.UrlActivationViaHelperReachesApp` launches the app ONCE through `open` (all a
-  portable zip user does) and then opens the scheme; `UrlActivationSurvivesUpdate` applies v2 through UpdateMac and
-  opens the scheme with no lsregister at all. Both install under `~/Applications/velopack-tests`, NEVER under TMPDIR:
-  LS flags a bundle in `/var/folders/.../T` as `in-temp-dir launch-disabled` and refuses to bind its schemes. On an
-  `open` failure they log the LS records for the bundle (`ProbeLaunchServices`); locally that skips (no GUI session),
-  in CI it fails. `ExtractPkgToAppBundle` counts only top-level `.app` dirs.
+  with `lsregister -dump`), so the helper's schemes / document types are bindable only after an explicit
+  `LSRegisterURL` on it (`src/lib-rust/src/launch_services.rs` `register_association_helpers`: outer bundle first, then
+  each `Contents/Helpers/*.app` with an `AssocHelper`; plain CoreFoundation/CoreServices FFI; failures are warnings).
+  Callers: the Rust library in-process at every installed start (`VelopackApp::run`); UpdateMac `apply` right after
+  the post-swap `touch` of the bundle; UpdateMac's hidden `register-helpers` subcommand (logs to the file only, no
+  console), which the C# library (no LS FFI of its own) starts detached from `VelopackApp.Run` when a helper exists and
+  `{PackagesDir}/.velopack-helpers-registered` does not contain `"{version}\n{root}"` (written after spawning). The
+  `.pkg` postinstall runs `lsregister -f` on the bundle and each helper as the console user (a root registration
+  would land in root's LS database), and the pkg component plist sets `BundleIsRelocatable` false for `:0` and every
+  `:0:ChildBundles:{n}` via PlistBuddy so Installer cannot "relocate" the helper onto a stale copy elsewhere on disk.
+  Tests: `OsxPackTests.UrlActivationViaHelperReachesApp` (forwarding enabled) launches the app ONCE through `open`
+  (all a portable zip user does), waits for `UpdateMac register-helpers` to finish, then (a) opens a url with no
+  instance running (helper → `open -n --args`) and (b) opens one while a `wait` instance runs (helper → IPC forward);
+  `UrlActivationSurvivesUpdate` applies v2 through UpdateMac and opens the scheme with no lsregister at all. Both
+  install under `~/Applications/velopack-tests`, NEVER under TMPDIR: LS flags a bundle in `/var/folders/.../T` as
+  `in-temp-dir launch-disabled` and refuses to bind its schemes. On an `open` failure they log the LS records for the
+  bundle (`ProbeLaunchServices`); locally that skips (no GUI session), in CI it fails. `ExtractPkgToAppBundle` counts
+  only top-level `.app` dirs.
   **Limitations** (accepted, documented in the `OnFileAssoc` docs of every language): the odoc intent (double-click,
   "Open With", drag-drop) lands on the helper, so the main app only gets a path string and its first access to a file
   in a protected folder (Desktop, Documents, Downloads, removable volumes) triggers the TCC "Files and Folders" prompt
   or fails with EPERM if denied earlier — apps should add the `NS*FolderUsageDescription` strings. Because the main
   Info.plist declares no document types, dropping a file onto the main app's Dock tile / Finder icon is refused (only
-  the helper accepts the type). A process started with a different `TMPDIR` derives another IPC endpoint and degrades
-  to in-process handling.
+  the helper accepts the type).
 - **Linux**: not supported, nothing is registered and the callbacks never fire.
 
 ### Association IPC (`src/lib-rust/src/ipc/`, `src/lib-csharp/Ipc/`)
@@ -306,55 +307,74 @@ repeated.
 A small, generic, language-agnostic IPC layer (the groundwork for #303 Responsive Hooks: Update.exe will pick a random
 key, `IpcEndpoint::from_key(key)` (`[0-9a-z-]{1,40}`), start a server with no lock and hand the key to the hook process
 via an env var; new message types/optional fields and a stop handle are the only additions needed — do not bump the
-version for compatible changes). Rust: `ipc/mod.rs` (+ `windows.rs`, `unix.rs`, exposed via `maybe_pub!(ipc)`); C#:
-`IpcEndpoint.cs`, `IpcMessage.cs` (DTOs, `IpcProtocol` constants, hand-written `IpcJson` codec that is the same source
-on every TFM, `IpcFraming`), `IpcConnection.cs`, `IpcServer.cs`, `IpcClient.cs`, `IpcNative.cs` (P/Invoke only, no
-`unsafe`), all `internal` in `Velopack.Ipc`. **C# and Rust must derive the identical endpoint and speak the identical
-protocol**: golden key vectors live in both `ipc/mod.rs` tests and `test/Velopack.Tests/IpcEndpointTests.cs`, and
+version for compatible changes). **C# ↔ Rust interop is a hard requirement** (the macOS Rust helper talks to C# apps;
+Rust Update.exe will talk to apps of every language): both derive the identical endpoint and speak the identical wire
+format. Rust: `ipc/mod.rs` (+ `windows.rs`, `unix.rs`, exposed via `maybe_pub!(ipc)`) on the `interprocess` crate's
+sync local sockets, JSON via serde_json. C#: `IpcEndpoint.cs`, `IpcMessage.cs` (`IpcProtocol` constants, `IpcItem`,
+`IpcMessage`, `IpcFraming`), `IpcConnection.cs`, `IpcServer.cs`, `IpcClient.cs`, `IpcNative.cs` (P/Invoke only), all
+`internal` in `Velopack.Ipc`, on `System.IO.Pipes` `NamedPipeServerStream`/`NamedPipeClientStream` on every OS and TFM
+(Unix: the absolute socket path is the pipe name, which .NET binds as a Unix domain socket). C# JSON goes through
+`CompiledJson` (`IpcJsonSourceGenerationContext` STJ source-gen on net8+, Newtonsoft camelCase elsewhere) — never
+hand-written JSON. Golden key vectors live in both `ipc/mod.rs` tests and `test/Velopack.Tests/IpcEndpointTests.cs`;
 `test/Velopack.Tests/IpcInteropTests.cs` runs each side against the other through the Rust testapp's `ipc-endpoint`,
 `ipc-send`, `ipc-serve` and `ipc-elect` commands (`src/bins/src/testapp.rs`; `ipc-elect` runs the real election and is
-the only automated coverage of the Unix fcntl election). Those tests skip locally when the testapp is not built and
+the only automated coverage of the Unix lock election). Those tests skip locally when the testapp is not built and
 fail in CI.
 
 - **Endpoint** (`IpcEndpoint { key, address, lock_path }`, `for_app(appId, root)` / `ForApp`): key = first 12 bytes
   (24 hex chars) of SHA-256 over `"velopack-ipc-v1\0{appId}\0{normalizedRoot}\0{user}"`. Root: Windows resolves the
   final path first (Rust `canonicalize`, C# `GetFinalPathNameByHandle`; 8.3 names, junctions, `subst`, case) then
   `normalize_root_windows` (`/`→`\`, strip `\\?\` / `\\?\UNC\`, trim trailing `\`, ASCII-lowercase only); Unix
-  `realpath` then trim trailing `/`, no case change. User: Windows = the token user's string SID, Unix = decimal uid.
-  Windows: pipe `\\.\pipe\velopack-{key}`, lock `{LocalAppData}\velopack\ipc\{key}.lock` (never under RootAppDir: MSI
-  roots are read-only). Unix: `{temp dir}/velopack-{uid}/{key}.sock|.lock` — the dir is created 0700 (`AlreadyExists`
-  is fine; symlink, foreign owner (Rust) or loose mode → tightened or IPC disabled), socket path ≤ 103 bytes. Lock and
-  socket deliberately live in the same dir: macOS purges unused `$TMPDIR` entries after ~3 days and both must go
-  together; a server whose files were purged is simply superseded by the next launch. Never move only one of them.
-  C# `IpcEndpoint.IsSupported` is Windows always, Unix only in the net8.0+ build (netstandard2.0/net472 on Unix log
-  "SingleInstance association launch mode needs the net8.0+ Velopack build on this OS; using NewInstance.").
-- **Framing + envelope**: u32 little-endian length N (1 ≤ N ≤ 1 MiB) + N bytes of compact UTF-8 JSON, read-exactly
-  loops, EOF mid-frame / N = 0 / N > cap close the connection without a reply. `{"version":1,"type":"association",
+  `realpath` then trim trailing `/`, no case change. User: Windows = the token user's string SID (same elevated or
+  not), Unix = decimal uid. Windows: pipe `\\.\pipe\velopack-{key}`, lock `{LocalAppData}\velopack\ipc\{key}.lock`
+  (never under RootAppDir: MSI roots are read-only). Unix: `{base}/velopack-{uid}/{key}.sock|.lock`, socket path ≤ 103
+  bytes. `{base}` is one rule in both languages (Rust `ipc::unix::socket_base_dir`, C# `IpcEndpoint.SocketBaseDir`;
+  tests `test_socket_base_dir` / `SocketBaseDirIsTheSameRuleAsRust`): macOS always `confstr(_CS_DARWIN_USER_TEMP_DIR)`
+  (falls back to `/tmp`; `$TMPDIR` is ignored, it may be unset over ssh/launchd), elsewhere `$TMPDIR` when set and
+  non-empty, else `/tmp`; trailing `/` trimmed. The dir is created 0700 (`AlreadyExists` is fine); a symlink disables
+  IPC, a loose mode is tightened. Rust also refuses a foreign owner (`MetadataExt::uid`) and chmods the socket 0600; C#
+  relies on chmod failing for a foreign dir plus `PipeOptions.CurrentUserOnly` (the runtime checks the peer uid on both
+  ends, so a socket planted by another user, even in a dir root chmod'ed, is refused). Lock and socket deliberately
+  live in the same dir: macOS purges unused temp entries after ~3 days and both must go together; a server whose files
+  were purged is simply superseded by the next launch. Never move only one of them.
+- **Framing + envelope** (unchanged wire format): u32 little-endian length N (1 ≤ N ≤ 1 MiB) + N bytes of compact
+  UTF-8 JSON; EOF mid-frame / N = 0 / N > cap close the connection without a reply. `{"version":1,"type":"association",
   "items":[{"flag":"--veloapp-urlproto","value":"..."}]}`, `{"version":1,"type":"ack"}`,
-  `{"version":1,"type":"error","message":"..."}`; `id` (≤ 64 chars) is an opaque correlation id copied into the reply;
-  `items`/`message`/`id` omitted when empty; unknown fields of any shape and depth ignored (serde_json skips ignored
-  values iteratively and so does `IpcJson.SkipValue`: a recursive skip would let one frame stack-overflow the serving
-  app). Receivers reject only `version > 1` (`unsupported version`); 0/missing version, missing
-  type, malformed or non-UTF-8 JSON → `invalid message`; unknown types → `unknown message type` (never a crash). Fixed error strings never contain values. v1 is one
-  request + one reply per connection, but the framing is symmetric and multi-frame.
-- **Security** (current user only; logs never contain values): Windows server pipe = `PIPE_ACCESS_DUPLEX |
-  FILE_FLAG_OVERLAPPED` (+ `FILE_FLAG_FIRST_PIPE_INSTANCE` for the first instance, so a squatted name fails the start),
-  `PIPE_REJECT_REMOTE_CLIENTS`, SDDL `D:P(A;;GA;;;{userSid})S:(ML;;NW;;;{ilSid})` built from the server's own user +
-  integrity SIDs (pipes carry no mandatory label by default; without the `ML` ACE a medium-IL client could push paths
-  into an elevated instance). Client opens with `SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION` and, before writing
-  a byte, verifies `GetNamedPipeServerProcessId` → `OpenProcess` → token user SID + integrity SID equal its own;
-  EVERY failure in that chain is a refusal ("IPC server could not be verified"), never "continue" or a retry. Resulting
-  rule: elevated and non-elevated instances never talk to each other, each handles its own activations in-process;
-  cross-user is likewise impossible. Unix: the 0700 per-user dir + 0600 socket; only the lock holder unlinks a stale
-  socket before binding; no peer-uid check.
-- **Timeouts / connections**: constants `EXCHANGE_TIMEOUT` 5 s (client send+receive), `CONNECT_WINDOW` 5 s,
-  `RETRY_INTERVAL` 100 ms, `SERVER_IO_TIMEOUT` 5 s per connection. Windows uses overlapped I/O (Rust: event +
-  `WaitForSingleObject` + `CancelIoEx`; C#: `ReadAsync`/`WriteAsync` + `Task.Wait`, dispose on timeout cancels the I/O
-  on every TFM), Unix uses socket read/write timeouts. `request` is synchronous on the calling thread. The server
-  binds synchronously, then a `velopack-ipc` / `Velopack IPC` accept thread owns the lock for the process lifetime
-  and serves each connection on its own thread (C#: thread pool); on Windows the NEXT pipe instance is created before
-  the current one is handed out so the name never disappears. Close sequence after the reply: flush
-  (`FlushFileBuffers`) then close — NEVER `DisconnectNamedPipe`/`Disconnect()`, which discards the unread `ack` and
+  `{"version":1,"type":"error","message":"..."}`; `id` is an opaque correlation id copied into the reply;
+  `items`/`message`/`id` omitted when empty; unknown fields ignored. Receivers reject only `version > 1`
+  (`unsupported version`); 0/missing version, missing type, malformed or non-UTF-8 JSON → `invalid message`; unknown
+  types → `unknown message type` (never a crash). Fixed error strings never contain values. v1 is one request + one
+  reply per connection, but the framing is symmetric and multi-frame.
+- **Security** — boundary = the current user only; NO integrity-level logic: elevated and non-elevated instances of
+  the same user interoperate both ways. Windows server pipe descriptor `O:{userSid}D:P(A;;GA;;;{userSid})`: owner set
+  explicitly to the user SID (an elevated token would default to Administrators), protected DACL allowing only the
+  user; `PIPE_REJECT_REMOTE_CLIENTS`; the first instance uses `FILE_FLAG_FIRST_PIPE_INSTANCE`, so a squatted name
+  fails the start. Rust passes the SDDL to `interprocess` (which sets both flags). C# builds a managed `PipeSecurity`
+  (`IpcServer.CreatePipeSecurity`) and creates each instance with one `CreateNamedPipeW` P/Invoke
+  (`IpcNative.CreatePipeServer`, wrapped in a `NamedPipeServerStream`): no managed API sets
+  `PIPE_REJECT_REMOTE_CLIENTS` on any TFM, and `FirstPipeInstance` is net8+ only. Client (Rust `os::verify_server`,
+  C# `IpcClient.VerifyServer`), before writing a byte: pipe owner (from the handle's security info) must equal its own
+  user SID, any failure in that check is a refusal ("IPC server could not be verified"), never "continue" or a
+  retry; access denied is an error, not "nobody listening". Then `AllowSetForegroundWindow(GetNamedPipeServerProcessId)`,
+  best effort. C# connects with `TokenImpersonationLevel.Identification`; never `PipeOptions.CurrentUserOnly` on
+  Windows (its client check compares against the token's default owner, which breaks mixed elevation). Unix: the 0700
+  per-user dir plus (C#) `CurrentUserOnly`; only the lock holder replaces a stale socket before binding. SIGPIPE: Rust
+  sets `SO_NOSIGPIPE` on Apple sockets and blocks `SIGPIPE` on its own `velopack-ipc-request` / `velopack-ipc-conn`
+  threads elsewhere (so a C/C++ host is not killed by a vanished peer). Tests: C# `IpcServerClientTests`
+  (`ConnectRefusesSquattedPipe`, `ConnectRefusesPipeOwnedByAnotherPrincipal` (elevated only),
+  `ServerPipeIsOwnedByTheUserAndRejectsRemoteClients`: an SMB open via `\\localhost\pipe\...` is refused), Rust
+  `ipc/windows.rs` `test_connect_refuses_squatted_pipe`.
+- **Timeouts / connections**: `EXCHANGE_TIMEOUT` 5 s (client send+receive), `CONNECT_WINDOW` 5 s, `RETRY_INTERVAL`
+  100 ms, C# `ServerIoTimeout` 5 s per served connection (the Rust server has none). Rust `ipc::request` runs connect +
+  exchange on a `velopack-ipc-request` helper thread and abandons it with `TimedOut` after the timeout (local sockets
+  have no I/O timeouts on Windows; the thread stays blocked until the peer goes away). C# `IpcConnection` does
+  `ReadAsync`/`WriteAsync` + `Task.Wait` on the calling thread and disposes the stream on timeout (cancels the I/O on
+  every TFM); `IpcClient.TryConnect` uses `Connect(10)` — never 0, which is `NMPWAIT_USE_DEFAULT_WAIT` — and maps
+  `TimeoutException` / `IOException` 121 (`ERROR_SEM_TIMEOUT`, .NET Framework) to "nobody listening". The server binds
+  synchronously, then a `velopack-ipc` / `Velopack IPC` accept thread owns the lock for the process lifetime and serves
+  each connection on its own thread (C#: thread pool); the NEXT server instance is created before the current one is
+  handed out so the name never disappears. Close after the reply: flush (Rust: `interprocess` flushes on drop; C#
+  `WaitForPipeDrain`) then close — NEVER `DisconnectNamedPipe`/`Disconnect()`, which discards the unread `ack` and
   turns one activation into two. There is no stop API yet (#303).
 - **Lock primitive** (`lockfile.rs` / `Util/LockFile.cs`, shared with the packages lock, same kernel primitive in both
   languages so a C# and a Rust process exclude each other): Windows opens with full sharing (read/write/delete) and

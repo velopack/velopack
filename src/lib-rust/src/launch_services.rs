@@ -2,8 +2,8 @@
 //!
 //! LaunchServices never scans the nested `Contents/Helpers/*.app` of an app on its own (registering or launching
 //! the outer bundle leaves the helper unknown, verified on macOS 26), so the helper's URL schemes / document types
-//! only become bindable through an explicit `LSRegisterURL`: at every installed app start (`VelopackApp::run`),
-//! from UpdateMac after an apply, and from the `.pkg` postinstall.
+//! only become bindable through an explicit `LSRegisterURL`: at every installed app start (`VelopackApp::run`; the C#
+//! library runs `UpdateMac register-helpers`), from UpdateMac after an apply, and from the `.pkg` postinstall.
 
 use std::path::{Path, PathBuf};
 

@@ -1,20 +1,22 @@
 //! A small, language-agnostic IPC layer shared with the C# library (`Velopack.Ipc`): both derive the identical
 //! endpoint for an app and speak the identical protocol, so a C# app can talk to a Rust client and vice versa.
 //!
-//! Transport: a named pipe on Windows, a Unix domain socket elsewhere. Framing: a `u32` little-endian length prefix
-//! followed by that many bytes of compact UTF-8 JSON. Envelope: an [`IpcMessage`] with a protocol `version`, a
-//! `type`, an optional correlation `id`, and type-specific fields. A receiver answers a message of a newer major
-//! version with `unsupported version`, an unknown `type` with `unknown message type`, and never panics on input.
+//! Transport: `interprocess` local sockets, ie. a named pipe on Windows and a Unix domain socket elsewhere. Framing:
+//! a `u32` little-endian length prefix followed by that many bytes of compact UTF-8 JSON. Envelope: an
+//! [`IpcMessage`] with a protocol `version`, a `type`, an optional correlation `id`, and type-specific fields. A
+//! receiver answers a message of a newer major version with `unsupported version`, an unknown `type` with
+//! `unknown message type`, and never panics on input.
 //!
-//! The v1 use is `SingleInstance` association launches (one `association` request, one `ack`/`error` reply, then
+//! The v1 use is association activation forwarding (one `association` request, one `ack`/`error` reply, then
 //! both sides close). The framing allows any number of frames in either direction, which is what the Update.exe
 //! <-> hook process channel (#303) will build on.
 
 use crate::{lockfile::LockFile, Error};
+use interprocess::local_socket::{prelude::*, GenericFilePath, ListenerOptions, Name};
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 use std::time::Duration;
 
 #[cfg(windows)]
@@ -34,8 +36,6 @@ pub const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(5);
 pub const CONNECT_WINDOW: Duration = Duration::from_secs(5);
 /// The pause between connection attempts within [`CONNECT_WINDOW`].
 pub const RETRY_INTERVAL: Duration = Duration::from_millis(100);
-/// The per-connection read/write timeout on the server side.
-pub const SERVER_IO_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Message type: an association activation (`items` carry `--veloapp-*` flag/value pairs).
 pub const TYPE_ASSOCIATION: &str = "association";
@@ -238,77 +238,85 @@ pub fn derive_key(app_id: &str, normalized_root: &str, user: &str) -> String {
     digest[..12].iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// One end of a connection. Reads and writes are blocking, bounded by [`IpcConnection::set_timeout`].
-pub struct IpcConnection {
-    inner: os::Connection,
-}
+/// One end of a connection: blocking reads and writes without a timeout (see [`request`]).
+pub type IpcConnection = interprocess::local_socket::Stream;
 
-impl IpcConnection {
-    /// Applies `timeout` to every later receive and send (`None` = wait forever). A timed-out operation fails with
-    /// `ErrorKind::TimedOut`.
-    pub fn set_timeout(&mut self, timeout: Option<Duration>) {
-        self.inner.set_timeout(timeout);
-    }
-
-    /// Receives one message.
-    pub fn receive(&mut self) -> Result<IpcMessage, Error> {
-        let payload = read_frame(self)?;
-        Ok(decode(&payload)?)
-    }
-
-    /// Sends one message.
-    pub fn send(&mut self, msg: &IpcMessage) -> Result<(), Error> {
-        write_frame(self, msg)?;
-        Ok(())
-    }
-}
-
-impl Read for IpcConnection {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.read(buf)
-    }
-}
-
-impl Write for IpcConnection {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.inner.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.inner.flush()
-    }
+fn socket_name(ep: &IpcEndpoint) -> io::Result<Name<'_>> {
+    ep.address.as_os_str().to_fs_name::<GenericFilePath>()
 }
 
 /// Connects to the server at `ep`. `Ok(None)` means nobody is listening (the caller may retry); `Err` means the
-/// endpoint is unusable or the server could not be verified as running under the current user, in which case
-/// nothing has been sent.
+/// endpoint is unusable or (Windows) the pipe is not owned by the current user, in which case nothing has been sent.
+/// On Windows the server process is also allowed to take the foreground, as the activation is meant for it.
+/// On Unix, writes to a peer that went away fail instead of raising `SIGPIPE` (see [`request`] for other threads).
 pub fn connect(ep: &IpcEndpoint) -> Result<Option<IpcConnection>, Error> {
-    Ok(os::connect(ep)?.map(|inner| IpcConnection { inner }))
+    match IpcConnection::connect(socket_name(ep)?) {
+        Ok(conn) => {
+            #[cfg(windows)]
+            os::verify_server(&conn)?;
+            #[cfg(unix)]
+            os::suppress_sigpipe(&conn)?;
+            Ok(Some(conn))
+        }
+        Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused) => Ok(None),
+        Err(e) => Err(Error::Io(e)),
+    }
 }
 
-/// Sends `msg` and waits for the single reply, on the calling thread, bounded by `timeout`.
-pub fn request(mut conn: IpcConnection, msg: &IpcMessage, timeout: Duration) -> Result<IpcMessage, Error> {
-    conn.set_timeout(Some(timeout));
-    conn.send(msg)?;
-    conn.receive()
+/// Connects to the server at `ep`, sends `msg` and waits for the single reply. `Ok(None)` means nobody is
+/// listening. The exchange runs on a helper thread (local sockets have no I/O timeouts on Windows) and is
+/// abandoned with `ErrorKind::TimedOut` after `timeout`, leaving that thread blocked until the peer goes away.
+pub fn request(ep: &IpcEndpoint, msg: &IpcMessage, timeout: Duration) -> Result<Option<IpcMessage>, Error> {
+    let (tx, rx) = mpsc::channel();
+    let (ep, msg) = (ep.clone(), msg.clone());
+    std::thread::Builder::new().name("velopack-ipc-request".into()).spawn(move || {
+        #[cfg(unix)]
+        os::block_sigpipe();
+        let result = connect(&ep).and_then(|conn| {
+            conn.map(|mut conn| {
+                write_frame(&mut conn, &msg)?;
+                Ok(decode(&read_frame(&mut conn)?)?)
+            })
+            .transpose()
+        });
+        let _ = tx.send(result);
+    })?;
+    rx.recv_timeout(timeout)
+        .unwrap_or_else(|_| Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "IPC request timed out"))))
 }
 
 /// Binds the server at `ep` (synchronously, so a failure is reported here) and then accepts connections for the
 /// rest of the process on a `velopack-ipc` thread, which owns `lock` and hands every connection to
-/// `on_connection` on a thread of its own. There is no stop API.
+/// `on_connection` on a thread of its own. There is no stop API. On Unix, writes on those connections to a peer
+/// that went away fail instead of raising `SIGPIPE` (on Linux the connection thread blocks `SIGPIPE`, which
+/// `on_connection` inherits).
 pub fn start_server(ep: &IpcEndpoint, lock: Option<LockFile>, on_connection: Arc<dyn Fn(IpcConnection) + Send + Sync>) -> Result<(), Error> {
-    let mut listener = os::bind(ep)?;
+    // only the lock holder binds, so an existing socket file belongs to a dead server and may be replaced
+    let options = ListenerOptions::new().name(socket_name(ep)?).try_overwrite(true);
+    #[cfg(windows)]
+    let options = os::listener_options(options)?;
+    let listener = options.create_sync()?;
+    // the private (0700) directory is the access control on Unix; the socket is restricted to the owner as well
+    #[cfg(unix)]
+    std::fs::set_permissions(&ep.address, std::os::unix::fs::PermissionsExt::from_mode(0o600))?;
     std::thread::Builder::new()
         .name("velopack-ipc".into())
         .spawn(move || {
             let _lock = lock;
             loop {
                 match listener.accept() {
-                    Ok(inner) => {
+                    Ok(conn) => {
+                        #[cfg(unix)]
+                        if let Err(e) = os::suppress_sigpipe(&conn) {
+                            warn!("IPC: dropping a connection, SIGPIPE could not be suppressed: {e}");
+                            continue;
+                        }
                         let on_connection = on_connection.clone();
-                        let _ = std::thread::Builder::new()
-                            .name("velopack-ipc-conn".into())
-                            .spawn(move || on_connection(IpcConnection { inner }));
+                        let _ = std::thread::Builder::new().name("velopack-ipc-conn".into()).spawn(move || {
+                            #[cfg(unix)]
+                            os::block_sigpipe();
+                            on_connection(conn)
+                        });
                     }
                     Err(e) => {
                         warn!("IPC: accept failed: {e}");
@@ -321,18 +329,12 @@ pub fn start_server(ep: &IpcEndpoint, lock: Option<LockFile>, on_connection: Arc
     Ok(())
 }
 
-/// Serves one request/reply exchange on `conn`: receives a message (within [`SERVER_IO_TIMEOUT`]), validates the
-/// envelope, answers with `handler`'s reply (the handler copies the `id`), then flushes. The caller closes the
-/// connection by dropping it.
-pub fn serve_request(conn: &mut IpcConnection, handler: impl FnOnce(IpcMessage) -> IpcMessage) {
-    conn.set_timeout(Some(SERVER_IO_TIMEOUT));
-    serve_request_io(conn, handler);
-}
-
-/// The transport-independent part of [`serve_request`]. A framing or I/O error ends the exchange without a reply;
-/// a malformed message or a version of 0 is answered with `invalid message`, a newer version with
-/// `unsupported version`.
-pub fn serve_request_io<S: Read + Write>(stream: &mut S, handler: impl FnOnce(IpcMessage) -> IpcMessage) {
+/// Serves one request/reply exchange on `conn`: receives a message, validates the envelope and answers with
+/// `handler`'s reply (the handler copies the `id`). A framing or I/O error ends the exchange without a reply; a
+/// malformed message or a version of 0 is answered with `invalid message`, a newer version with
+/// `unsupported version`. The caller closes the connection by dropping it (on Windows, `interprocess` flushes the
+/// pipe before closing it, so the client never loses the reply).
+pub fn serve_request<S: Read + Write>(stream: &mut S, handler: impl FnOnce(IpcMessage) -> IpcMessage) {
     let payload = match read_frame(stream) {
         Ok(p) => p,
         Err(e) => {
@@ -498,7 +500,7 @@ mod tests {
             input: Cursor::new(input),
             output: Vec::new(),
         };
-        serve_request_io(&mut duplex, handler);
+        serve_request(&mut duplex, handler);
         if duplex.output.is_empty() {
             return None;
         }
@@ -550,12 +552,13 @@ mod tests {
             input: Cursor::new(0u32.to_le_bytes().to_vec()),
             output: Vec::new(),
         };
-        serve_request_io(&mut duplex, unreachable);
+        serve_request(&mut duplex, unreachable);
         assert!(duplex.output.is_empty());
     }
 
-    // serde_json ignores unknown values iteratively (no recursion limit, no stack use), and the C# reader skips
-    // them the same way: a deeply nested unknown value is neither a crash of the serving app nor a rejection
+    // serde_json ignores unknown values iteratively (no recursion limit, no stack use): a deeply nested unknown
+    // value is neither a crash of the serving app nor a rejection (the C# reader answers `invalid message` past
+    // its maximum depth of 64)
     #[test]
     fn test_serve_request_skips_deeply_nested_unknown_values() {
         let nested = |depth: usize, open: &str, close: &str| open.repeat(depth) + "0" + &close.repeat(depth);
@@ -581,17 +584,6 @@ mod tests {
         IpcEndpoint::from_key(&format!("test-{}", crate::misc::random_string(12).to_ascii_lowercase())).unwrap()
     }
 
-    fn connect_with_retries(ep: &IpcEndpoint) -> IpcConnection {
-        let deadline = std::time::Instant::now() + Duration::from_secs(5);
-        loop {
-            match connect(ep).unwrap() {
-                Some(c) => return c,
-                None if std::time::Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
-                None => panic!("no server at {:?}", ep.address),
-            }
-        }
-    }
-
     #[test]
     fn test_server_client_round_trip() {
         let ep = random_endpoint();
@@ -601,8 +593,7 @@ mod tests {
             &ep,
             None,
             Arc::new(move |mut conn| {
-                let sink = sink.clone();
-                serve_request(&mut conn, move |msg| {
+                serve_request(&mut conn, |msg| {
                     sink.lock().unwrap().extend(msg.items.iter().map(|i| i.value.clone()));
                     IpcMessage::ack().reply_to(&msg)
                 })
@@ -610,10 +601,10 @@ mod tests {
         )
         .unwrap();
 
+        // the server is bound when start_server returns, so no request ever finds nobody listening
         for i in 0..300 {
-            let conn = connect_with_retries(&ep);
-            let reply = request(conn, &association(&format!("myapp://{i}")), EXCHANGE_TIMEOUT).unwrap();
-            assert!(reply.is_ack(), "round {i}: {reply:?}");
+            let reply = request(&ep, &association(&format!("myapp://{i}")), EXCHANGE_TIMEOUT).unwrap();
+            assert!(reply.as_ref().is_some_and(IpcMessage::is_ack), "round {i}: {reply:?}");
         }
         let received = received.lock().unwrap();
         assert_eq!(received.len(), 300);
@@ -621,18 +612,84 @@ mod tests {
     }
 
     #[test]
-    fn test_receive_times_out_when_peer_is_silent() {
+    fn test_request_times_out_when_peer_is_silent() {
         let ep = random_endpoint();
         // the server holds every connection open for a while without writing anything
         start_server(&ep, None, Arc::new(|_conn| std::thread::sleep(Duration::from_secs(3)))).unwrap();
-        let mut conn = connect_with_retries(&ep);
-        conn.set_timeout(Some(Duration::from_millis(300)));
         let started = std::time::Instant::now();
-        match conn.receive() {
+        match request(&ep, &association("myapp://x"), Duration::from_millis(300)) {
             Err(Error::Io(e)) => assert_eq!(e.kind(), io::ErrorKind::TimedOut, "{e:?}"),
             other => panic!("expected a timeout, got {other:?}"),
         }
         assert!(started.elapsed() < Duration::from_secs(2), "took {:?}", started.elapsed());
+    }
+
+    // a C/C++ host keeps the default SIGPIPE disposition (death); a reply written after the client gave up must
+    // fail with EPIPE instead. The test binary itself ignores SIGPIPE, so the protection is checked directly.
+    #[cfg(unix)]
+    #[test]
+    fn test_reply_to_a_vanished_client_does_not_raise_sigpipe() {
+        let ep = random_endpoint();
+        let (client_gone_tx, client_gone_rx) = mpsc::channel::<()>();
+        let client_gone_rx = Mutex::new(client_gone_rx);
+        let (result_tx, result_rx) = mpsc::channel();
+        let result_tx = Mutex::new(result_tx);
+        start_server(
+            &ep,
+            None,
+            Arc::new(move |mut conn: IpcConnection| {
+                let _ = read_frame(&mut conn);
+                client_gone_rx.lock().unwrap().recv().unwrap();
+                let mut write = Ok(());
+                for _ in 0..50 {
+                    write = write_frame(&mut conn, &IpcMessage::ack());
+                    if write.is_err() {
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                #[cfg(target_vendor = "apple")]
+                let protected = {
+                    use std::os::fd::{AsFd, AsRawFd};
+                    let IpcConnection::UdSocket(stream) = &conn;
+                    let mut value: libc::c_int = 0;
+                    let mut len = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
+                    let rc = unsafe {
+                        libc::getsockopt(
+                            stream.as_fd().as_raw_fd(),
+                            libc::SOL_SOCKET,
+                            libc::SO_NOSIGPIPE,
+                            (&mut value as *mut libc::c_int).cast(),
+                            &mut len,
+                        )
+                    };
+                    rc == 0 && value != 0
+                };
+                #[cfg(not(target_vendor = "apple"))]
+                let protected = unsafe {
+                    let mut mask: libc::sigset_t = std::mem::zeroed();
+                    libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &mut mask);
+                    libc::sigismember(&mask, libc::SIGPIPE) == 1
+                };
+                result_tx.lock().unwrap().send((write.map_err(|e| e.kind()), protected)).unwrap();
+            }),
+        )
+        .unwrap();
+
+        let mut client = connect(&ep).unwrap().expect("server is listening");
+        write_frame(&mut client, &association("myapp://x")).unwrap();
+        drop(client);
+        client_gone_tx.send(()).unwrap();
+        let (write, protected) = result_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(write, Err(io::ErrorKind::BrokenPipe));
+        assert!(protected, "SIGPIPE is not suppressed on the connection thread");
+    }
+
+    #[test]
+    fn test_request_without_server_is_none() {
+        assert!(request(&random_endpoint(), &association("myapp://x"), EXCHANGE_TIMEOUT)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

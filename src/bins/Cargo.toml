@@ -81,13 +81,11 @@ libc.workspace = true
 waitpid-any.workspace = true
 libc.workspace = true
 objc2.workspace = true
-block2.workspace = true
 objc2-foundation = { workspace = true, features = [
     "std",
     "NSArray",
     "NSString",
     "NSURL",
-    "NSError",
     "NSNotification",
     "NSObject",
     "NSRunLoop",
@@ -97,9 +95,6 @@ objc2-app-kit = { workspace = true, features = [
     "std",
     "NSApplication",
     "NSResponder",
-    "NSRunningApplication",
-    "NSWorkspace",
-    "block2",
 ] }
 
 [target.'cfg(windows)'.dependencies]

@@ -46,8 +46,10 @@ try {
         .WithBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUninstallFastCallback"))
         .Run();
 #else
+    // forward_activations.txt is written next to the exe at pack time, like test_string.txt
     VelopackApp.Build()
         .SetAutoApplyOnStartup(shouldAutoUpdate)
+        .ForwardActivationsToRunningInstance(File.Exists(Path.Combine(AppContext.BaseDirectory, "forward_activations.txt")))
         .OnFirstRun(
             (v) => {
                 debugFile("firstrun", v.ToString(), "OnFirstRun");
@@ -111,7 +113,7 @@ try {
     }
 
     if (args.Length == 1 && args[0] == "wait") {
-        // stays alive (serving SingleInstance activations) until the test writes the stop sentinel
+        // stays alive (serving forwarded activations) until the test writes the stop sentinel
         debugFile("ready", Environment.ProcessId.ToString(), "Ready");
         var stop = Path.Combine(AppContext.BaseDirectory, "..", "stop");
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(120);

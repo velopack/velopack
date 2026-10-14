@@ -68,23 +68,15 @@ class App:
         registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
         
         On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
-        association helper bundle receives the open-file event and launches the app with it). With the default
-        `NewInstance` launch mode the callback runs during run(), on the calling thread, after the regular startup
-        logic (on_first_run/on_restarted); the app then continues starting normally. The launch is never lost to an
-        update: when run() restarts the app to apply a pending update the file(s) are forwarded to the new version,
-        which invokes the callback once per file.
+        association helper bundle receives the open-file event and launches the app with it). By default the
+        callback runs during run(), on the calling thread, after the regular startup logic (on_first_run/on_restarted);
+        the app then continues starting normally. The launch is never lost to an update: when run() restarts the app
+        to apply a pending update the file(s) are forwarded to the new version, which invokes the callback once per
+        file.
         
-        With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
-        running hands the path to that instance and the launching process exits with code 0 in native code, inside
-        run(), before any update is applied (like the fast-exit hooks, `atexit` handlers do not run). In the
-        receiving instance the callback runs on a background thread (a Velopack IPC thread, holding the GIL;
-        invocations are serialized; possibly while the main thread is still inside run(), even before
-        on_first_run/on_restarted, or at any later time), so it must be thread-safe and marshal to the UI thread
-        itself. Return promptly (post the work to the UI thread rather than blocking on it): the launching process
-        waits at most 5 seconds for the callback to return, after which it handles the activation itself as a second
-        instance. The running instance is not brought to the foreground by the OS, so activate your main window from
-        the callback. If no instance answers within about 5 seconds, the launching process handles the activation
-        itself, as in `NewInstance` mode. During interpreter shutdown the callback is skipped.
+        With forward_activations_to_running_instance(), a file opened while the app is already running is handed
+        to that instance instead (see there). On Windows the callback may bring the app's window to the foreground
+        (the forwarding process allows it); on macOS the association helper activates the running app.
         
         macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in a
         protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders"
@@ -97,25 +89,32 @@ class App:
         registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
         
         On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
-        association helper bundle receives the open-URL event and launches the app with it). With the default
-        `NewInstance` launch mode the callback runs during run(), on the calling thread, after the regular startup
-        logic (on_first_run/on_restarted); the app then continues starting normally. The launch is never lost to an
-        update: when run() restarts the app to apply a pending update the URL is forwarded to the new version, which
-        invokes the callback.
+        association helper bundle receives the open-URL event and launches the app with it). By default the
+        callback runs during run(), on the calling thread, after the regular startup logic (on_first_run/on_restarted);
+        the app then continues starting normally. The launch is never lost to an update: when run() restarts the app
+        to apply a pending update the URL is forwarded to the new version, which invokes the callback.
         
-        With `vpk pack --associationLaunchMode SingleInstance`, a launch while an instance of the app is already
-        running hands the URL to that instance and the launching process exits with code 0 in native code, inside
-        run(), before any update is applied (like the fast-exit hooks, `atexit` handlers do not run). In the
-        receiving instance the callback runs on a background thread (a Velopack IPC thread, holding the GIL;
-        invocations are serialized; possibly while the main thread is still inside run(), even before
-        on_first_run/on_restarted, or at any later time), so it must be thread-safe and marshal to the UI thread
-        itself. Return promptly (post the work to the UI thread rather than blocking on it): the launching process
-        waits at most 5 seconds for the callback to return, after which it handles the activation itself as a second
-        instance. The running instance is not brought to the foreground by the OS, so activate your main window from
-        the callback. If no instance answers within about 5 seconds, the launching process handles the activation
-        itself, as in `NewInstance` mode. During interpreter shutdown the callback is skipped.
+        With forward_activations_to_running_instance(), a URL opened while the app is already running is handed
+        to that instance instead (see there). On Windows the callback may bring the app's window to the foreground
+        (the forwarding process allows it); on macOS the association helper activates the running app.
         
         Associations require macOS 10.13+. Not supported on Linux.
+        """
+    def forward_activations_to_running_instance(self, enabled: builtins.bool = True) -> App:
+        r"""
+        Forwards file/URL association activations to an already running instance of this app instead of starting a
+        new one. OFF by default; must be set before run(), and only applies to an installed app with an
+        on_file_assoc / on_url_proto callback. The first instance serves activations; a later launch carrying one
+        hands it over and exits with code 0 in native code, inside run(), before any update is applied (like the
+        fast-exit hooks, `atexit` handlers do not run). If no instance answers within about 5 seconds, or it refuses,
+        the launch handles the activation itself as usual.
+        
+        In the receiving instance the callbacks run on a background thread (a Velopack IPC thread, holding the GIL;
+        invocations are serialized; possibly while the main thread is still inside run(), even before
+        on_first_run/on_restarted, or at any later time), so they must be thread-safe and marshal to the UI thread
+        themselves. Return promptly (post the work to the UI thread rather than blocking on it): the launching process
+        waits at most 5 seconds for the callback to return, after which it handles the activation itself as a second
+        instance. During interpreter shutdown the callback is skipped.
         """
     def run(self) -> None:
         r"""

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Velopack.Ipc;
 using Velopack.Sources;
 
 #if NET8_0_OR_GREATER
@@ -8,6 +9,7 @@ using System.Text.Json.Serialization;
 #else
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Serialization;
 #endif
 
 namespace Velopack.Util
@@ -20,6 +22,15 @@ namespace Velopack.Util
     [JsonSerializable(typeof(VelopackFlowReleaseAsset[]))]
     [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
     internal partial class CompiledJsonSourceGenerationContext : JsonSerializerContext
+    {
+    }
+
+    /// <summary> The IPC wire format: compact, camelCase, nulls omitted, strict (no comments or trailing commas). </summary>
+    [JsonSerializable(typeof(IpcMessage))]
+    [JsonSourceGenerationOptions(
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    internal partial class IpcJsonSourceGenerationContext : JsonSerializerContext
     {
     }
 
@@ -61,6 +72,16 @@ namespace Velopack.Util
         public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
         {
             return JsonSerializer.Deserialize(json, Context.VelopackAssetFeed);
+        }
+
+        public static string SerializeIpcMessage(IpcMessage message)
+        {
+            return JsonSerializer.Serialize(message, IpcJsonSourceGenerationContext.Default.IpcMessage);
+        }
+
+        public static IpcMessage? DeserializeIpcMessage(string json)
+        {
+            return JsonSerializer.Deserialize(json, IpcJsonSourceGenerationContext.Default.IpcMessage);
         }
     }
 
@@ -109,6 +130,22 @@ namespace Velopack.Util
         public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
         {
             return JsonConvert.DeserializeObject<VelopackAssetFeed>(json, Options);
+        }
+
+        private static readonly JsonSerializerSettings IpcOptions = new() {
+            ContractResolver = new CamelCasePropertyNamesContractResolver(),
+            NullValueHandling = NullValueHandling.Ignore,
+            Formatting = Formatting.None,
+        };
+
+        public static string SerializeIpcMessage(IpcMessage message)
+        {
+            return JsonConvert.SerializeObject(message, IpcOptions);
+        }
+
+        public static IpcMessage? DeserializeIpcMessage(string json)
+        {
+            return JsonConvert.DeserializeObject<IpcMessage>(json, IpcOptions);
         }
     }
 

@@ -103,4 +103,37 @@ public class IpcEndpointTests
         Assert.Contains("velopack-", ep.Address);
         Assert.EndsWith("abc-123.lock", ep.LockPath);
     }
+
+    [Fact]
+    public void SocketBaseDirIsTheSameRuleAsRust()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "Unix domain sockets only");
+        if (VelopackRuntimeInfo.IsOSX) {
+            // always the per-user temporary directory, whatever TMPDIR says
+            var dir = IpcEndpoint.SocketBaseDir(null);
+            Assert.Contains("/var/folders/", dir);
+            Assert.False(dir.EndsWith("/"));
+            Assert.Equal(dir, IpcEndpoint.SocketBaseDir("/elsewhere/"));
+            Assert.Equal(dir, IpcEndpoint.SocketBaseDir(""));
+        } else {
+            Assert.Equal("/tmp", IpcEndpoint.SocketBaseDir(null));
+            Assert.Equal("/tmp", IpcEndpoint.SocketBaseDir(""));
+            Assert.Equal("/run/user/1000/tmp", IpcEndpoint.SocketBaseDir("/run/user/1000/tmp/"));
+        }
+    }
+
+    [Fact]
+    public void PrivateDirIsCreatedWithMode0700()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "Unix permissions only");
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var dir = Path.Combine(tempPath, "private");
+        IpcEndpoint.EnsurePrivateDir(dir);
+        IpcEndpoint.EnsurePrivateDir(dir);
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(dir));
+
+        var link = Path.Combine(tempPath, "link");
+        File.CreateSymbolicLink(link, dir);
+        Assert.Throws<IOException>(() => IpcEndpoint.EnsurePrivateDir(link));
+    }
 }

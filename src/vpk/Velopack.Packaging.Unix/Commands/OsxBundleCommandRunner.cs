@@ -98,7 +98,6 @@ public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBund
                 builder.AppDirectory,
                 fileAssociations,
                 urlProtocols,
-                options.AssociationLaunchMode,
                 packVersion,
                 options.Icon,
                 info.CFBundleIdentifier,
