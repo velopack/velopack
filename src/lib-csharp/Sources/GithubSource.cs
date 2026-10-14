@@ -88,8 +88,8 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc cref="Authorization"/>
-        protected override (string Name, string Value)? Authorization =>
-            string.IsNullOrEmpty(AccessToken) ? null : ("Authorization", $"Bearer {AccessToken}");
+        protected override KeyValuePair<string, string>? Authorization =>
+            string.IsNullOrEmpty(AccessToken) ? null : new KeyValuePair<string, string>("Authorization", $"Bearer {AccessToken}");
 
         /// <inheritdoc />
         protected override async Task<GithubRelease[]> GetReleases(bool includePrereleases)

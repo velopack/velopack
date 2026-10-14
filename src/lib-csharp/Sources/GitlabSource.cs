@@ -100,8 +100,8 @@ namespace Velopack.Sources
     public class GitlabSource : GitBase<GitlabRelease>
     {
         /// <inheritdoc cref="Authorization"/>
-        protected override (string Name, string Value)? Authorization => 
-            string.IsNullOrEmpty(AccessToken) ? null : ("PRIVATE-TOKEN", AccessToken ?? string.Empty);
+        protected override KeyValuePair<string, string>? Authorization => 
+            string.IsNullOrEmpty(AccessToken) ? null : new KeyValuePair<string, string>("PRIVATE-TOKEN", AccessToken ?? string.Empty);
         
         /// <inheritdoc cref="GitlabSource" />
         /// <param name="repoUrl">
