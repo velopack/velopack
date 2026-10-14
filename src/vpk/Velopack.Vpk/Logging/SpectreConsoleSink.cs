@@ -10,10 +10,15 @@ namespace Velopack.Vpk.Logging;
 public class SpectreConsoleSink : ILogEventSink
 {
     private readonly string _dirtmp;
+    private readonly LogOutputSwitch _output;
+    private readonly Lazy<IAnsiConsole> _stderr = new(() => AnsiConsole.Create(new AnsiConsoleSettings {
+        Out = new AnsiConsoleOutput(Console.Error),
+    }));
 
-    public SpectreConsoleSink()
+    public SpectreConsoleSink(LogOutputSwitch output)
     {
         _dirtmp = Path.GetTempPath();
+        _output = output;
     }
 
     public void Emit(LogEvent logEvent)
@@ -49,7 +54,8 @@ public class SpectreConsoleSink : ILogEventSink
             renderables.Add(new Padder(logEvent.Exception.GetRenderable(ExceptionFormats.ShortenEverything), new Padding(4, 0, 0, 0)));
         }
 
-        AnsiConsole.Write(new RenderableCollection(renderables));
+        var console = _output.UseStandardError ? _stderr.Value : AnsiConsole.Console;
+        console.Write(new RenderableCollection(renderables));
     }
 }
 
@@ -57,9 +63,10 @@ public static class SpectreConsoleSinkExtensions
 {
     public static LoggerConfiguration Spectre(
         this LoggerSinkConfiguration loggerConfiguration,
+        LogOutputSwitch output,
         LogEventLevel restrictedToMinimumLevel = LevelAlias.Minimum,
         LoggingLevelSwitch levelSwitch = null)
     {
-        return loggerConfiguration.Sink(new SpectreConsoleSink(), restrictedToMinimumLevel, levelSwitch);
+        return loggerConfiguration.Sink(new SpectreConsoleSink(output), restrictedToMinimumLevel, levelSwitch);
     }
 }

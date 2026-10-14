@@ -28,17 +28,22 @@ public static partial class OptionMapper
 
     public static partial GitHubDownloadOptions ToOptions(this GitHubDownloadCommand cmd);
 
+    // upload options inherit the download-only InfoJson property, which upload commands do not expose.
+    [MapperIgnoreTarget(nameof(RepositoryOptions.InfoJson))]
     public static partial GitHubUploadOptions ToOptions(this GitHubUploadCommand cmd);
 
     // GitHubUploadOptions no longer derives from GitHubDownloadOptions (both derive from the
     // shared GitRelease*Options bases), so the generic Map<TDest> needs an explicit mapping
     // to convert an upload command to download options.
+    [MapperIgnoreTarget(nameof(RepositoryOptions.InfoJson))]
     public static partial GitHubDownloadOptions ToDownloadOptions(this GitHubUploadCommand cmd);
 
+    [MapperIgnoreTarget(nameof(RepositoryOptions.InfoJson))]
     public static partial GiteaDownloadOptions ToDownloadOptions(this GiteaUploadCommand cmd);
 
     public static partial GiteaDownloadOptions ToOptions(this GiteaDownloadCommand cmd);
 
+    [MapperIgnoreTarget(nameof(RepositoryOptions.InfoJson))]
     public static partial GiteaUploadOptions ToOptions(this GiteaUploadCommand cmd);
 
     public static partial HttpDownloadOptions ToOptions(this HttpDownloadCommand cmd);
@@ -47,14 +52,17 @@ public static partial class OptionMapper
     public static partial LocalDownloadOptions ToOptions(this LocalDownloadCommand cmd);
 
     [MapperIgnoreTarget(nameof(LocalDownloadOptions.Timeout))]
+    [MapperIgnoreTarget(nameof(RepositoryOptions.InfoJson))]
     public static partial LocalUploadOptions ToOptions(this LocalUploadCommand cmd);
 
     public static partial S3DownloadOptions ToOptions(this S3DownloadCommand cmd);
 
+    [MapperIgnoreTarget(nameof(RepositoryOptions.InfoJson))]
     public static partial S3UploadOptions ToOptions(this S3UploadCommand cmd);
 
     public static partial AzureDownloadOptions ToOptions(this AzureDownloadCommand cmd);
 
+    [MapperIgnoreTarget(nameof(RepositoryOptions.InfoJson))]
     public static partial AzureUploadOptions ToOptions(this AzureUploadCommand cmd);
 
     public static partial DeltaGenOptions ToOptions(this DeltaGenCommand cmd);

@@ -28,4 +28,23 @@ public class OptionMapperTests
         Assert.Equal("mycontainer", options.Container);
         Assert.Equal(45, options.Timeout);
     }
+
+    [Theory]
+    [InlineData(typeof(GitHubDownloadCommand), typeof(GitHubDownloadOptions))]
+    [InlineData(typeof(GiteaDownloadCommand), typeof(GiteaDownloadOptions))]
+    [InlineData(typeof(S3DownloadCommand), typeof(S3DownloadOptions))]
+    [InlineData(typeof(AzureDownloadCommand), typeof(AzureDownloadOptions))]
+    [InlineData(typeof(LocalDownloadCommand), typeof(LocalDownloadOptions))]
+    [InlineData(typeof(HttpDownloadCommand), typeof(HttpDownloadOptions))]
+    public void InfoJson_EveryDownloadCommand_ParsesAndMaps(Type commandType, Type optionsType)
+    {
+        var command = (Velopack.Vpk.Commands.BaseCommand) Activator.CreateInstance(commandType)!;
+        ParseResult parseResult = command.ParseAndApply("--info-json");
+
+        Assert.Empty(parseResult.Errors);
+        var options = (RepositoryOptions) typeof(OptionMapper).GetMethod(nameof(OptionMapper.Map))!
+            .MakeGenericMethod(optionsType)
+            .Invoke(null, [command])!;
+        Assert.True(options.InfoJson);
+    }
 }

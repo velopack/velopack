@@ -17,4 +17,9 @@ public class RepositoryOptions : IOutputOptions
     public DirectoryInfo ReleaseDir { get; set; }
 
     public double Timeout { get; set; } = 30d;
+
+    /// <summary>
+    /// Download commands only: print the latest full release of the feed to stdout as JSON instead of downloading it.
+    /// </summary>
+    public bool InfoJson { get; set; }
 }
