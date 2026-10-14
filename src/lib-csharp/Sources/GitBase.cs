@@ -37,7 +37,7 @@ namespace Velopack.Sources
         /// <summary>
         /// The Bearer or other type of Authorization header used to authenticate against the Api.
         /// </summary>
-        protected abstract (string Name, string Value)? Authorization { get; }
+        protected abstract KeyValuePair<string, string>? Authorization { get; }
 
         /// <summary>
         /// Base constructor.
@@ -134,7 +134,7 @@ namespace Velopack.Sources
                 ["Accept"] = accept,
             };
             if (Authorization.HasValue) {
-                headers.Add(Authorization.Value.Name, Authorization.Value.Value);
+                headers.Add(Authorization.Value.Key, Authorization.Value.Value);
             }
 
             return headers;

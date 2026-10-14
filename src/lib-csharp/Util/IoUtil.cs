@@ -18,7 +18,7 @@ namespace Velopack.Util
             return rootPath.EnumerateFiles("*", SearchOption.AllDirectories);
         }
 
-        public static async Task<(string SHA1, string SHA256)> CalculateFileSHA1AndSHA256Async(string filePath)
+        public static async Task<FileChecksums> CalculateFileSHA1AndSHA256Async(string filePath)
         {
             var bufferSize = 1000000; // 1mb
             using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
@@ -32,7 +32,7 @@ namespace Velopack.Util
             }
             sha1.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
             sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-            return (
+            return new FileChecksums(
                 BitConverter.ToString(sha1.Hash!).Replace("-", String.Empty),
                 BitConverter.ToString(sha256.Hash!).Replace("-", String.Empty)
             );
