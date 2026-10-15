@@ -303,6 +303,31 @@ jobs:
             chmod +x target/release/testapp
           fi
       ## BUILD AND UPLOAD CROSS COMPILE ARTIFACTS
+      # rcodesign signs the macOS apps packed on the Windows and Linux legs (PackCrossAppOsxSigned), which the macOS
+      # leg then verifies with Apple's codesign. Pinned release, checked against its published SHA-256. As in production,
+      # rcodesign stamps each signature through Apple's public timestamp server, so those packs need it reachable.
+      - name: Install rcodesign
+        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
+        shell: pwsh
+        run: |
+          $version = '0.29.0'
+          if ($IsWindows) {
+            $target = 'x86_64-pc-windows-msvc'; $ext = 'zip'
+            $sha256 = '54bb500e2da7a8de02fcae0f331d1cac6e6d7173b4281042ff9c528ba3159aaa'
+          } else {
+            $target = 'x86_64-unknown-linux-musl'; $ext = 'tar.gz'
+            $sha256 = 'dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002'
+          }
+          $name = "apple-codesign-$version-$target"
+          $archive = Join-Path $env:RUNNER_TEMP "$name.$ext"
+          $url = "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F$version/$name.$ext"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $sha256) { throw "SHA-256 mismatch for $name.$ext" }
+          if ($IsWindows) { Expand-Archive $archive -DestinationPath $env:RUNNER_TEMP } else { tar -xzf $archive -C $env:RUNNER_TEMP }
+          $dir = Join-Path $env:RUNNER_TEMP $name
+          & (Join-Path $dir ($IsWindows ? 'rcodesign.exe' : 'rcodesign')) --version
+          if ($LASTEXITCODE -ne 0) { throw "rcodesign --version failed" }
+          Add-Content -Path $env:GITHUB_PATH -Value $dir
       - name: Build Cross-Compile Artifacts
         run: >-
           dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
@@ -310,7 +335,15 @@ jobs:
           --filter-method '*PackCrossApp*'
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Pack.xml
+      # Uploaded even when some packs failed, so the other legs run the artifacts that exist rather than wait them out.
+      # The marker makes the artifact exist even when this leg packed nothing (a failed earlier step): the other legs
+      # then fail fast on the missing apps in RunCrossApp* instead of timing out in Wait for Artifacts.
+      - name: Mark Cross-Compile Artifacts
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: mkdir -p test/artifacts && echo "${{ matrix.os }}" > "test/artifacts/cross-${{ matrix.os }}.marker"
       - name: Upload Cross-Compile Artifacts
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: cross-${{ matrix.os }}
@@ -335,23 +368,21 @@ jobs:
       ## START CROSS-COMPILATION TESTING
       - name: Clean Rust Build
         run: cargo clean
+      # every leg uploads its own cross-* artifact above, before waiting here for the other two
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
-        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
           artifacts: cross-macos,cross-ubuntu,cross-windows
           verbose: true
       - name: Download Cross Artifacts
-        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         uses: actions/download-artifact@v8
         with:
           path: test/artifacts
           pattern: cross-*
           merge-multiple: true
       - name: Test Cross-Compiled Apps
-        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: >-

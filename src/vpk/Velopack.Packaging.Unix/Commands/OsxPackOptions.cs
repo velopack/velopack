@@ -11,7 +11,15 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
 
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
-    public bool NoInst { get; set; }
+    private bool _noInst;
+
+    /// <summary>
+    /// Skip the .pkg installer. Always true off macOS, where pkgbuild and productbuild do not exist.
+    /// </summary>
+    public bool NoInst {
+        get => _noInst || !VelopackRuntimeInfo.IsOSX;
+        set => _noInst = value;
+    }
 
     public bool NoPortable { get; set; }
 
@@ -34,6 +42,12 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
     public string NotaryProfile { get; set; }
 
     public string Keychain { get; set; }
+
+    public string SignP12File { get; set; }
+
+    public string SignP12PasswordFile { get; set; }
+
+    public string NotaryApiKeyFile { get; set; }
 
     public string Channel { get; set; }
 
