@@ -128,8 +128,7 @@ impl BundleZip<'_> {
         let mut archive = self.zip.borrow_mut();
         for i in 0..archive.len() {
             if let Ok(file) = archive.by_index(i) {
-                let name = file.name();
-                if predicate(name) {
+                if file.name().is_ok_and(|name| predicate(&name)) {
                     return Some(i);
                 }
             }
@@ -232,8 +231,7 @@ impl BundleZip<'_> {
         let mut archive = self.zip.borrow_mut();
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
-            let key = file.name();
-            files.push(key.to_string());
+            files.push(file.name()?.into_owned());
         }
         Ok(files)
     }
@@ -277,8 +275,8 @@ impl BundleZip<'_> {
         let mut archive = self.zip.borrow_mut();
         let stub_suffix = "_ExecutionStub.exe";
         for i in 0..archive.len() {
-            let name = match archive.by_index(i) {
-                Ok(f) => f.name().to_string(),
+            let name = match archive.by_index(i).and_then(|f| f.name().map(|n| n.into_owned())) {
+                Ok(n) => n,
                 Err(_) => continue,
             };
             let file_name = match name.rsplit(&['/', '\\']).next() {
