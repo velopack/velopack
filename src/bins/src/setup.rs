@@ -12,6 +12,10 @@ use std::fs::File;
 use std::{env, path::PathBuf};
 use velopack_bins::*;
 
+// Lets the x86/x64 build start on Windows 7 (see src/win7-shims).
+#[cfg(windows)]
+velopack_win7_shims::link_win7_shims!();
+
 #[used]
 #[no_mangle]
 static BUNDLE_PLACEHOLDER: [u8; 48] = [

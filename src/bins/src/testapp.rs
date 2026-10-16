@@ -3,6 +3,10 @@ use simplelog::*;
 use std::{env, fs, fs::OpenOptions, io::Write, process};
 use velopack::{locator, sources, UpdateCheck, UpdateManager, VelopackApp};
 
+// Lets the x86/x64 build start on Windows 7 (see src/win7-shims).
+#[cfg(windows)]
+velopack_win7_shims::link_win7_shims!();
+
 fn main() -> Result<()> {
     let _ = TermLogger::init(
         LevelFilter::Info,

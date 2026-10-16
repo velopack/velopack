@@ -125,12 +125,12 @@ public static class TestApp
     }
 
     /// <summary>
-    /// Packs the rust testapp (src/bins/src/testapp.rs) for win-x64. It has no .NET runtime dependency and CI
-    /// builds it for the win7 target, so unlike TestApp its packages can also be installed on Windows 7.
+    /// Packs the rust testapp (src/bins/src/testapp.rs) for win-x64. It has no .NET runtime dependency and links
+    /// src/win7-shims, so unlike TestApp its packages can also be installed on Windows 7.
     /// </summary>
     public static void PackRustTestAppWindows(string id, string version, string testString, string releaseDir, ILogger logger)
     {
-        // CI ships the win7-target binary in the rust-windows-x64 artifact (testapp_x64.exe) to every OS;
+        // CI ships the release binary in the rust-windows-x64 artifact (testapp_x64.exe) to every OS;
         // a local Windows build only produces the unsuffixed testapp.exe.
         var rustBinary = new[] { "testapp_x64.exe", "testapp.exe" }
             .Select(n => PathHelper.GetRustAsset(n))
