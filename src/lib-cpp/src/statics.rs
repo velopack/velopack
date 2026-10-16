@@ -15,7 +15,10 @@ pub struct AppOptions {
     pub uninstall_hook: vpkc_hook_callback_t,
     pub firstrun_hook: vpkc_hook_callback_t,
     pub restarted_hook: vpkc_hook_callback_t,
+    pub file_assoc_hook: vpkc_association_callback_t,
+    pub url_proto_hook: vpkc_association_callback_t,
     pub auto_apply: Option<bool>,
+    pub forward_activations: bool,
     pub args: Option<Vec<String>>,
     pub locator: Option<VelopackLocatorConfig>,
 }

@@ -6,14 +6,12 @@ using Velopack.Util;
 
 namespace Velopack.Packaging.Unix;
 
-internal class PlistWriter
+public class PlistWriter
 {
     private readonly ILogger _logger;
     private readonly OsxAppInfo _task;
     private readonly string _outputDir;
 
-    private static readonly string[] ArrayTypeProperties = { "CFBundleURLSchemes" };
-    private const char Separator = ';';
     public const string PlistFileName = "Info.plist";
 
     public PlistWriter(ILogger logger, OsxAppInfo task, string outputDir)
@@ -69,21 +67,73 @@ internal class PlistWriter
                 WriteProperty(xmlWriter, nameof(_task.NSRequiresAquaSystemAppearance), _task.NSRequiresAquaSystemAppearance.Value);
             }
 
-            //if (_task.CFBundleURLTypes.Length != 0) {
-            //    WriteProperty(xmlWriter, nameof(_task.CFBundleURLTypes), _task.CFBundleURLTypes);
-            //}
+            if (_task.LSUIElement.HasValue) {
+                WriteProperty(xmlWriter, nameof(_task.LSUIElement), _task.LSUIElement.Value);
+            }
+
+            WriteProperty(xmlWriter, nameof(_task.LSMinimumSystemVersion), _task.LSMinimumSystemVersion);
+
+            WriteUrlTypes(xmlWriter);
+            WriteDocumentTypes(xmlWriter);
 
             xmlWriter.WriteEndElement();
             xmlWriter.WriteEndElement();
         }
     }
 
+    // CFBundleURLTypes = [ { CFBundleURLName, CFBundleTypeRole = Viewer, CFBundleURLSchemes = [...] } ]
+    private void WriteUrlTypes(XmlWriter xmlWriter)
+    {
+        var schemes = _task.UrlSchemes ?? [];
+        if (schemes.Length == 0) {
+            return;
+        }
+
+        WriteKey(xmlWriter, "CFBundleURLTypes");
+        xmlWriter.WriteStartElement("array");
+        xmlWriter.WriteStartElement("dict");
+        WriteProperty(xmlWriter, "CFBundleURLName", _task.CFBundleIdentifier);
+        WriteProperty(xmlWriter, "CFBundleTypeRole", "Viewer");
+        WriteProperty(xmlWriter, "CFBundleURLSchemes", schemes);
+        xmlWriter.WriteEndElement(); // dict
+        xmlWriter.WriteEndElement(); // array
+    }
+
+    // CFBundleDocumentTypes = per extension: { CFBundleTypeName, CFBundleTypeRole = Viewer, LSHandlerRank = Default,
+    // CFBundleTypeExtensions = [ext] }. No UTI declarations (UTExportedTypeDeclarations) are generated.
+    private void WriteDocumentTypes(XmlWriter xmlWriter)
+    {
+        var extensions = _task.DocumentExtensions ?? [];
+        if (extensions.Length == 0) {
+            return;
+        }
+
+        WriteKey(xmlWriter, "CFBundleDocumentTypes");
+        xmlWriter.WriteStartElement("array");
+        foreach (var ext in extensions) {
+            var extNoDot = ext.TrimStart('.');
+            xmlWriter.WriteStartElement("dict");
+            WriteProperty(xmlWriter, "CFBundleTypeName", $"{_task.CFBundleName} {extNoDot.ToUpperInvariant()} File");
+            WriteProperty(xmlWriter, "CFBundleTypeRole", "Viewer");
+            WriteProperty(xmlWriter, "LSHandlerRank", "Default");
+            WriteProperty(xmlWriter, "CFBundleTypeExtensions", [extNoDot]);
+            xmlWriter.WriteEndElement(); // dict
+        }
+
+        xmlWriter.WriteEndElement(); // array
+    }
+
+    private static void WriteKey(XmlWriter xmlWriter, string name)
+    {
+        xmlWriter.WriteStartElement("key");
+        xmlWriter.WriteString(name);
+        xmlWriter.WriteEndElement();
+    }
+
     private void WriteProperty(XmlWriter xmlWriter, string name, string value)
     {
         if (!string.IsNullOrWhiteSpace(value)) {
-            xmlWriter.WriteStartElement("key");
-            xmlWriter.WriteString(name);
-            xmlWriter.WriteEndElement();
+            WriteKey(xmlWriter, name);
 
             xmlWriter.WriteStartElement("string");
             xmlWriter.WriteString(value);
@@ -93,9 +143,7 @@ internal class PlistWriter
 
     private void WriteProperty(XmlWriter xmlWriter, string name, bool value)
     {
-        xmlWriter.WriteStartElement("key");
-        xmlWriter.WriteString(name);
-        xmlWriter.WriteEndElement();
+        WriteKey(xmlWriter, name);
 
         if (value) {
             xmlWriter.WriteStartElement("true");
@@ -109,9 +157,7 @@ internal class PlistWriter
     private void WriteProperty(XmlWriter xmlWriter, string name, string[] values)
     {
         if (values.Length != 0) {
-            xmlWriter.WriteStartElement("key");
-            xmlWriter.WriteString(name);
-            xmlWriter.WriteEndElement();
+            WriteKey(xmlWriter, name);
 
             xmlWriter.WriteStartElement("array");
             foreach (var value in values) {
@@ -125,34 +171,4 @@ internal class PlistWriter
             xmlWriter.WriteEndElement();
         }
     }
-
-    //private void WriteProperty(XmlWriter xmlWriter, string name, ITaskItem[] values)
-    //{
-    //    xmlWriter.WriteStartElement("key");
-    //    xmlWriter.WriteString(name);
-    //    xmlWriter.WriteEndElement();
-
-    //    xmlWriter.WriteStartElement("array");
-
-    //    foreach (var value in values) {
-    //        xmlWriter.WriteStartElement("dict");
-    //        var metadataDictionary = value.CloneCustomMetadata();
-
-    //        foreach (DictionaryEntry entry in metadataDictionary) {
-    //            var dictValue = entry.Value.ToString();
-    //            var dictKey = entry.Key.ToString();
-
-    //            if (dictValue.Contains(Separator.ToString()) || ArrayTypeProperties.Contains(dictKey)) //array
-    //            {
-    //                WriteProperty(xmlWriter, dictKey, dictValue.Split(Separator));
-    //            } else {
-    //                WriteProperty(xmlWriter, dictKey, dictValue);
-    //            }
-    //        }
-
-    //        xmlWriter.WriteEndElement(); //End dict
-    //    }
-
-    //    xmlWriter.WriteEndElement(); //End outside array
-    //}
 }

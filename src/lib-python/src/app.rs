@@ -13,7 +13,10 @@ pub struct VelopackAppWrapper {
     uninstall_hook: Option<Py<PyAny>>,
     firstrun_hook: Option<Py<PyAny>>,
     restarted_hook: Option<Py<PyAny>>,
+    file_assoc_hook: Option<Py<PyAny>>,
+    url_proto_hook: Option<Py<PyAny>>,
     auto_apply: bool,
+    forward_activations: bool,
     args: Option<Vec<String>>,
 }
 
@@ -30,7 +33,10 @@ impl VelopackAppWrapper {
             uninstall_hook: None,
             firstrun_hook: None,
             restarted_hook: None,
+            file_assoc_hook: None,
+            url_proto_hook: None,
             auto_apply: true,
+            forward_activations: false,
             args: None,
         }
     }
@@ -83,14 +89,102 @@ impl VelopackAppWrapper {
         slf
     }
 
+    /// This hook is triggered when the operating system opens this app to handle a file whose extension was
+    /// registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
+    ///
+    /// On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
+    /// association helper bundle receives the open-file event and launches the app with it). By default the
+    /// callback runs during run(), on the calling thread, after the regular startup logic (on_first_run/on_restarted);
+    /// the app then continues starting normally. The launch is never lost to an update: when run() restarts the app
+    /// to apply a pending update the file(s) are forwarded to the new version, which invokes the callback once per
+    /// file.
+    ///
+    /// With forward_activations_to_running_instance(), a file opened while the app is already running is handed
+    /// to that instance instead (see there). On Windows the callback may bring the app's window to the foreground
+    /// (the forwarding process allows it); on macOS the association helper activates the running app.
+    ///
+    /// macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in a
+    /// protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders"
+    /// prompt, or fails with EPERM if the user denied it earlier; add the `NS*FolderUsageDescription` strings to
+    /// your Info.plist. Associations require macOS 10.13+. Not supported on Linux.
+    pub fn on_file_assoc(mut slf: PyRefMut<Self>, callback: Py<PyAny>) -> PyRefMut<Self> {
+        slf.file_assoc_hook = Some(callback);
+        slf
+    }
+
+    /// This hook is triggered when the operating system opens this app to handle a URL whose scheme was
+    /// registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
+    ///
+    /// On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
+    /// association helper bundle receives the open-URL event and launches the app with it). By default the
+    /// callback runs during run(), on the calling thread, after the regular startup logic (on_first_run/on_restarted);
+    /// the app then continues starting normally. The launch is never lost to an update: when run() restarts the app
+    /// to apply a pending update the URL is forwarded to the new version, which invokes the callback.
+    ///
+    /// With forward_activations_to_running_instance(), a URL opened while the app is already running is handed
+    /// to that instance instead (see there). On Windows the callback may bring the app's window to the foreground
+    /// (the forwarding process allows it); on macOS the association helper activates the running app.
+    ///
+    /// Associations require macOS 10.13+. Not supported on Linux.
+    pub fn on_url_proto(mut slf: PyRefMut<Self>, callback: Py<PyAny>) -> PyRefMut<Self> {
+        slf.url_proto_hook = Some(callback);
+        slf
+    }
+
+    /// Forwards file/URL association activations to an already running instance of this app instead of starting a
+    /// new one. OFF by default; must be set before run(), and only applies to an installed app with an
+    /// on_file_assoc / on_url_proto callback. The first instance serves activations; a later launch carrying one
+    /// hands it over and exits with code 0 in native code, inside run(), before any update is applied (like the
+    /// fast-exit hooks, `atexit` handlers do not run). If no instance answers within about 5 seconds, or it refuses,
+    /// the launch handles the activation itself as usual.
+    ///
+    /// In the receiving instance the callbacks run on a background thread (a Velopack IPC thread, holding the GIL;
+    /// invocations are serialized; possibly while the main thread is still inside run(), even before
+    /// on_first_run/on_restarted, or at any later time), so they must be thread-safe and marshal to the UI thread
+    /// themselves. Return promptly (post the work to the UI thread rather than blocking on it): the launching process
+    /// waits at most 5 seconds for the callback to return, after which it handles the activation itself as a second
+    /// instance. During interpreter shutdown the callback is skipped.
+    #[pyo3(signature = (enabled = true))]
+    pub fn forward_activations_to_running_instance(mut slf: PyRefMut<Self>, enabled: bool) -> PyRefMut<Self> {
+        slf.forward_activations = enabled;
+        slf
+    }
+
     /// Runs the Velopack startup logic
-    pub fn run(&mut self, _py: Python) -> PyResult<()> {
+    pub fn run(&mut self, py: Python) -> PyResult<()> {
         // Create the Rust VelopackApp with our stored configuration
-        let mut app = VelopackAppRust::build().set_auto_apply_on_startup(self.auto_apply);
+        let mut app = VelopackAppRust::build()
+            .set_auto_apply_on_startup(self.auto_apply)
+            .forward_activations_to_running_instance(self.forward_activations);
 
         // Set args if provided
         if let Some(ref args) = self.args {
             app = app.set_args(args.clone());
+        }
+
+        // Association hooks must be Send + Sync + 'static (with activation forwarding they are invoked later, from the
+        // Velopack IPC thread), so they get their own reference to the Python callable. `try_attach` acquires the
+        // GIL from any thread and yields None during interpreter shutdown, in which case the callback is skipped.
+        if let Some(ref hook) = self.file_assoc_hook {
+            let hook = hook.clone_ref(py);
+            app = app.on_file_assoc(move |path| {
+                Python::try_attach(|py| {
+                    if let Err(e) = hook.call1(py, (path,)) {
+                        eprintln!("Error calling file_assoc hook: {:?}", e);
+                    }
+                });
+            });
+        }
+
+        if let Some(ref hook) = self.url_proto_hook {
+            let hook = hook.clone_ref(py);
+            app = app.on_url_proto(move |url| {
+                Python::try_attach(|py| {
+                    if let Err(e) = hook.call1(py, (url,)) {
+                        eprintln!("Error calling url_proto hook: {:?}", e);
+                    }
+                });
+            });
         }
 
         // Set up hooks - we need to convert Python callbacks to Rust closures

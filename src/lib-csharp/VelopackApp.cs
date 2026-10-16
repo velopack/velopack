@@ -1,8 +1,10 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Velopack.Ipc;
 using Velopack.Locators;
 using Velopack.Logging;
 using Velopack.Util;
@@ -22,8 +24,16 @@ namespace Velopack
     /// </summary>
     public sealed class VelopackApp
     {
+        /// <summary> CLI flag the OS passes (via the registered association) when the app is opened to handle a file. </summary>
+        internal const string HookCliFileAssoc = "--veloapp-fileassoc";
+        /// <summary> CLI flag the OS passes (via the registered protocol) when the app is opened to handle a URL. </summary>
+        internal const string HookCliUrlProto = "--veloapp-urlproto";
+
         [DllImport("shell32.dll", SetLastError = true)]
         private static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
+
+        [DllImport("kernel32.dll", EntryPoint = "GetCommandLineW")]
+        private static extern IntPtr GetCommandLineW();
 
         private VelopackHook? _install;
         private VelopackHook? _update;
@@ -31,8 +41,11 @@ namespace Velopack
         private VelopackHook? _uninstall;
         private VelopackHook? _firstrun;
         private VelopackHook? _restarted;
+        private Action<string>? _fileAssoc;
+        private Action<string>? _urlProto;
         private string[]? _args;
         private bool _autoApply = true;
+        private bool _forwardActivations;
         private string? _customAumid;
         private IVelopackLocator? _customLocator;
         private IVelopackLogger? _customLogger;
@@ -97,6 +110,18 @@ namespace Velopack
         }
 
         /// <summary>
+        /// Forward association activations (<see cref="OnFileAssoc"/> / <see cref="OnUrlProto"/>) to an already running
+        /// instance of the installed app instead of handling them in a new instance. This is OFF by default and only has
+        /// an effect when one of those callbacks is registered and the app is installed. See <see cref="OnFileAssoc"/>
+        /// for the threading rules this implies.
+        /// </summary>
+        public VelopackApp ForwardActivationsToRunningInstance(bool enabled = true)
+        {
+            _forwardActivations = enabled;
+            return this;
+        }
+
+        /// <summary>
         /// This hook is triggered when the application is started for the first time after installation.
         /// </summary>
         public VelopackApp OnFirstRun(VelopackHook hook)
@@ -111,6 +136,78 @@ namespace Velopack
         public VelopackApp OnRestarted(VelopackHook hook)
         {
             _restarted += hook;
+            return this;
+        }
+
+        /// <summary>
+        /// This callback is invoked when the operating system opens the application to handle a file whose extension
+        /// was registered with the <c>--fileAssociations</c> packaging option. The argument is the full path of the file.
+        /// <para>
+        /// On Windows the registered association, and on macOS (10.13+) the association helper bundle Velopack packages
+        /// next to the app, launch the application with <c>--veloapp-fileassoc "{path}"</c> (several
+        /// <c>[flag, value]</c> pairs when several files are opened at once). <see cref="Run"/> recovers the path(s) and
+        /// invokes this callback once per file at the end of startup (after the first-run and restarted hooks); normal
+        /// startup then continues. The callback runs on the thread calling <see cref="Run"/>. The launch is never lost
+        /// to an update: when <see cref="Run"/> restarts the application to apply a pending update, the pairs are
+        /// forwarded to the new version.
+        /// </para>
+        /// <para>
+        /// With <see cref="ForwardActivationsToRunningInstance"/>, a launch while an instance of the app is already
+        /// running is handed to that instance instead, and the launching process exits with code 0 from inside
+        /// <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then invoked
+        /// <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the main
+        /// thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
+        /// afterwards. It must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the
+        /// UI thread rather than blocking on it): the launching process waits at most ~5 seconds for the callback to
+        /// return before it handles the activation itself in a second instance. On Windows the launching process lets
+        /// the running instance take the foreground, so the callback may bring its window to the foreground; on macOS
+        /// the association helper activates the running app. Plain launches are never forwarded, and if no instance
+        /// answers within ~5 seconds the launching process handles the activation itself as above.
+        /// </para>
+        /// <para>
+        /// On macOS the file is opened by the helper, so the application only receives a path string: its first access
+        /// to a file in a protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and
+        /// Folders" consent prompt, or fails if the user denied it earlier. Add the <c>NS*FolderUsageDescription</c>
+        /// strings to the Info.plist.
+        /// </para>
+        /// <para>Not supported on Linux; the callback is never invoked there.</para>
+        /// </summary>
+        public VelopackApp OnFileAssoc(Action<string> callback)
+        {
+            _fileAssoc += callback;
+            return this;
+        }
+
+        /// <summary>
+        /// This callback is invoked when the operating system opens the application to handle a URL whose scheme was
+        /// registered with the <c>--urlProtocols</c> packaging option. The argument is the complete URL.
+        /// <para>
+        /// On Windows the registered protocol, and on macOS (10.13+) the association helper bundle Velopack packages
+        /// next to the app, launch the application with <c>--veloapp-urlproto "{url}"</c>. <see cref="Run"/> recovers
+        /// the URL verbatim (on Windows from the raw command line, so URLs containing quotes or other shell-significant
+        /// characters survive) and invokes this callback at the end of startup (after the first-run and restarted
+        /// hooks); normal startup then continues. The callback runs on the thread calling <see cref="Run"/>. The launch
+        /// is never lost to an update: when <see cref="Run"/> restarts the application to apply a pending update, the
+        /// URL is forwarded to the new version.
+        /// </para>
+        /// <para>
+        /// With <see cref="ForwardActivationsToRunningInstance"/>, a launch while an instance of the app is already
+        /// running is handed to that instance instead, and the launching process exits with code 0 from inside
+        /// <see cref="Run"/> (before any update is auto-applied). In the running instance this callback is then invoked
+        /// <b>on a background thread</b> (a Velopack IPC thread; invocations are serialized), possibly while the main
+        /// thread is still inside <see cref="Run"/>, including before the first-run/restarted hooks, or any time
+        /// afterwards. It must be thread-safe and marshal to the UI thread itself. Return promptly (post the work to the
+        /// UI thread rather than blocking on it): the launching process waits at most ~5 seconds for the callback to
+        /// return before it handles the activation itself in a second instance. On Windows the launching process lets
+        /// the running instance take the foreground, so the callback may bring its window to the foreground; on macOS
+        /// the association helper activates the running app. Plain launches are never forwarded, and if no instance
+        /// answers within ~5 seconds the launching process handles the activation itself as above.
+        /// </para>
+        /// <para>Not supported on Linux; the callback is never invoked there.</para>
+        /// </summary>
+        public VelopackApp OnUrlProto(Action<string> callback)
+        {
+            _urlProto += callback;
             return this;
         }
 
@@ -223,14 +320,66 @@ namespace Velopack
                 }
             }
 
-            // some initial setup/state
-            var myVersion = locator.CurrentlyInstalledVersion;
-            if (myVersion == null) {
-                return;
-            }
-
             var firstrun = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_FIRSTRUN"));
             var restarted = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_RESTART"));
+
+            // an association launch ("--veloapp-urlproto {url}") is not a fast exit hook. The values are recovered
+            // up-front so they can be forwarded intact if we restart to apply an update, and the callbacks run at the end.
+            // On Windows a launch by the OS shell (not a restart) carries exactly one value, recovered from the raw command
+            // line, also when SetArgs was used (apps commonly pass their own argv through). Only Update.exe (restart) and
+            // non-Windows argv are exact and may carry several [flag, value] pairs.
+            var rawCommandLine = restarted ? null : GetRawCommandLine();
+            var associations = ParseAssociationArgs(args, rawCommandLine, log);
+            if (associations.Count > 0 && associations.All(a => GetAssociationCallback(a.Flag) == null)) {
+                // without a callback the arguments are left (and forwarded) untouched for the application to handle.
+                log.Info($"No callback registered for {args[0]}, leaving the arguments to the application.");
+                associations.Clear();
+            } else if (associations.Count > 0) {
+                // the values (paths or URLs, which may carry tokens) are kept out of the persistent log
+                log.Info("Found association launch: " + String.Join(", ", associations.Select(a => $"{a.Flag} ({a.Value.Length} chars)")));
+            }
+
+            var myVersion = locator.CurrentlyInstalledVersion;
+
+            // activation forwarding: the first instance becomes the IPC server; a later association launch forwards its
+            // values to it and exits (before any auto-apply). A plain launch just continues as another instance.
+            ActivationServer? server = null;
+            if (_forwardActivations && myVersion != null && (_fileAssoc != null || _urlProto != null)
+                && locator is VelopackLocator vl && !string.IsNullOrEmpty(vl.AppId) && !string.IsNullOrEmpty(vl.RootAppDir)) {
+                // only items this build has a callback for are forwarded: the running instance (the same build) would
+                // refuse the whole message over one unhandled item, and they are ignored locally anyway
+                var forwardable = associations.Where(a => GetAssociationCallback(a.Flag) != null).ToList();
+                if (ActivationForwarding.Elect(vl, forwardable, log, out server) == Election.Forwarded) {
+                    log.Info($"Forwarded {forwardable.Count} association(s) to the running instance, exiting.");
+                    locator.Process.Exit(0);
+                    return;
+                }
+            }
+
+            if (myVersion != null) {
+                if (!RunInstalledStartup(locator, myVersion, args, associations, firstrun, restarted, server)) {
+                    return;
+                }
+            }
+
+            foreach (var association in associations) {
+                InvokeAssociationCallback(log, association.Flag, association.Value);
+            }
+        }
+
+        /// <summary>
+        /// The part of startup which only applies when the app is installed. Returns false if the process is exiting
+        /// (restarting to apply an update), true if startup should continue.
+        /// </summary>
+        private bool RunInstalledStartup(IVelopackLocator locator, SemanticVersion myVersion, string[] args,
+            List<IpcItem> associations, bool firstrun, bool restarted, ActivationServer? server)
+        {
+            var log = locator.Log;
+
+            if (VelopackRuntimeInfo.IsOSX) {
+                RegisterAssociationHelpers(locator, myVersion);
+            }
+
             var localPackages = locator.GetLocalPackages();
             var latestLocal = locator.GetLatestLocalFullPackage();
 
@@ -243,11 +392,44 @@ namespace Velopack
                 log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
-                    UpdateExe.Apply(locator, latestLocal, false, locator.Process.GetCurrentProcessId(), true, args);
-                    locator.Process.Exit(0);
+
+                    // Hand the associations on as repeated [flag, value] pairs (leading the arguments) so the recovered
+                    // values survive the restart intact; without any, the arguments are forwarded as they are.
+                    var restartArgs = new List<string>();
+                    foreach (var association in associations) {
+                        restartArgs.Add(association.Flag);
+                        restartArgs.Add(association.Value);
+                    }
+
+                    if (associations.Count == 0) {
+                        restartArgs.AddRange(args);
+                    }
+
+                    var applying = false;
+                    try {
+                        UpdateExe.Apply(locator, latestLocal, false, locator.Process.GetCurrentProcessId(), true, restartArgs.ToArray());
+                        applying = true;
+                    } catch (Exception ex) {
+                        // startup continues in this process, which still delivers whatever the OS asked us to open
+                        log.Error(ex, "Error applying pending updates on startup.");
+                    }
+
+                    if (applying) {
+                        // exiting releases the activation forwarding lock, so the restarted process can take it
+                        locator.Process.Exit(0);
+                        return false;
+                    }
                 } else {
-                    log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
+                    log.Info(
+                        "Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
+            }
+
+            // the process is now committed to staying alive: serve forwarded activations from here on, BEFORE the
+            // cleanup and the first-run/restarted hooks (arbitrary user code, eg. a welcome window), since the lock has
+            // been held since the election and association launches would otherwise stall for the whole connect window
+            if (server != null) {
+                ActivationForwarding.Start(server, this, log);
             }
 
             // clean up old versions of the app
@@ -283,6 +465,234 @@ namespace Velopack
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. (restarted)");
                 }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// LaunchServices only learns of the nested association helper bundle(s) (their URL schemes / document types)
+        /// through an explicit registration, which a portable zip install otherwise never gets. Once per version and
+        /// install location (a marker in the packages dir), <c>UpdateMac register-helpers</c> is started without waiting
+        /// for it. Failures are warnings.
+        /// </summary>
+        private static void RegisterAssociationHelpers(IVelopackLocator locator, SemanticVersion version)
+        {
+            try {
+                if (locator.RootAppDir is not { } root || locator.PackagesDir is not { } packages || locator.UpdateExePath is not { } updateMac) {
+                    return;
+                }
+
+                var helpers = Path.Combine(root, "Contents", "Helpers");
+                if (!Directory.Exists(helpers)
+                    || !Directory.GetDirectories(helpers, "*.app").Any(app => File.Exists(Path.Combine(app, "Contents", "MacOS", "AssocHelper")))) {
+                    return;
+                }
+
+                var marker = Path.Combine(packages, ".velopack-helpers-registered");
+                var expected = $"{version}\n{root}";
+                if (File.Exists(marker) && File.ReadAllText(marker) == expected) {
+                    return;
+                }
+
+                locator.Log.Info("Registering the association helper(s) with LaunchServices.");
+                locator.Process.StartProcess(updateMac, new[] { "register-helpers" }, root, false);
+                Directory.CreateDirectory(packages);
+                File.WriteAllText(marker, expected);
+            } catch (Exception ex) {
+                locator.Log.Warn($"Could not register the association helper(s) with LaunchServices: {ex.Message}");
+            }
+        }
+
+        internal Action<string>? GetAssociationCallback(string flag) => flag == HookCliFileAssoc ? _fileAssoc : _urlProto;
+
+        internal void InvokeAssociationCallback(IVelopackLogger log, string flag, string value)
+        {
+            var callback = GetAssociationCallback(flag);
+            if (callback == null) {
+                return;
+            }
+
+            try {
+                callback(value);
+            } catch (Exception ex) {
+                log.Error(ex, $"Error occurred executing user defined Velopack hook. ({flag})");
+            }
+        }
+
+        /// <summary>
+        /// Returns the canonical (lowercase) association flag constant <paramref name="arg"/> matches, or null. Flags are
+        /// matched case-insensitively, like the other <c>--veloapp-*</c> hooks.
+        /// </summary>
+        internal static string? CanonicalAssociationFlag(string arg)
+        {
+            if (String.Equals(arg, HookCliFileAssoc, StringComparison.OrdinalIgnoreCase)) {
+                return HookCliFileAssoc;
+            }
+
+            if (String.Equals(arg, HookCliUrlProto, StringComparison.OrdinalIgnoreCase)) {
+                return HookCliUrlProto;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the association activations carried by <paramref name="args"/>, or an empty list when args[0] is not an
+        /// association flag. When <paramref name="rawCommandLine"/> is provided (a Windows launch which is not a Velopack
+        /// restart) the OS shell passed exactly one value: it is recovered from the raw command line when the flag is found
+        /// there, see <see cref="RecoverValueFromRawCommandLine"/>, otherwise (synthetic <see cref="SetArgs"/>) at most
+        /// one <c>[flag, value]</c> pair is read from <paramref name="args"/>. Without a raw command line (a Velopack
+        /// restart, or not Windows) argv is exact and read as repeated pairs, see <see cref="AssociationPairsFromArgs"/>.
+        /// </summary>
+        /// <param name="args">The application arguments (without the executable path).</param>
+        /// <param name="rawCommandLine">The unparsed process command line, or null to read the pairs from <paramref name="args"/>.</param>
+        /// <param name="log">Receives a warning for a flag without a value.</param>
+        internal static List<IpcItem> ParseAssociationArgs(string[] args, string? rawCommandLine, IVelopackLogger? log = null)
+        {
+            var flag = args.Length > 0 ? CanonicalAssociationFlag(args[0]) : null;
+            if (flag == null) {
+                return new List<IpcItem>();
+            }
+
+            if (rawCommandLine != null) {
+                var value = RecoverValueFromRawCommandLine(flag, rawCommandLine);
+                if (value != null) {
+                    if (value.Length == 0) {
+                        log?.Warn($"{flag} was passed without a value, ignoring.");
+                        return new List<IpcItem>();
+                    }
+
+                    return new List<IpcItem> { new IpcItem(flag, value) };
+                }
+
+                // the flag is not on the real command line (SetArgs): the OS never passes more than one pair
+                var single = AssociationPairsFromArgs(args, log);
+                if (single.Count > 1) {
+                    single.RemoveRange(1, single.Count - 1);
+                }
+
+                return single;
+            }
+
+            return AssociationPairsFromArgs(args, log);
+        }
+
+        /// <summary>
+        /// Reads the leading <c>[flag, value]</c> pairs of <paramref name="args"/>, the form in which a Velopack restart
+        /// forwards association activations. Parsing stops at the first element which is not an association flag; a flag
+        /// with nothing, or an empty string, after it is dropped with a warning.
+        /// </summary>
+        internal static List<IpcItem> AssociationPairsFromArgs(string[] args, IVelopackLogger? log = null)
+        {
+            var pairs = new List<IpcItem>();
+            for (var i = 0; i < args.Length; i += 2) {
+                var flag = CanonicalAssociationFlag(args[i]);
+                if (flag == null) {
+                    break;
+                }
+
+                if (i + 1 < args.Length && args[i + 1].Length > 0) {
+                    pairs.Add(new IpcItem(flag, args[i + 1]));
+                } else {
+                    log?.Warn($"{flag} was passed without a value, ignoring.");
+                }
+            }
+
+            return pairs;
+        }
+
+        /// <summary>
+        /// Recovers the value passed after <paramref name="flag"/> in the raw command line: everything after the flag token,
+        /// trimmed and with one pair of enclosing double quotes removed. This yields the exact text the shell substituted
+        /// for <c>%1</c>, even for URLs containing quotes which argv parsing would mangle. Returns null when the flag is
+        /// not present as a token, and an empty string when nothing follows it.
+        /// </summary>
+        internal static string? RecoverValueFromRawCommandLine(string flag, string rawCommandLine)
+        {
+            var arguments = SkipProgramPath(rawCommandLine);
+            var idx = IndexOfToken(arguments, flag);
+            if (idx < 0) {
+                return null;
+            }
+
+            var rest = arguments.Substring(idx + flag.Length).Trim();
+            if (rest.Length >= 2 && rest[0] == '"' && rest[rest.Length - 1] == '"') {
+                rest = rest.Substring(1, rest.Length - 2);
+            }
+
+            return rest;
+        }
+
+        /// <summary>
+        /// Returns the raw command line without its first token (the program path), which is never the flag: a quoted
+        /// path runs to the closing quote, otherwise to the first whitespace.
+        /// </summary>
+        private static string SkipProgramPath(string rawCommandLine)
+        {
+            var text = rawCommandLine.TrimStart();
+            int argsStart;
+            if (text.Length > 0 && text[0] == '"') {
+                var closingQuote = text.IndexOf('"', 1);
+                argsStart = closingQuote >= 0 ? closingQuote + 1 : text.Length;
+            } else {
+                argsStart = 0;
+                while (argsStart < text.Length && !Char.IsWhiteSpace(text[argsStart])) {
+                    argsStart++;
+                }
+            }
+
+            return text.Substring(argsStart);
+        }
+
+        /// <summary>
+        /// Finds <paramref name="token"/> in <paramref name="text"/> as a whole whitespace-delimited word (case-insensitive).
+        /// </summary>
+        private static int IndexOfToken(string text, string token)
+        {
+            var start = 0;
+            while (start < text.Length) {
+                var idx = text.IndexOf(token, start, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0) {
+                    return -1;
+                }
+
+                var end = idx + token.Length;
+                var boundaryBefore = idx == 0 || Char.IsWhiteSpace(text[idx - 1]);
+                var boundaryAfter = end == text.Length || Char.IsWhiteSpace(text[end]);
+                if (boundaryBefore && boundaryAfter) {
+                    return idx;
+                }
+
+                start = end;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Returns the unparsed command line of the current process on Windows (where the runtime re-parses argv and
+        /// loses quoting information), or null elsewhere / on failure.
+        /// </summary>
+        private static string? GetRawCommandLine()
+        {
+            if (!VelopackRuntimeInfo.IsWindows) {
+                return null;
+            }
+
+            try {
+                var ptr = GetCommandLineW();
+                if (ptr != IntPtr.Zero) {
+                    return Marshal.PtrToStringUni(ptr);
+                }
+            } catch {
+                // fall through to the runtime's copy
+            }
+
+            try {
+                return Environment.CommandLine;
+            } catch {
+                return null;
             }
         }
     }

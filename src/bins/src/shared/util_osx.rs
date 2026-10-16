@@ -55,15 +55,17 @@ pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>,
 #[ignore]
 fn test_start_and_stop_package() {
     let mani = velopack::bundle::Manifest::default();
-    let mut paths = velopack::locator::VelopackLocatorConfig::default();
-    paths.RootAppDir = std::path::PathBuf::from("/Applications/Calcbot.app");
+    let paths = velopack::locator::VelopackLocatorConfig {
+        RootAppDir: std::path::PathBuf::from("/Applications/Calcbot.app"),
+        ..Default::default()
+    };
     let locator = VelopackLocator::new_with_manifest(paths, mani);
 
     let _ = force_stop_package(locator.get_root_dir());
 
     fn is_running() -> bool {
         let output = Process::new("pgrep").arg("-f").arg("Calcbot.app").output().unwrap();
-        output.stdout.len() > 0
+        !output.stdout.is_empty()
     }
 
     std::thread::sleep(Duration::from_secs(1));

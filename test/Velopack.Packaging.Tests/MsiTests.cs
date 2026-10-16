@@ -145,7 +145,8 @@ public class MsiTests
     }
 
     private static async Task PackTestAppWithMsi(string id, string version, string testString,
-        string releaseDir, ILogger logger, InstallLocation instLocation, string packTitle = null)
+        string releaseDir, ILogger logger, InstallLocation instLocation, string packTitle = null,
+        string fileAssociations = null, string urlProtocols = null)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
@@ -163,6 +164,8 @@ public class MsiTests
                 PackDirectory = publishDir,
                 BuildMsi = true,
                 InstLocation = instLocation,
+                FileAssociations = fileAssociations,
+                UrlProtocols = urlProtocols,
             };
 
             var runner = WindowsTestHelper.GetPackRunner(logger);
@@ -175,6 +178,70 @@ public class MsiTests
         using var key = root.OpenSubKey($@"Software\Microsoft\Windows\CurrentVersion\Uninstall\MSI:{appId}");
         if (key == null) return (false, null);
         return (true, key.GetValue("DisplayVersion") as string);
+    }
+
+    // mirrors make_progid in src/bins/src/windows/associations.rs for ids/extensions which need no sanitizing
+    private static string ProgId(string id, string ext) => $"{id}.{ext.TrimStart('.')}";
+
+    /// <summary>
+    /// Asserts a protocol key and a file association (ProgId + .ext default) registered by this install exist under
+    /// <paramref name="classes"/>, carrying the install dir as ownership marker and the main exe as command target.
+    /// </summary>
+    private static void AssertAssociationsRegistered(RegistryKey classes, string id, string installDir, string appPath,
+        string[] exts, string[] schemes)
+    {
+        var expectedRoot = Path.GetFullPath(installDir).TrimEnd('\\');
+        foreach (var scheme in schemes) {
+            using var key = classes.OpenSubKey(scheme);
+            Assert.True(key != null, $"protocol key '{scheme}' is missing in {classes.Name}");
+            Assert.Equal("", key.GetValue("URL Protocol"));
+            // the marker must be exactly what Update.exe writes: no trailing separator from MSI's [INSTALLFOLDER]
+            Assert.Equal(expectedRoot, key.GetValue("VelopackRootDir") as string, StringComparer.OrdinalIgnoreCase);
+            using var command = key.OpenSubKey(@"shell\open\command");
+            Assert.True(command != null, $"'{scheme}\\shell\\open\\command' is missing");
+            Assert.StartsWith($"\"{appPath}\" ", command.GetValue("") as string, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var ext in exts) {
+            var progId = ProgId(id, ext);
+            using var progIdKey = classes.OpenSubKey(progId);
+            Assert.True(progIdKey != null, $"ProgId key '{progId}' is missing in {classes.Name}");
+            Assert.Equal(expectedRoot, progIdKey.GetValue("VelopackRootDir") as string, StringComparer.OrdinalIgnoreCase);
+            using var command = progIdKey.OpenSubKey(@"shell\open\command");
+            Assert.True(command != null, $"'{progId}\\shell\\open\\command' is missing");
+            Assert.StartsWith($"\"{appPath}\" ", command.GetValue("") as string, StringComparison.OrdinalIgnoreCase);
+            using var extKey = classes.OpenSubKey(ext);
+            Assert.True(extKey != null, $"extension key '{ext}' is missing in {classes.Name}");
+            // nobody else handles our random extension, so we must have become the default
+            Assert.Equal(progId, extKey.GetValue(""));
+        }
+    }
+
+    private static void AssertAssociationsRemoved(RegistryKey classes, string id, string[] exts, string[] schemes)
+    {
+        foreach (var scheme in schemes) {
+            using var key = classes.OpenSubKey(scheme);
+            Assert.True(key == null, $"protocol key '{scheme}' should have been removed from {classes.Name}");
+        }
+
+        foreach (var ext in exts) {
+            using var progIdKey = classes.OpenSubKey(ProgId(id, ext));
+            Assert.True(progIdKey == null, $"ProgId key '{ProgId(id, ext)}' should have been removed from {classes.Name}");
+            // nothing else referenced the extension, so the whole key goes too
+            using var extKey = classes.OpenSubKey(ext);
+            Assert.True(extKey == null, $"extension key '{ext}' should have been removed from {classes.Name}");
+        }
+    }
+
+    private static void DeleteAssociationKeys(RegistryKey classes, string id, ILogger logger, string[] exts, string[] schemes)
+    {
+        foreach (var name in exts.Select(e => ProgId(id, e)).Concat(exts).Concat(schemes)) {
+            try {
+                classes.DeleteSubKeyTree(name, throwOnMissingSubKey: false);
+            } catch (Exception ex) {
+                logger.Warn($"TEST: failed to clean up {classes.Name}\\{name}: {ex.Message}");
+            }
+        }
     }
 
     [Fact]
@@ -568,6 +635,281 @@ public class MsiTests
         // INSTALLFOLDER handed to the elevated cleanup must come from the registered install state
         var overrideCondition = db.ExecuteScalar("SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = 'SetINSTALLFOLDER'") as string;
         Assert.Equal("VELOPACK_INSTALLDIR AND NOT Installed", overrideCondition);
+    }
+
+    [Fact]
+    public async Task TestPackGeneratesMsiWithAssociationActions()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(Path.ChangeExtension(exe, ".pdb"), tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = "1.2.3",
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            BuildMsi = true,
+            FileAssociations = ".vpkmsi",
+            UrlProtocols = "vpkmsi",
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        using (Database db = new Database(msiPath)) {
+            const int msidbCustomActionTypeContinue = 64; // Return="ignore"
+            const int msidbCustomActionTypeRollback = 256;
+            const int msidbCustomActionTypeInScript = 1024; // deferred and rollback
+            const int msidbCustomActionTypeNoImpersonate = 2048;
+            const int msidbCustomActionTypeProperty = 51; // type-51 "set property" (Set*Data)
+            int Seq(string action) =>
+                Convert.ToInt32(db.ExecuteScalar($"SELECT `Sequence` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'"));
+            string Condition(string action) =>
+                db.ExecuteScalar($"SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'") as string;
+            int Type(string action) => Convert.ToInt32(db.ExecuteScalar($"SELECT `Type` FROM `CustomAction` WHERE `Action` = '{action}'"));
+
+            // one action per (operation, scope): the per-machine variants run non-impersonated (SYSTEM can write
+            // HKLM), the per-user variants impersonated (HKCU must be the installing user's), same DLL entry.
+            // Rollback undoes a sync with the removal entry point when the install fails after it.
+            var ops = new[] {
+                ("Sync", "SyncAssociationsDeferred"), ("Remove", "RemoveAssociationsDeferred"), ("Rollback", "RemoveAssociationsDeferred")
+            };
+            foreach (var (op, entry) in ops) {
+                foreach (var scope in new[] { "Machine", "User" }) {
+                    var action = $"{op}Associations{scope}";
+                    var type = Type(action);
+                    Assert.Equal(scope == "Machine", (type & msidbCustomActionTypeNoImpersonate) != 0);
+                    Assert.True((type & msidbCustomActionTypeInScript) != 0, $"{action} must be in-script (deferred/rollback)");
+                    Assert.Equal(op == "Rollback", (type & msidbCustomActionTypeRollback) != 0);
+                    Assert.True((type & msidbCustomActionTypeContinue) != 0, $"{action} must never fail the install");
+                    Assert.Equal(entry, db.ExecuteScalar($"SELECT `Target` FROM `CustomAction` WHERE `Action` = '{action}'") as string);
+                    // the in-script action learns the install dir and scope from its CustomActionData
+                    Assert.Equal(msidbCustomActionTypeProperty, Type($"Set{action}Data") & 0x3F);
+                    Assert.Equal(action, db.ExecuteScalar($"SELECT `Source` FROM `CustomAction` WHERE `Action` = 'Set{action}Data'") as string);
+                    var data = db.ExecuteScalar($"SELECT `Target` FROM `CustomAction` WHERE `Action` = 'Set{action}Data'") as string;
+                    Assert.Equal("[INSTALLFOLDER]\"[ALLUSERS]", data);
+                    Assert.Equal(Condition(action), Condition($"Set{action}Data"));
+                    Assert.True(Seq($"Set{action}Data") < Seq(action), $"Set{action}Data must run before {action}");
+                }
+            }
+
+            Assert.Equal("NOT REMOVE AND ALLUSERS=1", Condition("SyncAssociationsMachine"));
+            Assert.Equal("NOT REMOVE AND NOT ALLUSERS=1", Condition("SyncAssociationsUser"));
+            Assert.Equal(Condition("SyncAssociationsMachine"), Condition("RollbackAssociationsMachine"));
+            Assert.Equal(Condition("SyncAssociationsUser"), Condition("RollbackAssociationsUser"));
+            // removal has no UPGRADINGPRODUCTCODE guard: during a major upgrade the old product removes its set
+            // (before the new product's InstallFiles, as RemoveExistingProducts is afterInstallValidate) and the
+            // new product then registers its own, which is how dropped associations get cleaned
+            Assert.Equal("(REMOVE=\"ALL\") AND ALLUSERS=1", Condition("RemoveAssociationsMachine"));
+            Assert.Equal("(REMOVE=\"ALL\") AND NOT ALLUSERS=1", Condition("RemoveAssociationsUser"));
+
+            foreach (var scope in new[] { "Machine", "User" }) {
+                // sync once the payload and the channel patch are in place; remove while sq.version still exists
+                Assert.True(Seq("InstallFiles") < Seq($"SyncAssociations{scope}"), "sync must run after InstallFiles");
+                Assert.True(Seq("PatchChannelDeferred") < Seq($"SyncAssociations{scope}"), "sync must run after PatchChannelDeferred");
+                Assert.True(Seq($"RemoveAssociations{scope}") < Seq("RemoveFiles"), "remove must run before RemoveFiles");
+                // the rollback script runs in reverse order: scheduled between InstallFiles and the sync, the rollback
+                // removes the registrations before InstallFiles is rolled back, while current\sq.version is still there
+                Assert.True(Seq("InstallFiles") < Seq($"RollbackAssociations{scope}"), "rollback must be scheduled after InstallFiles");
+                Assert.True(Seq($"RollbackAssociations{scope}") < Seq($"SyncAssociations{scope}"), "rollback must be scheduled before the sync");
+            }
+            Assert.True(Seq("RemoveExistingProducts") < Seq("InstallInitialize"), "old product must be removed before the new install");
+        }
+
+        // a package without associations gets none of these actions
+        using var _3 = TempUtil.GetTempDirectory(out var tmpReleaseDir2);
+        options.ReleaseDir = new DirectoryInfo(tmpReleaseDir2);
+        options.FileAssociations = null;
+        options.UrlProtocols = null;
+        await WindowsTestHelper.GetPackRunner(logger).Run(options);
+        msiPath = Path.Combine(tmpReleaseDir2, $"{id}-win.msi");
+        using (Database db = new Database(msiPath)) {
+            Assert.Empty(db.ExecuteStringQuery("SELECT `Action` FROM `CustomAction` WHERE `Action` = 'SyncAssociationsUser'"));
+            Assert.Empty(db.ExecuteStringQuery("SELECT `Action` FROM `CustomAction` WHERE `Action` = 'RollbackAssociationsUser'"));
+            Assert.Empty(db.ExecuteStringQuery("SELECT `Action` FROM `InstallExecuteSequence` WHERE `Action` = 'RemoveAssociationsMachine'"));
+        }
+    }
+
+    [Fact]
+    public async Task TestMsiPerUserInstallSyncsAssociations()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+
+        string id = "MsiAssocTest";
+        var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), id);
+        var msiPath = Path.Combine(releaseDir, $"{id}-win.msi");
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+
+        // unique names per run, so a leftover registration from an aborted run can never satisfy an assertion
+        var suffix = WindowsTestHelper.RandomString(8).ToLowerInvariant();
+        var extKeep = $".vpkmsi{suffix}a";
+        var extDrop = $".vpkmsi{suffix}b";
+        var extNew = $".vpkmsi{suffix}c";
+        var schemeKeep = $"vpkmsi{suffix}a";
+        var schemeDrop = $"vpkmsi{suffix}b";
+        var schemeNew = $"vpkmsi{suffix}c";
+        var unrelatedKey = $"VelopackTestUnrelated.{suffix}";
+        string[] allExts = [extKeep, extDrop, extNew];
+        string[] allSchemes = [schemeKeep, schemeDrop, schemeNew];
+
+        using var classes = Registry.CurrentUser.CreateSubKey(@"Software\Classes", true);
+        try {
+            using (var unrelated = classes.CreateSubKey(unrelatedKey)) {
+                unrelated.SetValue("", "keep me");
+            }
+
+            // install v1 per-user: the impersonated custom action registers in the installing user's HKCU
+            await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.PerUser,
+                fileAssociations: $"{extKeep},{extDrop}", urlProtocols: $"{schemeKeep},{schemeDrop}");
+            logger.Info("TEST: Installing v1 MSI per-user...");
+            RunMsiExec($"/i \"{msiPath}\" /qn", logger);
+            Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
+            AssertAssociationsRegistered(classes, id, installDir, appPath, [extKeep, extDrop], [schemeKeep, schemeDrop]);
+            using (var hklmScheme = Registry.LocalMachine.OpenSubKey($@"Software\Classes\{schemeKeep}")) {
+                Assert.True(hklmScheme == null, "a per-user install must not register in HKLM");
+            }
+            logger.Info("TEST: v1 registrations verified");
+
+            // in-app update to v2 with a changed set: Update.exe must detect the per-user MSI scope (ARP entry in
+            // HKCU) and sync there, removing what v2 dropped
+            await PackTestAppWithMsi(id, "2.0.0", "version 2 test", releaseDir, logger, InstallLocation.PerUser,
+                fileAssociations: $"{extKeep},{extNew}", urlProtocols: schemeKeep);
+            WindowsTestHelper.RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
+            WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
+            TestHelper.WaitUntil(() => {
+                var version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "2.0.0", version);
+            }, pollDelayMs: 1000);
+            // the associations are synced in the background after the directory swap, so poll for the end state
+            TestHelper.WaitUntil(() => {
+                AssertAssociationsRegistered(classes, id, installDir, appPath, [extKeep, extNew], [schemeKeep]);
+                AssertAssociationsRemoved(classes, id, [extDrop], [schemeDrop]);
+            }, pollDelayMs: 1000);
+            logger.Info("TEST: v2 (in-app update) registrations verified");
+
+            // major upgrade via the v3 MSI with yet another set: the old product's removal action drops the
+            // currently registered (v2) set, then the new product registers v3's
+            await PackTestAppWithMsi(id, "3.0.0", "version 3 test", releaseDir, logger, InstallLocation.PerUser,
+                fileAssociations: extKeep, urlProtocols: $"{schemeKeep},{schemeNew}");
+            WaitUntilInstallDirUnlocked(installDir);
+            logger.Info("TEST: Upgrading via v3 MSI...");
+            RunMsiExec($"/i \"{msiPath}\" /qn", logger);
+            var chk3version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
+            AssertAssociationsRegistered(classes, id, installDir, appPath, [extKeep], [schemeKeep, schemeNew]);
+            AssertAssociationsRemoved(classes, id, [extDrop, extNew], [schemeDrop]);
+            logger.Info("TEST: v3 (MSI upgrade) registrations verified");
+
+            // uninstall removes everything this install owns and nothing else
+            WaitUntilInstallDirUnlocked(installDir);
+            logger.Info("TEST: Uninstalling v3 MSI...");
+            RunMsiExec($"/x \"{msiPath}\" /qn", logger);
+            Assert.False(Directory.Exists(installDir), $"Install directory should have been removed: {installDir}");
+            AssertAssociationsRemoved(classes, id, allExts, allSchemes);
+            using (var unrelated = classes.OpenSubKey(unrelatedKey)) {
+                Assert.NotNull(unrelated);
+                Assert.Equal("keep me", unrelated.GetValue(""));
+            }
+            logger.Info("TEST: uninstall verified");
+        } finally {
+            try {
+                if (File.Exists(msiPath)) {
+                    RunMsiExec($"/x \"{msiPath}\" /qn", logger, exitCode: null);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            try {
+                if (Directory.Exists(installDir)) {
+                    IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(installDir), 10, 1000);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            DeleteAssociationKeys(classes, id, logger, allExts, allSchemes.Append(unrelatedKey).ToArray());
+        }
+    }
+
+    // Requires elevation and UAC approval. Explicit tests are skipped unless asked for; to run from CLI:
+    //  dotnet test --project test/Velopack.Packaging.Tests -- --filter-method "*TestMsiPerMachineInstallRegistersAssociationsInHklm*" --explicit only
+    [Fact(Explicit = true)]
+    public async Task TestMsiPerMachineInstallRegistersAssociationsInHklm()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+
+        string id = "MsiPerMachineAssocTest";
+        var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), id);
+        var fallbackDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), id);
+        var msiPath = Path.Combine(releaseDir, $"{id}-win.msi");
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+
+        var suffix = WindowsTestHelper.RandomString(8).ToLowerInvariant();
+        string[] exts = [$".vpkmsim{suffix}"];
+        string[] schemes = [$"vpkmsim{suffix}"];
+
+        using var machineClasses = Registry.LocalMachine.OpenSubKey(@"Software\Classes", true);
+        using var userClasses = Registry.CurrentUser.CreateSubKey(@"Software\Classes", true);
+        try {
+            await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.Either,
+                fileAssociations: string.Join(",", exts), urlProtocols: string.Join(",", schemes));
+
+            // per-machine (ALLUSERS=1): the non-impersonated custom action registers in HKLM, not in HKCU
+            logger.Info("TEST: Installing MSI per-machine...");
+            RunMsiExec($"/i \"{msiPath}\" /qn ALLUSERS=1", logger);
+            Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
+            AssertAssociationsRegistered(machineClasses, id, installDir, appPath, exts, schemes);
+            AssertAssociationsRemoved(userClasses, id, exts, schemes);
+            logger.Info("TEST: HKLM registrations verified");
+
+            WaitUntilInstallDirUnlocked(installDir);
+            logger.Info("TEST: Uninstalling MSI...");
+            RunMsiExec($"/x \"{msiPath}\" /qn", logger);
+            Assert.False(Directory.Exists(installDir), $"Install directory should have been removed: {installDir}");
+            AssertAssociationsRemoved(machineClasses, id, exts, schemes);
+            logger.Info("TEST: uninstall verified");
+        } finally {
+            try {
+                if (File.Exists(msiPath)) {
+                    RunMsiExec($"/x \"{msiPath}\" /qn", logger, exitCode: null);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            foreach (var dir in new[] { installDir, fallbackDir }) {
+                try {
+                    if (Directory.Exists(dir)) {
+                        IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(dir), 10, 1000);
+                    }
+                } catch {
+                    // best effort cleanup
+                }
+            }
+
+            DeleteAssociationKeys(machineClasses, id, logger, exts, schemes);
+            DeleteAssociationKeys(userClasses, id, logger, exts, schemes);
+        }
     }
 
     [Fact]
@@ -1034,8 +1376,8 @@ public class MsiTests
         }
     }
 
-    // Requires elevation and UAC approval. To run from CLI:
-    //   dotnet test test/Velopack.Packaging.Tests --filter TestMsiPerMachineInstallAndUpdate -- xUnit.Explicit=only
+    // Requires elevation and UAC approval. Explicit tests are skipped unless asked for; to run from CLI:
+    //  dotnet test --project test/Velopack.Packaging.Tests -- --filter-method "*TestMsiPerMachineInstallAndUpdate*" --explicit only
     [Fact(Explicit = true)]
     public async Task TestMsiPerMachineInstallAndUpdate()
     {

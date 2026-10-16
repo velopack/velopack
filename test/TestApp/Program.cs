@@ -14,7 +14,10 @@ var locator = VelopackLocator.CreateDefaultForPlatform(logger: new ConsoleVelopa
 
 try {
     bool shouldExit = false;
-    bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase));
+    // an OS association launch (--veloapp-fileassoc / --veloapp-urlproto) behaves like a real app start: a pending
+    // update is applied first and the launch must be forwarded to the restarted app
+    bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase))
+                            || (args.Length > 0 && args[0].StartsWith("--veloapp-", StringComparison.OrdinalIgnoreCase));
 
 #if USE_ASYNC_MAIN
     await Task.Delay(10).ConfigureAwait(false);
@@ -43,8 +46,10 @@ try {
         .WithBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUninstallFastCallback"))
         .Run();
 #else
+    // forward_activations.txt is written next to the exe at pack time, like test_string.txt
     VelopackApp.Build()
         .SetAutoApplyOnStartup(shouldAutoUpdate)
+        .ForwardActivationsToRunningInstance(File.Exists(Path.Combine(AppContext.BaseDirectory, "forward_activations.txt")))
         .OnFirstRun(
             (v) => {
                 debugFile("firstrun", v.ToString(), "OnFirstRun");
@@ -57,6 +62,20 @@ try {
                 Console.WriteLine("app just restarted");
                 shouldExit = true;
             })
+        .OnFileAssoc(
+            (path) => {
+                debugFile("file-assoc", path, "OnFileAssoc");
+                debugFile("assoc-pid", Environment.ProcessId.ToString(), "Pid");
+                Console.WriteLine("opened file: " + path);
+                shouldExit = true;
+            })
+        .OnUrlProto(
+            (url) => {
+                debugFile("url-proto", url, "OnUrlProto");
+                debugFile("assoc-pid", Environment.ProcessId.ToString(), "Pid");
+                Console.WriteLine("opened url: " + url);
+                shouldExit = true;
+            })
         .SetLocator(locator)
         .OnAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterInstallFastCallback"))
         .OnBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUpdateFastCallback"))
@@ -65,13 +84,13 @@ try {
         .Run();
 #endif
 
+    if (shouldExit) {
+        return 0;
+    }
+
     if (shouldAutoUpdate) {
         // this shouldn't be reached
         return -1;
-    }
-
-    if (shouldExit) {
-        return 0;
     }
 #endif
 
@@ -90,6 +109,17 @@ try {
 
     if (args.Length == 1 && args[0] == "packagesdir") {
         Console.WriteLine(locator.PackagesDir ?? "no_packages_dir");
+        return 0;
+    }
+
+    if (args.Length == 1 && args[0] == "wait") {
+        // stays alive (serving forwarded activations) until the test writes the stop sentinel
+        debugFile("ready", Environment.ProcessId.ToString(), "Ready");
+        var stop = Path.Combine(AppContext.BaseDirectory, "..", "stop");
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(120);
+        while (!File.Exists(stop) && DateTime.UtcNow < deadline) {
+            Thread.Sleep(100);
+        }
         return 0;
     }
 

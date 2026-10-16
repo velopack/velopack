@@ -48,6 +48,18 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         var macosdir = structure.MacosDirectory;
         File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(macosdir, "UpdateMac"), true);
 
+        // file / url associations live in a nested helper bundle (never in the main Info.plist). The metadata must be
+        // added before sq.version is written below.
+        var given = !string.IsNullOrWhiteSpace(Options.FileAssociations) || !string.IsNullOrWhiteSpace(Options.UrlProtocols);
+        var inherited = OsxAssociationHelper.Find(dir.FullName);
+        if (given) {
+            var (extensions, schemes) = AddAssociationMetadata(Options.FileAssociations, Options.UrlProtocols);
+            BuildAssociationHelper(structure, extensions, schemes);
+        } else if (inherited != null) {
+            // a helper built by `vpk bundle` (or a previous pack) is kept as-is
+            Log.Info($"Using the association helper found in the bundle ({Path.GetFileName(inherited)}).");
+        }
+
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
             if (BinDetect.IsMachOImage(f)) {
                 Log.Debug(f + " is a mach-o binary, chmod as executable.");
@@ -63,6 +75,20 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
 
         progress(100);
         return Task.FromResult(dir.FullName);
+    }
+
+    /// <summary>Builds the association helper bundle from the pack options and the bundle's final Info.plist.</summary>
+    private void BuildAssociationHelper(OsxStructureBuilder structure, string[] extensions, string[] schemes)
+    {
+        OsxAssociationHelper.BuildForBundle(
+            Log,
+            structure.AppDirectory,
+            extensions,
+            schemes,
+            Options.PackVersion,
+            Options.Icon,
+            Options.BundleId ?? OsxBundleCommandRunner.GetDefaultBundleId(Options.PackId, Options.PackAuthors),
+            Options.PackTitle ?? Options.PackId);
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
@@ -87,22 +113,37 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
             entitlements = HelperFile.VelopackEntitlements;
         }
 
+        // the association helper is always signed with Velopack's entitlements (never the user's: sandboxed, it would
+        // derive its IPC socket path from a container-redirected TMPDIR and miss the running app, and its
+        // `open -n --args` launch could lose the arguments), inside-out before the outer bundle is sealed
+        var assocHelpers = OsxAssociationHelper.FindAll(packDir);
+
+        void SignAssociationHelpers()
+        {
+            foreach (var helperApp in assocHelpers) {
+                Log.Info("Code signing association helper bundle...");
+                helper.CodeSign(Options.SignAppIdentity, HelperFile.VelopackEntitlements, helperApp, false, keychainPath);
+            }
+        }
+
         void InnerSign(Action<int> signProgress)
         {
             if (Options.SignDisableDeep) {
                 // when --signDisableDeep is used, we expect the user to have signed everything before calling velopack
-                // we only need to sign what we added (UpdateMac) and then the final .app bundle
-                
+                // we only need to sign what we added (UpdateMac, the association helper) and then the final .app bundle
+
                 Log.Warn("Code signing with --signDisableDeep means that Velopack will only sign binaries it adds, " +
                          "along with the final .app bundle. Please ensure all other binaries and frameworks are signed " +
                          "properly before calling velopack.");
-                
+
                 Log.Info("Code signing Velopack binaries...");
                 var structure = new OsxStructureBuilder(packDir);
                 var updateMacPath = Path.Combine(structure.MacosDirectory, "UpdateMac");
                 helper.CodeSign(Options.SignAppIdentity, HelperFile.VelopackEntitlements, updateMacPath, false, keychainPath);
+                signProgress(40);
+                SignAssociationHelpers();
                 signProgress(50);
-                
+
                 Log.Info("Code signing application bundle...");
                 helper.CodeSign(Options.SignAppIdentity, entitlements, packDir, false, keychainPath);
                 signProgress(100);
@@ -128,8 +169,18 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
                 // this does not work 100% of the time, but it does work in a surprising number of cases so it is the default
                 // use --signDisableDeep to disable this behavior, which requires you to sign things before calling velopack
                 Log.Info("Code signing application bundle recursively (with --deep)...");
-                signProgress(90);
                 helper.CodeSign(Options.SignAppIdentity, entitlements, packDir, true, keychainPath);
+                signProgress(80);
+
+                if (assocHelpers.Length > 0) {
+                    // --deep signed the helper with the user's entitlements; re-sign it with Velopack's, then reseal
+                    // the outer bundle (non-deep, -f) so its seal covers the helper's new signature
+                    SignAssociationHelpers();
+                    signProgress(90);
+                    Log.Info("Resealing application bundle...");
+                    helper.CodeSign(Options.SignAppIdentity, entitlements, packDir, false, keychainPath);
+                }
+
                 signProgress(100);
             }
         }

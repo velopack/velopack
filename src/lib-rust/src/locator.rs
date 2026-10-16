@@ -317,6 +317,18 @@ impl VelopackLocator {
         non_empty_trimmed(&self.manifest.release_notes_html)
     }
 
+    /// Returns the file extensions (eg. ".myproj") this app should be registered as a handler for,
+    /// or an empty Vec if none were specified during packaging. Empty entries are never returned.
+    pub fn get_manifest_file_associations(&self) -> Vec<String> {
+        split_manifest_list(&self.manifest.file_associations)
+    }
+
+    /// Returns the URL scheme names (eg. "myapp") this app should be registered as a handler for,
+    /// or an empty Vec if none were specified during packaging. Empty entries are never returned.
+    pub fn get_manifest_url_protocols(&self) -> Vec<String> {
+        split_manifest_list(&self.manifest.url_protocols)
+    }
+
     /// Returns the Application User Model ID for this app.
     /// If a custom AUMID was specified during packaging, it will be returned.
     /// Otherwise, falls back to "velopack.{AppId}".
@@ -677,6 +689,43 @@ pub fn find_latest_full_package(packages_dir: &Path) -> Option<(PathBuf, Manifes
     find_local_full_packages(packages_dir)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.version.cmp(&b.version))
+}
+
+/// Splits a comma/semicolon delimited manifest list into trimmed, non-empty entries.
+/// An empty or whitespace-only input yields an empty Vec (never a Vec containing "").
+fn split_manifest_list(input: &str) -> Vec<String> {
+    input
+        .split([',', ';'])
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn test_split_manifest_list_filters_empty_entries() {
+    assert_eq!(split_manifest_list(""), Vec::<String>::new());
+    assert_eq!(split_manifest_list("   "), Vec::<String>::new());
+    assert_eq!(split_manifest_list(",, ; ,"), Vec::<String>::new());
+    assert_eq!(split_manifest_list(".myproj,.mytpl"), vec![".myproj", ".mytpl"]);
+    assert_eq!(split_manifest_list(" .myproj , , .mytpl ,"), vec![".myproj", ".mytpl"]);
+    assert_eq!(split_manifest_list("myapp;myapp-beta"), vec!["myapp", "myapp-beta"]);
+}
+
+#[test]
+fn test_locator_manifest_associations_getters() {
+    let empty = VelopackLocator::new_with_manifest(VelopackLocatorConfig::default(), Manifest::default());
+    assert!(empty.get_manifest_file_associations().is_empty());
+    assert!(empty.get_manifest_url_protocols().is_empty());
+
+    let manifest = Manifest {
+        file_associations: " .myproj, ,.mytpl ".to_owned(),
+        url_protocols: "myapp,,myapp-beta,".to_owned(),
+        ..Default::default()
+    };
+    let locator = VelopackLocator::new_with_manifest(VelopackLocatorConfig::default(), manifest);
+    assert_eq!(locator.get_manifest_file_associations(), vec![".myproj", ".mytpl"]);
+    assert_eq!(locator.get_manifest_url_protocols(), vec!["myapp", "myapp-beta"]);
 }
 
 #[test]

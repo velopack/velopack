@@ -38,6 +38,10 @@ path = "src/update.rs"
 name = "testapp"
 path = "src/testapp.rs"
 
+[[bin]]
+name = "assochelper"
+path = "src/assochelper.rs"
+
 [dependencies]
 velopack.workspace = true
 anyhow.workspace = true
@@ -76,6 +80,22 @@ libc.workspace = true
 [target.'cfg(target_os="macos")'.dependencies]
 waitpid-any.workspace = true
 libc.workspace = true
+objc2.workspace = true
+objc2-foundation = { workspace = true, features = [
+    "std",
+    "NSArray",
+    "NSString",
+    "NSURL",
+    "NSNotification",
+    "NSObject",
+    "NSRunLoop",
+    "NSDate",
+] }
+objc2-app-kit = { workspace = true, features = [
+    "std",
+    "NSApplication",
+    "NSResponder",
+] }
 
 [target.'cfg(windows)'.dependencies]
 fs_extra.workspace = true

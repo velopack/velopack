@@ -30,6 +30,10 @@ namespace Velopack.NuGet
         public IEnumerable<string> ShortcutLocations { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<string> Authors { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<string> RuntimeDependencies { get; private set; } = Enumerable.Empty<string>();
+        /// <summary> File extensions (eg. ".myproj") this app is registered as a handler for. Never contains empty entries. </summary>
+        public IEnumerable<string> FileAssociations { get; private set; } = Enumerable.Empty<string>();
+        /// <summary> URL scheme names (eg. "myapp") this app is registered as a handler for. Never contains empty entries. </summary>
+        public IEnumerable<string> UrlProtocols { get; private set; } = Enumerable.Empty<string>();
 
         private static readonly string[] ExcludePaths = new[] { "_rels", "package" };
 
@@ -83,8 +87,10 @@ namespace Velopack.NuGet
 
             IEnumerable<string> getCommaDelimitedValue(string v)
             {
+                // trim before dropping empties so whitespace-only entries (" , ") never yield "".
                 return v?.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim()) ?? Enumerable.Empty<string>();
+                    .Select(s => s.Trim())
+                    .Where(s => s.Length > 0) ?? Enumerable.Empty<string>();
             }
 
             string value = element.Value.SafeTrim();
@@ -144,6 +150,12 @@ namespace Velopack.NuGet
             case "shortcutAumid":
             case "shortcutAmuid": // legacy typo / backwards compatibility
                 ShortcutAumid = value;
+                break;
+            case "fileAssociations":
+                FileAssociations = getCommaDelimitedValue(value);
+                break;
+            case "urlProtocols":
+                UrlProtocols = getCommaDelimitedValue(value);
                 break;
             }
         }

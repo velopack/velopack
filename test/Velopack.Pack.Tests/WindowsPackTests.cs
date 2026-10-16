@@ -5,6 +5,7 @@ using System.Xml.Linq;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Core;
+using Velopack.Packaging;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Compression;
 using Velopack.Packaging.Windows.Commands;
@@ -346,18 +347,21 @@ public class WindowsPackTests
         Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v3));
     }
 
-    internal static async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger)
+    internal static async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger,
+        string fileAssociations = null, string urlProtocols = null, bool forwardActivations = false)
     {
         if (variant == "csharp") {
-            await PackTestApp(id, version, testString, releaseDir, logger);
+            await PackTestApp(id, version, testString, releaseDir, logger,
+                fileAssociations: fileAssociations, urlProtocols: urlProtocols, forwardActivations: forwardActivations);
         } else if (variant == "rust") {
-            await PackRustTestApp(id, version, testString, releaseDir, logger);
+            await PackRustTestApp(id, version, testString, releaseDir, logger, fileAssociations, urlProtocols, forwardActivations);
         } else {
             throw new ArgumentException($"Unknown variant: {variant}");
         }
     }
 
-    internal static async Task PackRustTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
+    internal static async Task PackRustTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
+        string fileAssociations = null, string urlProtocols = null, bool forwardActivations = false)
     {
         using var _ = TempUtil.GetTempDirectory(out var packDir);
 
@@ -366,7 +370,10 @@ public class WindowsPackTests
             throw new FileNotFoundException($"Rust testapp not found at: {rustBinary}. Run 'cargo build -p velopack_bins' first.");
         File.Copy(rustBinary, Path.Combine(packDir, "testapp.exe"));
 
-        File.WriteAllText(Path.Combine(packDir, "test_string.txt"), testString);
+        File.WriteAllText(Path.Combine(packDir, TestApp.TestStringFileName), testString);
+        if (forwardActivations) {
+            File.WriteAllText(Path.Combine(packDir, TestApp.ForwardActivationsFileName), "");
+        }
 
         logger.Info($"TEST: Packing Rust testapp v{version} with test string '{testString}'");
 
@@ -377,6 +384,8 @@ public class WindowsPackTests
             PackVersion = version,
             TargetRuntime = RID.Parse("win-x64"),
             PackDirectory = packDir,
+            FileAssociations = fileAssociations,
+            UrlProtocols = urlProtocols,
         };
 
         var runner = WindowsTestHelper.GetPackRunner(logger);
@@ -384,13 +393,15 @@ public class WindowsPackTests
     }
 
     internal static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null)
+        bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null,
+        string fileAssociations = null, string urlProtocols = null, bool forwardActivations = false)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
         {
             var publishDir = Path.Combine(workDir, "publish");
-            TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger, singleFile: assemblyNameOverride != null);
+            TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger, singleFile: assemblyNameOverride != null,
+                forwardActivations: forwardActivations);
 
             if (addNewFile) {
                 File.WriteAllText(Path.Combine(publishDir, "NewFile.txt"), "New File Test");
@@ -422,6 +433,8 @@ public class WindowsPackTests
                 PackVersion = version,
                 TargetRuntime = RID.Parse("win-x64"),
                 PackDirectory = publishDir,
+                FileAssociations = fileAssociations,
+                UrlProtocols = urlProtocols,
             };
 
             var runner = WindowsTestHelper.GetPackRunner(logger);

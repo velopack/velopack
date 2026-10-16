@@ -234,6 +234,11 @@ typedef void (*vpkc_progress_callback_t)(void *p_user_data, size_t progress);
 typedef void (*vpkc_hook_callback_t)(void *p_user_data, const char *psz_app_version);
 
 /**
+ * VelopackApp file / URL association callback function. `psz_value` is the file path or URL the OS asked the app to open.
+ */
+typedef void (*vpkc_association_callback_t)(void *p_user_data, const char *psz_value);
+
+/**
  * Log callback function.
  */
 typedef void (*vpkc_log_callback_t)(void *p_user_data,
@@ -605,6 +610,66 @@ void vpkc_app_set_hook_first_run(vpkc_hook_callback_t cb_first_run);
  * @param cb_restarted The callback to run after the app is restarted. The callback takes a user data pointer and the version of the app as a string.
  */
 void vpkc_app_set_hook_restarted(vpkc_hook_callback_t cb_restarted);
+
+/**
+ * This hook is triggered when the operating system opens this app to handle a file whose extension was registered
+ * with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
+ *
+ * On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
+ * association helper bundle receives the open-file event and launches the app with it). By default the hook runs
+ * during `vpkc_app_run`, on the calling thread, after the regular startup logic (first-run/restarted hooks); the
+ * app then continues starting normally. The launch is never lost to an update: when `vpkc_app_run` restarts the
+ * app to apply a pending update the file(s) are forwarded to the new version, which runs the hook once per file.
+ *
+ * With `vpkc_app_set_forward_activations_to_running_instance`, a file opened while the app is already running is
+ * handed to that instance instead, where the hook runs on a background thread (see there). On Windows the hook
+ * may bring the app's window to the foreground (the forwarding process allows it); on macOS the association
+ * helper activates the running app.
+ *
+ * macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in a
+ * protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders" prompt, or
+ * fails with EPERM if the user denied it earlier; add the `NS*FolderUsageDescription` strings to your Info.plist.
+ * Associations require macOS 10.13+. Not supported on Linux.
+ * @param cb_file_assoc The callback to run with the user data pointer and the full path of the file to open.
+ */
+void vpkc_app_set_hook_file_assoc(vpkc_association_callback_t cb_file_assoc);
+
+/**
+ * This hook is triggered when the operating system opens this app to handle a URL whose scheme was registered with
+ * `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
+ *
+ * On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
+ * association helper bundle receives the open-URL event and launches the app with it). By default the hook runs
+ * during `vpkc_app_run`, on the calling thread, after the regular startup logic (first-run/restarted hooks); the
+ * app then continues starting normally. The launch is never lost to an update: when `vpkc_app_run` restarts the
+ * app to apply a pending update the URL is forwarded to the new version, which runs the hook.
+ *
+ * With `vpkc_app_set_forward_activations_to_running_instance`, a URL opened while the app is already running is
+ * handed to that instance instead, where the hook runs on a background thread (see there). On Windows the hook
+ * may bring the app's window to the foreground (the forwarding process allows it); on macOS the association
+ * helper activates the running app.
+ *
+ * Associations require macOS 10.13+. Not supported on Linux.
+ * @param cb_url_proto The callback to run with the user data pointer and the full URL to open.
+ */
+void vpkc_app_set_hook_url_proto(vpkc_association_callback_t cb_url_proto);
+
+/**
+ * Forward file/URL association activations to an already running instance of this app instead of starting a new
+ * one. OFF by default; must be set before `vpkc_app_run`, and only applies to an installed app with a file
+ * association or URL protocol hook. The first instance serves activations; a later launch carrying one hands it
+ * over and exits with code 0 inside `vpkc_app_run`, before any update is applied. If no instance answers within
+ * about 5 seconds, or it refuses, the launch handles the activation itself as usual.
+ *
+ * In the receiving instance the hooks run on a background thread (a Velopack IPC thread; invocations are
+ * serialized; possibly while the main thread is still inside `vpkc_app_run`, even before the first-run/restarted
+ * hooks, or at any later time), so they must be thread-safe and marshal to the UI thread themselves, and the
+ * `p_user_data` passed to `vpkc_app_run` must remain valid for the process lifetime. Return promptly (post the
+ * work to the UI thread rather than blocking on it): the launching process waits at most 5 seconds for the hook
+ * to return, after which it handles the activation itself as a second instance.
+ * @param b_enabled True to forward activations to a running instance, false otherwise.
+ */
+void vpkc_app_set_forward_activations_to_running_instance(bool b_enabled);
 
 /**
  * Get the last error message that occurred in the Velopack library.

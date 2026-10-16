@@ -98,7 +98,18 @@ pub mod sources;
 
 #[cfg(target_os = "windows")]
 maybe_pub!(known_path, wide_strings);
-maybe_pub!(download, bundle, constants, lockfile, logging, misc, windows_channel_tag);
+maybe_pub!(
+    activation_forwarding,
+    download,
+    bundle,
+    constants,
+    ipc,
+    launch_services,
+    lockfile,
+    logging,
+    misc,
+    windows_channel_tag
+);
 
 pub use download::{HttpHeader, HttpOptions};
 maybe_pub_os!(process, "process_win.rs", "process_unix.rs");

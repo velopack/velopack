@@ -23,4 +23,8 @@ public class OsxBundleOptions : IOutputOptions
     public string BundleId { get; set; }
 
     public string InfoPlistPath { get; set; }
+
+    public string FileAssociations { get; set; }
+
+    public string UrlProtocols { get; set; }
 }

@@ -418,6 +418,10 @@ pub struct Manifest {
     pub release_notes: String,
     pub release_notes_html: String,
     pub splash_progress_color: String,
+    /// Comma-separated file extensions (with leading '.') this app registers as a handler for.
+    pub file_associations: String,
+    /// Comma-separated URL scheme names (eg. "myapp") this app registers as a handler for.
+    pub url_protocols: String,
 }
 
 /// Parse manifest object from an XML string.
@@ -471,6 +475,10 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.release_notes_html = text;
                 } else if el_name == "splashProgressColor" {
                     obj.splash_progress_color = text;
+                } else if el_name == "fileAssociations" {
+                    obj.file_associations = text;
+                } else if el_name == "urlProtocols" {
+                    obj.url_protocols = text;
                 }
             }
             Ok(XmlEvent::EndElement { .. }) => {
@@ -661,4 +669,45 @@ Notes with special chars: & < > " '
     assert_eq!(manifest.machine_architecture, "x64");
     assert_eq!(manifest.channel, "stable");
     assert!(manifest.release_notes.contains("& < > \" '"));
+}
+
+#[cfg(test)]
+fn manifest_xml_with_extra(extra: &str) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<metadata>
+<id>AssocApp</id>
+<title>Assoc App</title>
+<version>1.0.0</version>
+<mainExe>app.exe</mainExe>
+<os>win</os>
+{extra}
+</metadata>
+</package>"#
+    )
+}
+
+#[test]
+fn test_read_manifest_associations_present() {
+    let xml = manifest_xml_with_extra("<fileAssociations>.myproj,.mytpl</fileAssociations><urlProtocols>myapp,myapp-beta</urlProtocols>");
+    let manifest = read_manifest_from_string(&xml).unwrap();
+    assert_eq!(manifest.file_associations, ".myproj,.mytpl");
+    assert_eq!(manifest.url_protocols, "myapp,myapp-beta");
+}
+
+#[test]
+fn test_read_manifest_associations_absent() {
+    let xml = manifest_xml_with_extra("");
+    let manifest = read_manifest_from_string(&xml).unwrap();
+    assert_eq!(manifest.file_associations, "");
+    assert_eq!(manifest.url_protocols, "");
+}
+
+#[test]
+fn test_read_manifest_associations_empty_elements() {
+    let xml = manifest_xml_with_extra("<fileAssociations></fileAssociations><urlProtocols/>");
+    let manifest = read_manifest_from_string(&xml).unwrap();
+    assert_eq!(manifest.file_associations, "");
+    assert_eq!(manifest.url_protocols, "");
 }

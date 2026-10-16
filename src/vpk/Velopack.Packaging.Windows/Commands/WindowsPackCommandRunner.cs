@@ -63,6 +63,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             ExtraNuspecMetadata["splashProgressColor"] = Options.SplashProgressColor;
         }
 
+        // file / url associations are registered at install time from these keys, by Update.exe
+        // (Setup.exe installs) or by the MSI custom actions
+        AddAssociationMetadata(Options.FileAssociations, Options.UrlProtocols);
+
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);

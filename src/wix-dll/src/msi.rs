@@ -1,9 +1,70 @@
 #![allow(dead_code)]
+use std::cell::Cell;
+use std::ffi::c_uint;
+use std::sync::Once;
 use velopack::wide_strings::*;
 use windows::{
     core::PWSTR,
     Win32::{Foundation::ERROR_SUCCESS, System::ApplicationInstallationAndServicing::*, UI::WindowsAndMessaging::*},
 };
+
+thread_local! {
+    /// The install session of the custom action running on this thread, 0 outside of one. Deferred actions run in
+    /// the installer's custom action server, which may host several actions on different threads over its lifetime.
+    static CURRENT_SESSION: Cell<u32> = const { Cell::new(0) };
+}
+
+/// Forwards `log` records (the `warn!`/`info!` output of the velopack crates this DLL calls into) to the MSI log of
+/// the custom action running on the current thread; records from other threads, or outside a custom action, are
+/// dropped. Installed once by `with_msi_logging`.
+struct MsiLogger;
+
+static MSI_LOGGER: MsiLogger = MsiLogger;
+
+impl log::Log for MsiLogger {
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
+        CURRENT_SESSION.with(|s| s.get()) != 0
+    }
+
+    fn log(&self, record: &log::Record) {
+        let session = CURRENT_SESSION.with(|s| s.get());
+        if session == 0 {
+            return;
+        }
+        msi_log_info(MSIHANDLE(session), format!("{} {}: {}", record.level(), record.target(), record.args()));
+    }
+
+    fn flush(&self) {}
+}
+
+/// Runs the body of a custom action with the `log` output of this thread forwarded to the MSI log (as
+/// INSTALLMESSAGE_INFO records), so that warnings from the shared velopack code are visible in `msiexec /l*v`.
+pub fn with_msi_logging<F: FnOnce() -> c_uint>(h_install: MSIHANDLE, body: F) -> c_uint {
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        // Err means a logger is already installed in this process (eg. by a test harness); keep that one.
+        let _ = log::set_logger(&MSI_LOGGER);
+        log::set_max_level(log::LevelFilter::Info);
+    });
+    let previous = CURRENT_SESSION.with(|s| s.replace(h_install.0));
+    let result = body();
+    CURRENT_SESSION.with(|s| s.set(previous));
+    result
+}
+
+/// Writes an informational line to the MSI log. The message goes in field 1 behind a `[1]` template so the
+/// installer never interprets brackets inside the message itself.
+pub fn msi_log_info<S: AsRef<str>>(h_install: MSIHANDLE, message: S) {
+    let template = string_to_wide("[1]");
+    let message = string_to_wide(message.as_ref());
+    unsafe {
+        let rec = MsiCreateRecord(1);
+        MsiRecordSetStringW(rec, 0, template.as_pcwstr());
+        MsiRecordSetStringW(rec, 1, message.as_pcwstr());
+        MsiProcessMessage(h_install, INSTALLMESSAGE_INFO, rec);
+        MsiCloseHandle(rec);
+    }
+}
 
 pub fn msi_get_property<S: AsRef<str>>(h_install: MSIHANDLE, name: S) -> Option<String> {
     let name = string_to_wide(name.as_ref());

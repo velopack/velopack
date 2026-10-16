@@ -26,18 +26,32 @@ declare module "./load" {
   function js_wait_exit_then_apply_update(um: UpdateManagerOpaque, update: string, silent?: boolean, restart?: boolean, restartArgs?: string[]): void;
 
   function js_appbuilder_run(
-    cb: (hook_name: string, current_version: string) => void,
+    cb: (hook_name: string, value: string) => void,
     customArgs: string[] | null,
     locator: string | null,
     autoApply: boolean,
+    forwardActivations: boolean,
+    hasFileAssoc: boolean,
+    hasUrlProto: boolean,
   ): void;
 
   function js_set_logger_callback(cb: (loglevel: LogLevel, msg: string) => void): void;
 }
 
-type VelopackHookType = "after-install" | "before-uninstall" | "before-update" | "after-update" | "restarted" | "first-run";
+type VelopackHookType =
+  | "after-install"
+  | "before-uninstall"
+  | "before-update"
+  | "after-update"
+  | "restarted"
+  | "first-run"
+  | "file-assoc"
+  | "url-proto";
 
 type VelopackHook = (version: string) => void;
+
+/** Receives the file path or URL the operating system asked this app to open. */
+type VelopackAssociationHook = (value: string) => void;
 
 type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 
@@ -51,6 +65,7 @@ export class VelopackApp {
   private _customArgs: string[] | null = null;
   private _customLocator: VelopackLocatorConfig | null = null;
   private _autoApply = true;
+  private _forwardActivations = false;
 
   /**
    * Build a new VelopackApp instance.
@@ -120,6 +135,69 @@ export class VelopackApp {
   }
 
   /**
+   * This hook is triggered when the operating system opens this app to handle a file whose extension was
+   * registered with `vpk pack --fileAssociations`. The callback receives the full path of the file to open.
+   *
+   * On Windows and macOS the path arrives as `--veloapp-fileassoc <path>` on the command line (on macOS the
+   * association helper bundle receives the open-file event and launches the app with it). By default the
+   * callback runs synchronously inside run(), after the regular startup logic (onFirstRun/onRestarted); the app
+   * then continues starting normally. The launch is never lost to an update: when run() restarts the app to apply
+   * a pending update the file(s) are forwarded to the new version, which invokes the callback once per file.
+   *
+   * With forwardActivationsToRunningInstance(), a file opened while the app is already running is handed to that
+   * instance instead (see there). On Windows the callback may bring the app's window to the foreground (the
+   * forwarding process allows it); on macOS the association helper activates the running app.
+   *
+   * macOS: the open-file consent (TCC) lands on the helper, not on this process. The first access to a file in a
+   * protected location (Desktop, Documents, Downloads, removable volumes) triggers the "Files and Folders" prompt,
+   * or fails with EPERM if the user denied it earlier; add the `NS*FolderUsageDescription` strings to your
+   * Info.plist. Associations require macOS 10.13+. Not supported on Linux.
+   */
+  onFileAssoc(callback: VelopackAssociationHook): VelopackApp {
+    this._hooks.set("file-assoc", callback);
+    return this;
+  }
+
+  /**
+   * This hook is triggered when the operating system opens this app to handle a URL whose scheme was
+   * registered with `vpk pack --urlProtocols`. The callback receives the full URL (eg. `myapp://open?id=1`).
+   *
+   * On Windows and macOS the URL arrives as `--veloapp-urlproto <url>` on the command line (on macOS the
+   * association helper bundle receives the open-URL event and launches the app with it). By default the
+   * callback runs synchronously inside run(), after the regular startup logic (onFirstRun/onRestarted); the app
+   * then continues starting normally. The launch is never lost to an update: when run() restarts the app to apply
+   * a pending update the URL is forwarded to the new version, which invokes the callback.
+   *
+   * With forwardActivationsToRunningInstance(), a URL opened while the app is already running is handed to that
+   * instance instead (see there). On Windows the callback may bring the app's window to the foreground (the
+   * forwarding process allows it); on macOS the association helper activates the running app.
+   *
+   * Associations require macOS 10.13+. Not supported on Linux.
+   */
+  onUrlProto(callback: VelopackAssociationHook): VelopackApp {
+    this._hooks.set("url-proto", callback);
+    return this;
+  }
+
+  /**
+   * Forwards file/URL association activations to an already running instance of this app instead of starting a
+   * new one. OFF by default; must be set before run(), and only applies to an installed app with an onFileAssoc /
+   * onUrlProto callback. The first instance serves activations; a later launch carrying one hands it over and
+   * exits with code 0 in native code, inside run(), before any update is applied (`process.on("exit")` handlers do
+   * not run, like the fast-exit hooks). If no instance answers within about 5 seconds, or it refuses, the launch
+   * handles the activation itself as usual.
+   *
+   * The receiving instance always invokes the callback on the JS thread: an activation that arrives while run() is
+   * still executing is invoked synchronously at the end of run(), after onFirstRun/onRestarted (like the process's
+   * own command line); one arriving later is dispatched to the event loop. The IPC server does not keep the event
+   * loop alive, and an activation arriving while the process is already shutting down is logged and dropped.
+   */
+  forwardActivationsToRunningInstance(enabled: boolean = true): VelopackApp {
+    this._forwardActivations = enabled;
+    return this;
+  }
+
+  /**
    * Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
    */
   setArgs(args: string[]): VelopackApp {
@@ -159,15 +237,18 @@ export class VelopackApp {
    */
   run(): void {
     addon.js_appbuilder_run(
-      (hook_name: string, current_version: string) => {
+      (hook_name: string, value: string) => {
         let hook = this._hooks.get(hook_name as VelopackHookType);
         if (hook) {
-          hook(current_version);
+          hook(value);
         }
       },
       this._customArgs,
       this._customLocator ? JSON.stringify(this._customLocator) : null,
       this._autoApply,
+      this._forwardActivations,
+      this._hooks.has("file-assoc"),
+      this._hooks.has("url-proto"),
     );
   }
 }

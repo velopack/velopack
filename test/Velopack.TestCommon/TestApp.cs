@@ -20,6 +20,12 @@ public static class TestApp
     /// </summary>
     public const string TestStringFileName = "test_string.txt";
 
+    /// <summary>
+    /// When this file exists next to the exe, the test apps (C# and rust) call the VelopackApp
+    /// forward-activations-to-running-instance API with true.
+    /// </summary>
+    public const string ForwardActivationsFileName = "forward_activations.txt";
+
     // The test string is injected as a file at pack time rather than compiled in, so a single
     // publish per (rid, options) can be shared by every test in the process — recompiling TestApp
     // for each test was one of the slowest parts of the suite.
@@ -66,9 +72,10 @@ public static class TestApp
 
     /// <summary>
     /// Copies a cached TestApp publish for the given RID into destDir (replacing destDir if it
-    /// already exists) and writes testString to test_string.txt inside it.
+    /// already exists) and writes testString to test_string.txt inside it (plus forward_activations.txt if requested).
     /// </summary>
-    public static void PreparePublishDir(RID targetRid, string testString, string destDir, ILogger logger, bool singleFile = false)
+    public static void PreparePublishDir(RID targetRid, string testString, string destDir, ILogger logger, bool singleFile = false,
+        bool forwardActivations = false)
     {
         var cached = GetCachedPublishDir(targetRid, singleFile, logger);
         if (Directory.Exists(destDir)) {
@@ -77,6 +84,9 @@ public static class TestApp
 
         FileUtil.CopyDirectoryContents(cached, destDir);
         File.WriteAllText(Path.Combine(destDir, TestStringFileName), testString);
+        if (forwardActivations) {
+            File.WriteAllText(Path.Combine(destDir, ForwardActivationsFileName), "");
+        }
     }
 
     private static string GetCachedPublishDir(RID targetRid, bool singleFile, ILogger logger)

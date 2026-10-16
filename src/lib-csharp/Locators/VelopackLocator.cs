@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Velopack.Logging;
+using Velopack.NuGet;
 using Velopack.Util;
 
 namespace Velopack.Locators

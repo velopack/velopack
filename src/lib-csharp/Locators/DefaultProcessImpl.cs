@@ -15,7 +15,7 @@ namespace Velopack.Locators
     {
         [DllImport("user32", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool AllowSetForegroundWindow(int dwProcessId);
+        internal static extern bool AllowSetForegroundWindow(int dwProcessId);
 
         private Process? _currentProcess;
         private readonly IVelopackLogger _logger;

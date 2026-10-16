@@ -46,6 +46,7 @@ rand.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 uuid.workspace = true
+interprocess.workspace = true
 
 # file logging
 log-panics = { workspace = true, optional = true }
@@ -58,7 +59,9 @@ windows = { workspace = true, features = [
     "Win32_Storage",
     "Win32_Storage_FileSystem",
     "Win32_Security",
+    "Win32_Security_Authorization",
     "Win32_System_IO",
+    "Win32_System_Environment",
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Shell",

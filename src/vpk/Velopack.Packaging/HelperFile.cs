@@ -48,6 +48,19 @@ public static class HelperFile
         throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).");
     }
 
+    /// <summary>
+    /// The macOS association helper binary (<c>assochelper</c> in src/bins), shipped as the nested
+    /// <c>Contents/Helpers/{Name}.app</c> bundle which receives file/URL activations and launches the app.
+    /// </summary>
+    public static string GetAssocHelperPath()
+    {
+#if DEBUG
+        return FindHelperFile("assochelper");
+#else
+        return FindHelperFile("AssocHelperMac");
+#endif
+    }
+
     public static string GetWixNativeModulePath(RID target)
     {
 #if DEBUG

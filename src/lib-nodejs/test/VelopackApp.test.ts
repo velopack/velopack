@@ -1,5 +1,10 @@
 import {VelopackApp, VelopackLocatorConfig} from "../src";
-import {isWindows, updateExe} from "./helper";
+import {isWindows, makeId, updateExe} from "./helper";
+import {execFile} from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {promisify} from "node:util";
 
 class HookTester {
   public afterInstall = false;
@@ -116,6 +121,105 @@ test("VelopackApp should handle before-update hook", async () => {
   expect(tester.restarted).toBe(false);
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.2.3-test.4");
+});
+
+test("VelopackApp should invoke association hooks with the opened value", async () => {
+  let locator: VelopackLocatorConfig = {
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+    PackagesDir: "",
+    RootAppDir: "",
+    UpdateExePath: updateExe(),
+    CurrentBinaryDir: "",
+    IsPortable: true,
+  };
+  // By default (no activation forwarding) the callback runs synchronously inside run(), after onRestarted (run()
+  // consumes the VELOPACK_RESTART variable, so it is set again here).
+  process.env.VELOPACK_RESTART = "true";
+  let received: string[] = [];
+  VelopackApp.build()
+    .onRestarted(() => received.push("restarted"))
+    .onFileAssoc((path) => received.push("file:" + path))
+    .onUrlProto((url) => received.push("url:" + url))
+    .setArgs(["--veloapp-urlproto", "myapp://open?a=1"])
+    .setLocator(locator)
+    .run();
+  expect(received).toEqual(["restarted", "url:myapp://open?a=1"]);
+
+  // repeated [flag, value] pairs, as a restart to apply an update forwards them (a shell launch on Windows, without
+  // VELOPACK_RESTART, carries exactly one value)
+  process.env.VELOPACK_RESTART = "true";
+  received = [];
+  VelopackApp.build()
+    .onFileAssoc((path) => received.push("file:" + path))
+    .setArgs(["--veloapp-fileassoc", "C:\\docs\\my file.myproj", "--veloapp-fileassoc", "C:\\docs\\other.myproj"])
+    .setLocator(locator)
+    .run();
+  expect(received).toEqual(["file:C:\\docs\\my file.myproj", "file:C:\\docs\\other.myproj"]);
+});
+
+test("VelopackApp should log a throwing association callback and deliver the rest", async () => {
+  let locator: VelopackLocatorConfig = {
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+    PackagesDir: "",
+    RootAppDir: "",
+    UpdateExePath: updateExe(),
+    CurrentBinaryDir: "",
+    IsPortable: true,
+  };
+  let messages: string[] = [];
+  let received: string[] = [];
+  process.env.VELOPACK_RESTART = "true"; // repeated pairs are only read for restarted launches on Windows
+  VelopackApp.build()
+    .setLogger((_level, msg) => messages.push(msg))
+    .onFileAssoc((path) => {
+      received.push(path);
+      if (path === "first") throw new Error("boom from callback");
+    })
+    .setArgs(["--veloapp-fileassoc", "first", "--veloapp-fileassoc", "second"])
+    .setLocator(locator)
+    .run();
+
+  expect(received).toEqual(["first", "second"]);
+  await vi.waitFor(() => {
+    expect(messages.some((msg) => msg.includes("file-assoc callback threw") && msg.includes("boom from callback"))).toBe(true);
+  });
+});
+
+test("VelopackApp should deliver forwarded activations from the IPC thread to the JS thread", async () => {
+  // the Rust test app (built by `npm run dev`) is the forwarding client; missing locally = skip, missing in CI = fail
+  const testapp = path.join("..", "..", "target", "debug", isWindows() ? "testapp.exe" : "testapp");
+  if (!fs.existsSync(testapp)) {
+    if (process.env.CI) throw new Error(`rust testapp missing: ${testapp}`);
+    return;
+  }
+
+  // an installed-looking root (the lock is held for the rest of the process, so the root is unique to this test)
+  const root = path.join(os.tmpdir(), "velopack-node-ipc-" + makeId(8));
+  fs.mkdirSync(path.join(root, "packages"), {recursive: true});
+  const locator: VelopackLocatorConfig = {
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+    PackagesDir: path.join(root, "packages"),
+    RootAppDir: root,
+    UpdateExePath: updateExe(),
+    CurrentBinaryDir: "",
+    IsPortable: true,
+  };
+
+  // a plain launch with no other instance: this process is elected the server
+  let received: string[] = [];
+  VelopackApp.build()
+    .onUrlProto((url) => received.push(url))
+    .forwardActivationsToRunningInstance(true)
+    .setArgs([])
+    .setLocator(locator)
+    .run();
+  expect(received).toEqual([]);
+
+  // run() has returned, so the server's IPC thread must hand the activation to the event loop (unref'd channel)
+  const url = 'myapp://open?q="a b"';
+  const {stdout} = await promisify(execFile)(testapp, ["ipc-send", "Test.Squirrel-App", root, "--veloapp-urlproto", url]);
+  expect(stdout.trim()).toBe("ack");
+  await vi.waitFor(() => expect(received).toEqual([url]));
 });
 
 test("VelopackApp should forward library logs to the logger callback", async () => {

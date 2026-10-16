@@ -264,6 +264,27 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
 
     protected abstract Task<string> PreprocessPackDir(Action<int> progress, string packDir);
 
+    /// <summary>
+    /// Parses the association options into the nuspec / sq.version metadata read at install time (Windows).
+    /// Must run before the manifest is generated.
+    /// </summary>
+    protected (string[] Extensions, string[] Schemes) AddAssociationMetadata(string fileAssociations, string urlProtocols)
+    {
+        var extensions = AppAssociations.ParseFileAssociations(fileAssociations);
+        if (extensions.Length > 0) {
+            ExtraNuspecMetadata["fileAssociations"] = AppAssociations.Join(extensions);
+            Log.Info($"File associations: {ExtraNuspecMetadata["fileAssociations"]}");
+        }
+
+        var schemes = AppAssociations.ParseUrlProtocols(urlProtocols);
+        if (schemes.Length > 0) {
+            ExtraNuspecMetadata["urlProtocols"] = AppAssociations.Join(schemes);
+            Log.Info($"URL protocols: {ExtraNuspecMetadata["urlProtocols"]}");
+        }
+
+        return (extensions, schemes);
+    }
+
     protected virtual Task CodeSign(Action<int> progress, string packDir)
     {
         return Task.CompletedTask;

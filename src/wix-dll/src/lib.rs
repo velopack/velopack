@@ -11,7 +11,9 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
+use velopack::locator::{auto_locate_app_manifest, LocationContext, VelopackLocator};
 use velopack::process::{self, WaitResult};
+use velopack_bins::windows::associations::{self, Hive};
 use velopack_bins::windows::prerequisite;
 #[cfg(debug_assertions)]
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE};
@@ -20,8 +22,19 @@ use windows::Win32::{
     System::ApplicationInstallationAndServicing::MSIHANDLE,
 };
 
-#[no_mangle]
-pub extern "system" fn RustSetLocaleStrings(h_install: MSIHANDLE) -> c_uint {
+/// Exports a custom action entry point which runs `$body(h_install)` with this thread's `log` output forwarded to
+/// the MSI log (see `with_msi_logging`).
+macro_rules! custom_action {
+    ($name:ident => $body:expr) => {
+        #[no_mangle]
+        pub extern "system" fn $name(h_install: MSIHANDLE) -> c_uint {
+            with_msi_logging(h_install, || ($body)(h_install))
+        }
+    };
+}
+
+custom_action!(RustSetLocaleStrings => rust_set_locale_strings);
+fn rust_set_locale_strings(h_install: MSIHANDLE) -> c_uint {
     velopack_l18n::init();
 
     let app_title = msi_get_property(h_install, "RustAppTitle").unwrap_or_default();
@@ -40,13 +53,10 @@ pub extern "system" fn RustSetLocaleStrings(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
-#[no_mangle]
-pub extern "system" fn ValidatePath(h_install: MSIHANDLE) -> c_uint {
-    validate_path::validate_path(h_install)
-}
+custom_action!(ValidatePath => validate_path::validate_path);
 
-#[no_mangle]
-pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
+custom_action!(EarlyBootstrap => early_bootstrap);
+fn early_bootstrap(h_install: MSIHANDLE) -> c_uint {
     velopack_l18n::init();
     velopack_l18n::init_win32_direct(); // bypass xdialog message loop and use taskdialog directly
 
@@ -161,13 +171,13 @@ fn remove_packages_in_dir(fn_name: &str, dir: &Path) {
     }
 }
 
+custom_action!(CleanupDeferred => cleanup_deferred);
 /// Deferred, non-impersonated (elevated on per-machine installs). On a full uninstall this removes
 /// everything left in the install dir (files from in-app updates, logs, user data — mirroring the
 /// Setup.exe/Update.exe uninstall behavior) plus any leftover ARP registry key. During a major
 /// upgrade it only purges the `current` payload dir (so the incoming MSI lays down a clean payload) and
 /// the downloaded packages; other files outside `current` (user data, logs) survive.
-#[no_mangle]
-pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
+fn cleanup_deferred(h_install: MSIHANDLE) -> c_uint {
     let custom_data = msi_get_property(h_install, "CustomActionData");
     show_debug_message("CleanupDeferred", format!("CustomActionData={:?}", custom_data));
 
@@ -211,13 +221,13 @@ pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
+custom_action!(UserCleanupDeferred => user_cleanup_deferred);
 /// Deferred, impersonated as the installing user. Runs on full uninstall only, and cleans up the
 /// per-user state which CleanupDeferred cannot reliably reach when it runs as SYSTEM on
 /// per-machine installs: shortcuts pointing into the install dir, the `%LocalAppData%\{AppId}`
 /// fallback dir (packages + Update.exe copied there when the install dir is not writable), the
 /// velopack temp dir, and the HKCU ARP key.
-#[no_mangle]
-pub extern "system" fn UserCleanupDeferred(h_install: MSIHANDLE) -> c_uint {
+fn user_cleanup_deferred(h_install: MSIHANDLE) -> c_uint {
     let custom_data = msi_get_property(h_install, "CustomActionData");
     show_debug_message("UserCleanupDeferred", format!("CustomActionData={:?}", custom_data));
 
@@ -251,8 +261,8 @@ pub extern "system" fn UserCleanupDeferred(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
-#[no_mangle]
-pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
+custom_action!(LaunchApplication => launch_application);
+fn launch_application(h_install: MSIHANDLE) -> c_uint {
     let install_dir = msi_get_property(h_install, "INSTALLFOLDER");
     let stub_file = msi_get_property(h_install, "RustStubFileName");
 
@@ -335,14 +345,14 @@ fn run_hook_deferred(h_install: MSIHANDLE, hook_name: &str, timeout_secs: u64) -
     ERROR_SUCCESS.0
 }
 
+custom_action!(PatchChannelDeferred => patch_channel_deferred);
 /// Deferred custom action: reads the channel tag from the MSI's own Authenticode signature
 /// (`\x05DigitalSignature` stream of `[OriginalDatabase]`) and, if present, patches `<channel>`
 /// in `{INSTALLFOLDER}\current\sq.version`. Runs on fresh install and repair — the cached MSI
 /// under `C:\Windows\Installer` carries the tag, so a repair re-applies the installer's channel
 /// even if the app has since switched channels via updates. Returns `ERROR_SUCCESS` always; an
 /// absent/malformed tag or any error is logged and swallowed, never faulting the install.
-#[no_mangle]
-pub extern "system" fn PatchChannelDeferred(h_install: MSIHANDLE) -> c_uint {
+fn patch_channel_deferred(h_install: MSIHANDLE) -> c_uint {
     let custom_data = msi_get_property(h_install, "CustomActionData");
     show_debug_message("PatchChannelDeferred", format!("CustomActionData={:?}", custom_data));
 
@@ -378,20 +388,107 @@ pub extern "system" fn PatchChannelDeferred(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
-#[no_mangle]
-pub extern "system" fn InstallHookDeferred(h_install: MSIHANDLE) -> c_uint {
+/// Parses the CustomActionData marshaled by the Set*AssociationsData actions: `[INSTALLFOLDER]"[ALLUSERS]`.
+/// The trailing separator MSI puts on `[INSTALLFOLDER]` is dropped so the root dir (written into every
+/// registration as the `VelopackRootDir` ownership marker) is byte-identical to what Update.exe, which
+/// derives it from its own location, writes for the same install. ALLUSERS is "1" for per-machine installs.
+struct AssociationsData {
+    install_dir: String,
+    per_machine: bool,
+}
+
+fn parse_associations_data(custom_data: &str) -> AssociationsData {
+    let mut parts = custom_data.split('"');
+    let install_dir = parts.next().unwrap_or("");
+    let per_machine = parts.next().map(|s| s == "1").unwrap_or(false);
+    let trimmed = install_dir.trim_end_matches(['\\', '/']);
+    // never reduce a drive root ("D:\") to a drive-relative path ("D:")
+    let install_dir = if trimmed.is_empty() || trimmed.ends_with(':') {
+        install_dir
+    } else {
+        trimmed
+    };
+    AssociationsData {
+        install_dir: install_dir.to_string(),
+        per_machine,
+    }
+}
+
+/// Builds the locator of the installed app from `{install_dir}\current\sq.version` (and `Update.exe` next to
+/// it), exactly as Update.exe does for the same install.
+fn locate_installed_app(install_dir: &str) -> anyhow::Result<VelopackLocator> {
+    Ok(auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(
+        PathBuf::from(install_dir),
+        None,
+    ))?)
+}
+
+/// Shared body of the association custom actions. Which hive to use is decided by the installer (ALLUSERS)
+/// rather than detected: the Machine variants run non-impersonated (SYSTEM, which can write HKLM and whose
+/// HKCU is not the installing user's), the User variants run impersonated so HKCU is the installing user's.
+fn run_associations_deferred(h_install: MSIHANDLE, fn_name: &str, remove: bool) -> c_uint {
+    let custom_data = msi_get_property(h_install, "CustomActionData");
+    show_debug_message(fn_name, format!("CustomActionData={:?}", custom_data));
+
+    if let Some(custom_data) = custom_data {
+        let data = parse_associations_data(&custom_data);
+        if data.install_dir.is_empty() {
+            show_debug_message(fn_name, "Missing install_dir, skipping".to_string());
+            return ERROR_SUCCESS.0;
+        }
+        let hive = if data.per_machine {
+            Hive::LocalMachine
+        } else {
+            Hive::CurrentUser
+        };
+        match locate_installed_app(&data.install_dir) {
+            Ok(locator) => {
+                show_debug_message(fn_name, format!("install_dir={:?}, hive={:?}", data.install_dir, hive));
+                // association failures are logged by the bins crate (forwarded to the MSI log) and never fail the install
+                if remove {
+                    associations::remove_all_in_hive(&locator, hive);
+                } else {
+                    associations::sync_in_hive(&locator, None, hive);
+                }
+                show_debug_message(fn_name, "Done!".to_string());
+            }
+            Err(e) => show_debug_message(fn_name, format!("Could not locate the installed app in {:?}: {}", data.install_dir, e)),
+        }
+    }
+
+    ERROR_SUCCESS.0
+}
+
+custom_action!(SyncAssociationsDeferred => sync_associations_deferred);
+/// Deferred. Registers the file associations / URL protocols the installed `sq.version` declares (install, repair
+/// and the new product of a major upgrade). Scheduled after InstallFiles and PatchChannelDeferred so the manifest
+/// is in place and final.
+fn sync_associations_deferred(h_install: MSIHANDLE) -> c_uint {
+    run_associations_deferred(h_install, "SyncAssociationsDeferred", false)
+}
+
+custom_action!(RemoveAssociationsDeferred => remove_associations_deferred);
+/// Deferred. Removes every association owned by this install (ownership marker = install dir). Scheduled before
+/// RemoveFiles so the manifest can still be read, on uninstall and when the old product is removed by a major
+/// upgrade: the new product then registers its own set, so associations it no longer declares are gone.
+fn remove_associations_deferred(h_install: MSIHANDLE) -> c_uint {
+    run_associations_deferred(h_install, "RemoveAssociationsDeferred", true)
+}
+
+custom_action!(InstallHookDeferred => install_hook_deferred);
+fn install_hook_deferred(h_install: MSIHANDLE) -> c_uint {
     run_hook_deferred(h_install, "--veloapp-install", 30)
 }
 
+custom_action!(UpdatedHookDeferred => updated_hook_deferred);
 /// Runs instead of the install hook when this MSI is upgrading an older product, matching what
 /// Update.exe does for in-app updates.
-#[no_mangle]
-pub extern "system" fn UpdatedHookDeferred(h_install: MSIHANDLE) -> c_uint {
+fn updated_hook_deferred(h_install: MSIHANDLE) -> c_uint {
     run_hook_deferred(h_install, "--veloapp-updated", 15)
 }
 
-#[no_mangle]
-pub extern "system" fn UninstallHookDeferred(h_install: MSIHANDLE) -> c_uint {
+custom_action!(UninstallHookDeferred => uninstall_hook_deferred);
+fn uninstall_hook_deferred(h_install: MSIHANDLE) -> c_uint {
     run_hook_deferred(h_install, "--veloapp-uninstall", 60)
 }
 
@@ -405,23 +502,23 @@ fn show_messagebox(title: &str, message: &str, icon: MESSAGEBOX_STYLE) {
     }
 }
 
-#[cfg(debug_assertions)]
+/// Writes a custom action trace line to the MSI log (visible with `msiexec /l*v`) and, in debug builds only, also
+/// shows it in a message box when opted in.
 fn show_debug_message(fn_name: &str, message: String) {
-    // Debug dialogs are opt-in so that automated/local test runs are not interrupted.
-    // Deferred custom actions run in processes spawned by the Windows Installer service and do
-    // not inherit the msiexec client's environment, so to see their dialogs this variable must
-    // be set user-wide (`setx VELOPACK_WIX_DEBUG_DIALOGS 1`), or machine-wide
-    // (`setx /M VELOPACK_WIX_DEBUG_DIALOGS 1`) for non-impersonated actions like CleanupDeferred.
-    if std::env::var("VELOPACK_WIX_DEBUG_DIALOGS").is_err() {
-        return;
+    log::info!(target: "velopack_wix", "{}: {}", fn_name, message);
+    #[cfg(debug_assertions)]
+    {
+        // Debug dialogs are opt-in so that automated/local test runs are not interrupted.
+        // Deferred custom actions run in processes spawned by the Windows Installer service and do
+        // not inherit the msiexec client's environment, so to see their dialogs this variable must
+        // be set user-wide (`setx VELOPACK_WIX_DEBUG_DIALOGS 1`), or machine-wide
+        // (`setx /M VELOPACK_WIX_DEBUG_DIALOGS 1`) for non-impersonated actions like CleanupDeferred.
+        if std::env::var("VELOPACK_WIX_DEBUG_DIALOGS").is_err() {
+            return;
+        }
+        let message = format!("{}: {}", fn_name, message);
+        show_messagebox(fn_name, &message, MB_ICONWARNING);
     }
-    let message = format!("{}: {}", fn_name, message);
-    show_messagebox(fn_name, &message, MB_ICONWARNING);
-}
-
-#[cfg(not(debug_assertions))]
-fn show_debug_message(_fn_name: &str, _message: String) {
-    // no-op
 }
 
 #[cfg(test)]
@@ -480,6 +577,93 @@ mod tests {
         assert!(dir.join(".velopack_lock").exists());
         assert!(dir.join("VelopackTemp").exists());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_associations_data_trims_install_folder_and_reads_scope() {
+        let d = parse_associations_data("C:\\Program Files\\MyApp\\\"1");
+        assert_eq!(d.install_dir, "C:\\Program Files\\MyApp");
+        assert!(d.per_machine);
+
+        let d = parse_associations_data("C:\\Users\\me\\AppData\\Local\\MyApp\\\"");
+        assert_eq!(d.install_dir, "C:\\Users\\me\\AppData\\Local\\MyApp");
+        assert!(!d.per_machine);
+
+        let d = parse_associations_data("C:\\MyApp");
+        assert_eq!(d.install_dir, "C:\\MyApp");
+        assert!(!d.per_machine);
+
+        // a drive root must stay absolute
+        let d = parse_associations_data("D:\\\"1");
+        assert_eq!(d.install_dir, "D:\\");
+
+        let d = parse_associations_data("\"1");
+        assert!(d.install_dir.is_empty());
+    }
+
+    /// Deletes the association keys a test registers under the real HKCU\Software\Classes, even on failure.
+    struct ClassesCleanup(Vec<String>);
+
+    impl Drop for ClassesCleanup {
+        fn drop(&mut self) {
+            if let Ok(classes) = RegKey::predef(HKEY_CURRENT_USER).open_subkey("Software\\Classes") {
+                for name in &self.0 {
+                    let _ = classes.delete_subkey_all(name);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sync_and_remove_register_the_installed_manifest_in_the_user_hive() {
+        // a per-user MSI layout: Update.exe at the root, current\sq.version declaring associations. Names are
+        // unique per run so a leftover from an aborted run can never satisfy an assertion.
+        let suffix: String = format!("{:x}", std::process::id() ^ (std::time::UNIX_EPOCH.elapsed().unwrap().as_nanos() as u32));
+        let app_id = format!("VpkWixAssoc{}", suffix);
+        let ext = format!(".vpkwix{}", suffix);
+        let scheme = format!("vpkwix{}", suffix);
+        let progid = format!("{}.{}", app_id, ext.trim_start_matches('.'));
+        let _cleanup = ClassesCleanup(vec![ext.clone(), scheme.clone(), progid.clone()]);
+
+        let root = std::env::temp_dir().join(format!("velopack_wix_assoc_{}", suffix));
+        let current = root.join("current");
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::write(root.join("Update.exe"), b"").unwrap();
+        std::fs::write(
+            current.join("sq.version"),
+            format!(
+                r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd"><metadata>
+<id>{app_id}</id><title>Wix Assoc Test</title><version>1.0.0</version><mainExe>MyApp.exe</mainExe>
+<fileAssociations>{ext}</fileAssociations><urlProtocols>{scheme}</urlProtocols>
+</metadata></package>"#
+            ),
+        )
+        .unwrap();
+
+        // what the MSI marshals: [INSTALLFOLDER] with its trailing separator, per-user
+        let data = parse_associations_data(&format!("{}\\\"", root.display()));
+        let locator = locate_installed_app(&data.install_dir).unwrap();
+        associations::sync_in_hive(&locator, None, Hive::CurrentUser);
+
+        let classes = RegKey::predef(HKEY_CURRENT_USER).open_subkey("Software\\Classes").unwrap();
+        let exe = format!("\"{}\"", root.join("current").join("MyApp.exe").display());
+        let protocol = classes.open_subkey(&scheme).expect("protocol key");
+        assert_eq!(protocol.get_value::<String, _>("").unwrap(), "URL:Wix Assoc Test");
+        // the ownership marker is the install dir without MSI's trailing separator, as Update.exe writes it
+        assert_eq!(protocol.get_value::<String, _>("VelopackRootDir").unwrap(), root.to_string_lossy());
+        let command = classes.open_subkey(format!("{}\\shell\\open\\command", scheme)).unwrap();
+        assert!(command.get_value::<String, _>("").unwrap().starts_with(&exe));
+        let progid_key = classes.open_subkey(&progid).expect("progid key");
+        assert_eq!(progid_key.get_value::<String, _>("VelopackRootDir").unwrap(), root.to_string_lossy());
+        assert_eq!(classes.open_subkey(&ext).unwrap().get_value::<String, _>("").unwrap(), progid);
+
+        associations::remove_all_in_hive(&locator, Hive::CurrentUser);
+        assert!(classes.open_subkey(&scheme).is_err());
+        assert!(classes.open_subkey(&progid).is_err());
+        assert!(classes.open_subkey(&ext).is_err());
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

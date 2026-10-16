@@ -192,6 +192,8 @@ jobs:
           mkdir ./artifacts
           lipo -create -output ./artifacts/UpdateMac ./target/x86_64-apple-darwin/release/update ./target/aarch64-apple-darwin/release/update
           file ./artifacts/UpdateMac
+          lipo -create -output ./artifacts/AssocHelperMac ./target/x86_64-apple-darwin/release/assochelper ./target/aarch64-apple-darwin/release/assochelper
+          file ./artifacts/AssocHelperMac
           lipo -create -output ./artifacts/velopack_nodeffi_osx.node ./target/x86_64-apple-darwin/release/libvelopack_nodeffi.dylib ./target/aarch64-apple-darwin/release/libvelopack_nodeffi.dylib
           file ./artifacts/velopack_nodeffi_osx.node
           lipo -create -output ./artifacts/velopack_libc_osx.dylib ./target/x86_64-apple-darwin/release/libvelopack_libc.dylib ./target/aarch64-apple-darwin/release/libvelopack_libc.dylib

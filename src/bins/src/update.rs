@@ -66,6 +66,12 @@ fn root_command() -> Command {
         .long_flag_alias("updateSelf")
         .hide(true)
     );
+
+    #[cfg(target_os = "macos")]
+    let cmd = cmd.subcommand(Command::new("register-helpers")
+        .about("Register the bundle's association helper(s) with LaunchServices.")
+        .hide(true)
+    );
     cmd
 }
 
@@ -182,7 +188,9 @@ fn main_inner() -> Result<()> {
     let verbose = get_flag_or_false(&matches, "verbose");
     let log_file = matches.get_one("log");
     let desired_log_file = log_file.cloned().unwrap_or(default_logfile_path(&location_context));
-    init_logging("update", Some(&desired_log_file), true, verbose, None);
+    // register-helpers runs detached from a starting app and inherits its stdout/stderr: log to the file only
+    let console = matches.subcommand_name() != Some("register-helpers");
+    init_logging("update", Some(&desired_log_file), console, verbose, None);
 
     // change working directory to the parent directory of the exe
     let mut containing_dir = env::current_exe()?;
@@ -211,6 +219,8 @@ fn main_inner() -> Result<()> {
         "start" => start(location_context, subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(location_context, subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(location_context, subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
+        #[cfg(target_os = "macos")]
+        "register-helpers" => register_helpers(location_context).map_err(|e| anyhow!("Register-helpers error: {}", e)),
         _ => bail!("Unknown subcommand '{subcommand}'. Try `--help` for more information."),
     };
 
@@ -219,6 +229,15 @@ fn main_inner() -> Result<()> {
         return Err(e);
     }
 
+    Ok(())
+}
+
+/// Called by the C# library at an installed start (the Rust library registers in-process): LaunchServices only
+/// learns of the nested association helper bundles through an explicit registration.
+#[cfg(target_os = "macos")]
+fn register_helpers(context: LocationContext) -> Result<()> {
+    let locator = auto_locate_app_manifest(context)?;
+    velopack::launch_services::register_association_helpers(&locator.get_root_dir());
     Ok(())
 }
 

@@ -22,6 +22,8 @@ public sealed class WindowsPackOptionsValidator : PackOptionsValidator<WindowsPa
         RuleFor(x => x.InstReadme).MustBeExistingFile();
         RuleFor(x => x.InstLicense).MustBeExistingFile();
         RuleFor(x => x.InstConclusion).MustBeExistingFile();
+        RuleFor(x => x.FileAssociations).MustBeValidFileAssociations();
+        RuleFor(x => x.UrlProtocols).MustBeValidUrlProtocols();
         RuleFor(x => x.SignTemplate)
             .Must((opt, _) => new[] { opt.SignTemplate, opt.SignParameters, opt.AzureTrustedSignFile }.Count(v => !string.IsNullOrEmpty(v)) <= 1)
             .WithMessage("Cannot use more than one of 'signTemplate', 'signParams' and 'azureTrustedSignFile' options together, please choose one.");

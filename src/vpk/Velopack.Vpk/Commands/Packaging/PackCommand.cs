@@ -58,6 +58,14 @@ public abstract class PackCommand : PlatformCommand
 
     protected Option<bool> NoInstOption { get; private set; }
 
+    public string FileAssociations { get; private set; }
+
+    protected Option<string> FileAssociationsOption { get; private set; }
+
+    public string UrlProtocols { get; private set; }
+
+    protected Option<string> UrlProtocolsOption { get; private set; }
+
     public PackCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description, targetOs)
     {
@@ -115,5 +123,13 @@ public abstract class PackCommand : PlatformCommand
         NoInstOption = AddOption<bool>((v) => NoInst = v, ["--noInst"])
             .SetDescription("Skip generating an installer package.")
             .SetHidden(true);
+
+        FileAssociationsOption = AddOption<string>((v) => FileAssociations = v, ["--fileAssociations"])
+            .SetDescription("File extensions to open with the app (eg. '.myproj,.mytpl').")
+            .SetArgumentHelpName("EXTS");
+
+        UrlProtocolsOption = AddOption<string>((v) => UrlProtocols = v, ["--urlProtocols"])
+            .SetDescription("Custom URL schemes to open with the app (eg. 'myapp').")
+            .SetArgumentHelpName("SCHEMES");
     }
 }
