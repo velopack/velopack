@@ -32,7 +32,6 @@ ureq.workspace = true
 url.workspace = true
 semver.workspace = true
 xml.workspace = true
-derivative.workspace = true
 glob.workspace = true
 serde.workspace = true
 serde_json.workspace = true

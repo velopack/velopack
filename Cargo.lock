@@ -1048,17 +1048,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
 
 [[package]]
-name = "derivative"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5198,7 +5187,6 @@ version = "0.0.0-local"
 dependencies = [
  "anyhow",
  "bitflags 2.13.2",
- "derivative",
  "glob",
  "lazy_static",
  "libc",
@@ -5234,7 +5222,6 @@ dependencies = [
  "bitflags 2.13.2",
  "chrono",
  "clap",
- "derivative",
  "embed-resource",
  "fast_image_resize",
  "fs_extra",

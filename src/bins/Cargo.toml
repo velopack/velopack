@@ -50,7 +50,6 @@ semver.workspace = true
 chrono.workspace = true
 lazy_static.workspace = true
 strum.workspace = true
-derivative.workspace = true
 glob.workspace = true
 remove_dir_all.workspace = true
 time.workspace = true
