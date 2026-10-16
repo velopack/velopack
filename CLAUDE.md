@@ -142,9 +142,9 @@ icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
 ## Windows 7 support
 
 The Windows x86/x64 binaries are built for the `*-win7-windows-msvc` targets and must keep loading on Windows 7.
-These tier 3 targets have no prebuilt std, so CI builds std from source with **stable** rustc + `RUSTC_BOOTSTRAP=1`
-+ `-Z build-std` (nightly's std breaks for win7 too often). The regular `*-pc-windows-msvc` targets are not an option:
-their std statically imports Win8+/Win10 APIs (`WaitOnAddress`, `GetSystemTimePreciseAsFileTime`, `ProcessPrng`).
+These tier 3 targets have no prebuilt std, so CI builds std from source with `-Z build-std` on a **dated nightly**
+pinned in `build-rust.yml` (an unpinned nightly broke std for win7). The regular `*-pc-windows-msvc` targets' std
+statically imports Win8+/Win10 APIs (`WaitOnAddress`/`WakeByAddress*`, `GetSystemTimePreciseAsFileTime`, `ProcessPrng`).
 - Never statically import Windows 8+ APIs; resolve them at runtime with `libloading` (see `splash.rs`/`mitigate.rs`).
 - windows-core links COM functions from `combase.dll` (Windows 8+); it is delay-loaded (`src/bins/build.rs`) and the
   delay-load failure hook in `src/bins/src/windows/delay_load.rs` substitutes `ole32.dll`. A new missing import shows
