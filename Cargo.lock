@@ -5255,6 +5255,7 @@ dependencies = [
  "time",
  "velopack",
  "velopack_l18n",
+ "velopack_win7_shims",
  "wait-timeout",
  "waitpid-any",
  "walkdir",
@@ -5325,6 +5326,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "velopack_win7_shims"
+version = "0.0.0-local"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "velopack_wix"
 version = "0.0.0-local"
 dependencies = [
@@ -5335,6 +5343,7 @@ dependencies = [
  "velopack",
  "velopack_bins",
  "velopack_l18n",
+ "velopack_win7_shims",
  "windows",
  "winreg",
 ]

@@ -20,6 +20,9 @@ use windows::Win32::{
     System::ApplicationInstallationAndServicing::MSIHANDLE,
 };
 
+// Lets the x86/x64 build load on Windows 7 (see src/win7-shims).
+velopack_win7_shims::link_win7_shims!();
+
 #[no_mangle]
 pub extern "system" fn RustSetLocaleStrings(h_install: MSIHANDLE) -> c_uint {
     velopack_l18n::init();

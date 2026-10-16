@@ -12,6 +12,10 @@ use velopack::locator::LocationContext;
 use velopack::logging;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
+// Lets the x86/x64 build start on Windows 7 (see src/win7-shims).
+#[cfg(windows)]
+velopack_win7_shims::link_win7_shims!();
+
 fn main() -> ExitCode {
     let my_path = std::env::current_exe().unwrap();
     let default_log_file = logging::default_logfile_path(LocationContext::IAmUpdateExe);

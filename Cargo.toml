@@ -8,6 +8,7 @@ members = [
     "src/lib-cpp",
     "src/lib-python",
     "src/wix-dll",
+    "src/win7-shims",
 ]
 exclude = [
     "samples/RustIced",
@@ -31,6 +32,7 @@ rust-version = "1.75"
 velopack = { path = "src/lib-rust", features = ["file-logging", "public-utils"] }
 velopack_bins = { path = "src/bins" }
 velopack_l18n = { path = "src/l18n" }
+velopack_win7_shims = { path = "src/win7-shims" }
 log = "0.4"
 log-derive = "0.4.1"
 ureq = "3.4"
@@ -81,6 +83,7 @@ image = { version = "0.25", default-features = false, features = ["gif", "jpeg",
 fs_extra = "1.3"
 memmap2 = "0.9"
 windows = "0.62"
+windows-sys = "0.61"
 webview2-com-sys = "0.39"
 cbindgen = "0.29"
 log-panics = "2.1.0"

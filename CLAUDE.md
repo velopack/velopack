@@ -141,15 +141,24 @@ icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
 
 ## Windows 7 support
 
-The Windows x86/x64 binaries are built for the `*-win7-windows-msvc` targets and must keep loading on Windows 7.
-These tier 3 targets have no prebuilt std, so CI builds std from source with `-Z build-std` on a **dated nightly**
-pinned in `build-rust.yml` (an unpinned nightly broke std for win7). The regular `*-pc-windows-msvc` targets' std
-statically imports Win8+/Win10 APIs (`WaitOnAddress`/`WakeByAddress*`, `GetSystemTimePreciseAsFileTime`, `ProcessPrng`).
+Our x86/x64 final artifacts — the binaries (update/setup/stub/testapp) and velopack_wix.dll (loaded by our MSI) — must
+keep working on Windows 7. They are built on stable for the regular `*-pc-windows-msvc` targets, whose std statically
+imports five Win8+ functions (`WaitOnAddress`/`WakeByAddressSingle`/`WakeByAddressAll`, `ProcessPrng`,
+`GetSystemTimePreciseAsFileTime`), and windows-core links `CoTaskMemAlloc`/`CoTaskMemFree`/`CoCreateFreeThreadedMarshaler`
+from `combase.dll` (Windows 8+; Windows 7 has them in ole32). `src/win7-shims` (`velopack_win7_shims::link_win7_shims!()`, invoked in the root of
+each of those crates) defines the `__imp_` symbols for them via `global_asm!`, so the imports vanish and calls go through
+shims that use the real function when present and a Win7 fallback otherwise. Do not move back to the tier 3
+`*-win7-windows-msvc` targets (nightly + `-Z build-std` only, and they break on nightly).
+- **Never link the shims into libraries end users link or load themselves** (velopack_libc, velopack_nodeffi): only
+  into our own final artifacts that users don't consume directly.
+- A new such artifact invokes `link_win7_shims!()` in its own root: the symbols have to be in the final crate's own
+  object (an rlib definition loses to the import library), and `global_asm!` keeps them out of a cdylib's export
+  table, unlike `#[export_name]`.
+- If a new Rust version makes std import another Win8+ function, add a shim for it in `src/win7-shims` (both arch
+  variants of the macro; x86 symbols are stdcall-decorated, e.g. `__imp__WaitOnAddress@16`).
 - Never statically import Windows 8+ APIs; resolve them at runtime with `libloading` (see `splash.rs`/`mitigate.rs`).
-- windows-core links COM functions from `combase.dll` (Windows 8+); it is delay-loaded (`src/bins/build.rs`) and the
-  delay-load failure hook in `src/bins/src/windows/delay_load.rs` substitutes `ole32.dll`. A new missing import shows
-  up as setup/update exiting with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) on Windows 7 — fix the caller (for our
-  own crates like xdialog, fix it there) rather than working around it here.
+- A new missing import shows up as setup/update exiting with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) on Windows 7.
+  If it comes from our own code or crates (e.g. xdialog), fix the caller there; shim only what std/windows-core link.
 - CI covers this with the `win7` job in `build-tests.yml`: it boots a Win7 SP1 qcow2 under QEMU/KVM and runs
   `CrossCompile.RunCrossAppWindows7` over SSH (`VELOPACK_WIN7_SSH=user:password@host:port`). The .NET 8 TestApp
   can't run on Win7, so it uses the rust testapp packages (`-rust` artifact ids). Commands run through a scheduled
