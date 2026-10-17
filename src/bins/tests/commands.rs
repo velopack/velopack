@@ -343,10 +343,6 @@ pub fn test_apply_v2_fixture_with_classic_apply() {
     let fixtures = find_fixtures().join("delta-v2");
     let v1 = fixtures.join("ChunkTestApp-1.0.0-win-full.nupkg");
     let v2 = fixtures.join("ChunkTestApp-1.1.0-win-full.nupkg");
-    if !v1.exists() || !v2.exists() {
-        eprintln!("SKIPPED: golden fixtures {:?} are not present", fixtures);
-        return;
-    }
 
     let tmp_dir = tempdir().unwrap();
     let root = tmp_dir.path().join("app");
