@@ -161,7 +161,8 @@ shims that use the real function when present and a Win7 fallback otherwise. Do 
   If it comes from our own code or crates (e.g. xdialog), fix the caller there; shim only what std/windows-core link.
 - CI covers this with the `win7` job in `build-tests.yml`: it boots a Win7 SP1 qcow2 under QEMU/KVM and runs
   `CrossCompile.RunCrossAppWindows7` over SSH (`VELOPACK_WIN7_SSH=user:password@host:port`). The .NET 8 TestApp
-  can't run on Win7, so it uses the rust testapp packages (`-rust` artifact ids). Commands run through a scheduled
+  can't run on Win7, so it uses the x64 and x86 rust testapp packages (`-rust` / `-rust-x86` artifact ids; the
+  x86 testapp ships as `testapp_x86.exe`, and x86 runs under WOW64 on the x64 VM). Commands run through a scheduled
   task in the desktop session, since Win32-OpenSSH kills a session's child processes (e.g. Update.exe) on exit.
 
 ## Locators
