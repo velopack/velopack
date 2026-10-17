@@ -289,6 +289,7 @@ jobs:
           merge-multiple: true
       # The Rust testapp is built by the build-rust workflow and shipped inside the rust-* artifacts
       # just downloaded; put the host-native copy where the tests expect it (target/release/testapp).
+      # PackCrossApp reads the Windows builds directly as testapp_x64.exe / testapp_x86.exe on every host.
       - name: Prepare Rust testapp
         shell: bash
         run: |
@@ -373,7 +374,7 @@ jobs:
           files: ./test/coverage/junit.*.xml
           flags: vpk
 
-  # Installs and updates the cross-compiled rust testapp packages on Windows 7. GitHub cannot host a runner
+  # Installs and updates the cross-compiled x64 and x86 rust testapp packages on Windows 7. GitHub cannot host a runner
   # on Windows 7, so a prebuilt Win7 SP1 image (OpenSSH server, SHA-2 updates, user velo/velopack) boots
   # under QEMU/KVM with -snapshot, so every run starts clean, and the tests drive it over SSH.
   win7:
