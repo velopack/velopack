@@ -142,7 +142,7 @@ namespace Velopack.Chunks
                     continue;
                 }
                 // the bytes between the halves are never fetched: count them as done so progress still ends at the total
-                var (first, second) = halves.Value;
+                RangeRequest first = halves[0], second = halves[1];
                 long gap = current.Length - first.Length - second.Length;
                 if (gap > 0) report(gap);
                 pending.Push(second);
@@ -150,8 +150,11 @@ namespace Velopack.Chunks
             }
         }
 
-        /// <summary>Fetches, verifies and appends one request; returns the two halves to fetch instead when it was split.</summary>
-        private async Task<(RangeRequest First, RangeRequest Second)?> FetchOneAsync(RangeRequest request, ChunkBlob blob, bool forceAppend,
+        /// <summary>
+        /// Fetches, verifies and appends one request; returns the two halves to fetch instead when it was split (an array, not a
+        /// tuple: the library must not reference System.ValueTuple).
+        /// </summary>
+        private async Task<RangeRequest[]?> FetchOneAsync(RangeRequest request, ChunkBlob blob, bool forceAppend,
             CancellationToken ct)
         {
             int hashMismatches = 0;
@@ -192,7 +195,7 @@ namespace Velopack.Chunks
 
             _log.Info($"Splitting range {request.Offset}+{request.Length} ({request.Chunks.Count} chunks) after a failed attempt.");
             int mid = request.Chunks.Count / 2;
-            return (Span(request.Chunks, 0, mid), Span(request.Chunks, mid, request.Chunks.Count - mid));
+            return new[] { Span(request.Chunks, 0, mid), Span(request.Chunks, mid, request.Chunks.Count - mid) };
         }
 
         /// <summary>A request covering only <paramref name="count"/> chunks of <paramref name="chunks"/> from <paramref name="start"/>.</summary>
