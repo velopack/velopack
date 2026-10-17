@@ -445,7 +445,7 @@ fn index_sha_mismatch_retries_once_then_fatal() {
     asset.ChunkIndexSHA256 = "00".repeat(32);
     let policy = h.policy();
     let result = fetch_index(&h.reader(), &asset, &policy, &|_, _| {});
-    assert!(matches!(result, Err(FetchError::Fatal(_))), "{:?}", result);
+    assert!(matches!(result, Err(FetchError::IndexInvalid(_))), "{:?}", result);
     let index_range = Some((asset.ChunkIndexOffset, asset.ChunkIndexOffset + asset.ChunkIndexLength - 1));
     assert_eq!(h.ranged_requests().iter().filter(|r| r.range == index_range).count(), 2);
 

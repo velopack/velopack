@@ -19,6 +19,10 @@ pub enum FetchError {
     /// The chunk path is abandoned in favour of the full download (§5.6 Fatal rows).
     #[error("chunk fetch failed: {0}")]
     Fatal(String),
+    /// The trailer did not match the feed's `ChunkIndexSHA256` twice: the chunk path is abandoned and the
+    /// staged directory deleted (§11).
+    #[error("chunk index invalid: {0}")]
+    IndexInvalid(String),
     /// The caller cancelled the update; the staged directory is kept for resume.
     #[error("chunk fetch cancelled")]
     Cancelled,
@@ -302,7 +306,7 @@ pub fn fetch_index(
         );
         budget.record_failure(policy, "index digest")?;
     }
-    Err(FetchError::Fatal("the chunk index did not match its digest twice".into()))
+    Err(FetchError::IndexInvalid("the chunk index did not match its digest twice".into()))
 }
 
 struct Shared<'a> {

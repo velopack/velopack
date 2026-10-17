@@ -5,7 +5,7 @@
 mod common;
 
 use common::index_writer::*;
-use common::mock_server::MockHttpServer;
+use common::mock_server::{Fault, MockHttpServer};
 use common::package::{build_package, compressible, Package};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -425,6 +425,118 @@ fn staged_path_helpers() {
     assert_eq!(locator.get_staged_root_dir(), app.packages.join("staged"));
     assert_eq!(locator.get_staged_dir("abc"), app.packages.join("staged").join("abc"));
     drop(um);
+}
+
+/// Runs download_updates expecting it to fail (the classic fallback is made to fail too, so what the chunk
+/// path left behind can be observed); returns the reported progress.
+fn download_failing(um: &UpdateManager, info: &UpdateInfo) -> Vec<i16> {
+    let (tx, rx) = mpsc::channel();
+    assert!(um.download_updates(info, Some(tx)).is_err(), "the classic fallback was made to fail");
+    rx.iter().collect()
+}
+
+fn assert_non_decreasing(progress: &[i16]) {
+    assert!(progress.windows(2).all(|w| w[0] < w[1]), "progress never decreases: {:?}", progress);
+}
+
+/// An update whose classic fallback fails its checksum.
+fn update_info_with_failing_fallback(pkg: &Package) -> UpdateInfo {
+    let mut info = update_info(pkg);
+    info.TargetFullRelease.SHA256 = "00".repeat(32);
+    info
+}
+
+#[cfg(windows)]
+#[test]
+fn index_digest_mismatch_deletes_staged_dir() {
+    let app = install_v1();
+    let server = MockHttpServer::empty();
+    let pkg = serve(&server, &v2_files());
+    // both index fetches are corrupted: the digest never matches
+    server.push_faults([Fault::CorruptByte(10), Fault::CorruptByte(10)]);
+    let um = manager(&app, &server, None);
+    let progress = download_failing(&um, &update_info_with_failing_fallback(&pkg));
+    assert_non_decreasing(&progress);
+    let layout = StagedLayout::new(&app.packages, &pkg.built.staged_id());
+    assert!(!layout.dir.exists(), "an invalid index deletes the staged directory");
+    let ranged = server.requests().iter().filter(|r| r.range.is_some()).count();
+    assert_eq!(ranged, 2, "the index was fetched twice and nothing else");
+    assert_eq!(server.requests().iter().filter(|r| r.range.is_none()).count(), 1, "then the full package");
+}
+
+#[cfg(windows)]
+#[test]
+fn invalid_index_deletes_staged_dir() {
+    let app = install_v1();
+    let server = MockHttpServer::empty();
+    let mut pkg = build_package(&v2_files(), V2_NAME, "2.0.0");
+    // an unsupported format version in a trailer whose digest the feed vouches for
+    let version_at = pkg.asset.ChunkIndexOffset as usize + 4;
+    pkg.bytes[version_at] = 2;
+    let trailer_end = (pkg.asset.ChunkIndexOffset + pkg.asset.ChunkIndexLength) as usize;
+    pkg.asset.ChunkIndexSHA256 = chunks::sha256_hex(&chunks::sha256(&pkg.bytes[pkg.asset.ChunkIndexOffset as usize..trailer_end]));
+    server.add_file(&format!("/{}", V2_NAME), pkg.bytes.clone());
+    let um = manager(&app, &server, None);
+    let id = chunks::staged_id(&pkg.asset.ChunkIndexSHA256).unwrap();
+    let progress = download_failing(&um, &update_info_with_failing_fallback(&pkg));
+    assert_non_decreasing(&progress);
+    assert!(
+        !StagedLayout::new(&app.packages, &id).dir.exists(),
+        "an invalid index deletes the staged directory"
+    );
+
+    // with a working fallback the full package lands and progress reaches 100
+    let mut info = update_info(&pkg);
+    info.TargetFullRelease.SHA256 = chunks::sha256_hex(&chunks::sha256(&pkg.bytes));
+    let progress = download(&um, &info);
+    assert_monotonic_to_100(&progress);
+    assert_eq!(fs::read(app.packages.join(V2_NAME)).unwrap(), pkg.bytes);
+    assert!(staged_dirs(&app.packages).is_empty());
+}
+
+#[cfg(windows)]
+#[test]
+fn fetch_budget_exhausted_keeps_staged_dir_for_resume() {
+    let app = install_v1();
+    let server = MockHttpServer::empty();
+    let pkg = serve(&server, &v2_files());
+    // the index arrives, then the network fails every request (Retry-After: 0, so nothing really sleeps)
+    let mut faults = vec![Fault::None];
+    faults.extend((0..200).map(|_| Fault::StatusRetryAfter(503, 0)));
+    server.push_faults(faults);
+    let um = manager(&app, &server, None);
+    let progress = download_failing(&um, &update_info_with_failing_fallback(&pkg));
+    assert_non_decreasing(&progress);
+    let layout = StagedLayout::new(&app.packages, &pkg.built.staged_id());
+    assert!(layout.index_bin().exists(), "a network failure keeps the staged directory for resume");
+    assert!(!layout.ready_json().exists());
+}
+
+#[cfg(windows)]
+#[test]
+fn transport_ceiling_downloads_full_package_after_the_index() {
+    let app = install_v1();
+    let server = MockHttpServer::empty();
+    // nothing of v1 is reusable
+    let files: Vec<TestFile> = v2_files()
+        .into_iter()
+        .enumerate()
+        .map(|(i, mut f)| {
+            if f.disposition != 2 && !f.data.is_empty() {
+                f.data = compressible(100 + i as u64, f.data.len());
+            }
+            f
+        })
+        .collect();
+    let pkg = serve(&server, &files);
+    let um = manager(&app, &server, None);
+    let progress = download(&um, &update_info(&pkg));
+    assert_monotonic_to_100(&progress);
+    assert_eq!(fs::read(app.packages.join(V2_NAME)).unwrap(), pkg.bytes);
+    let ranged: Vec<(u64, u64)> = server.requests().iter().filter_map(|r| r.range).collect();
+    let index_range = (pkg.asset.ChunkIndexOffset, pkg.asset.ChunkIndexOffset + pkg.asset.ChunkIndexLength - 1);
+    assert_eq!(ranged, vec![index_range], "only the index was fetched before the full download");
+    assert!(staged_dirs(&app.packages).is_empty());
 }
 
 #[test]
