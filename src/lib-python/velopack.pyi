@@ -286,7 +286,7 @@ class UpdateOptions:
         r"""
         Disables chunk-based updates, so the full update package is always downloaded.
         """
-    def __new__(cls, AllowVersionDowngrade: builtins.bool, DisableChunkedUpdates: builtins.bool, ExplicitChannel: typing.Optional[builtins.str] = None) -> UpdateOptions: ...
+    def __new__(cls, AllowVersionDowngrade: builtins.bool, ExplicitChannel: typing.Optional[builtins.str] = None, DisableChunkedUpdates: builtins.bool = False) -> UpdateOptions: ...
 
 @typing.final
 class VelopackAsset:
@@ -413,7 +413,7 @@ class VelopackAsset:
         r"""
         The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
         """
-    def __new__(cls, PackageId: builtins.str, Version: builtins.str, Type: builtins.str, FileName: builtins.str, SHA1: builtins.str, SHA256: builtins.str, Size: builtins.int, NotesMarkdown: builtins.str, NotesHtml: builtins.str, ChunkIndexOffset: builtins.int, ChunkIndexLength: builtins.int, ChunkIndexSHA256: builtins.str) -> VelopackAsset: ...
+    def __new__(cls, PackageId: builtins.str, Version: builtins.str, Type: builtins.str, FileName: builtins.str, SHA1: builtins.str, SHA256: builtins.str, Size: builtins.int, NotesMarkdown: builtins.str, NotesHtml: builtins.str, ChunkIndexOffset: builtins.int = 0, ChunkIndexLength: builtins.int = 0, ChunkIndexSHA256: builtins.str = '') -> VelopackAsset: ...
 
 @typing.final
 class VelopackFlowSource:

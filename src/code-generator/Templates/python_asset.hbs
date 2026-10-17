@@ -22,7 +22,7 @@ pub struct Py{{struct_rust_name}} {
 #[pymethods]
 impl Py{{struct_rust_name}} {
     #[new]
-    #[pyo3(signature = ({{#each opt_ordered_fields}}{{field_name}}{{#if field_optional}} = None{{/if~}}{{#unless @last}}, {{/unless}}{{/each}}))]
+    #[pyo3(signature = ({{#each opt_ordered_fields}}{{field_name}}{{#if field_optional}} = None{{/if~}}{{#if field_defaulted}} = {{{field_default}}}{{/if~}}{{#unless @last}}, {{/unless}}{{/each}}))]
     fn new(
         {{#each opt_ordered_fields}}{{field_name}}: {{#if field_vector}}Vec<{{/if}}{{#if field_optional}}Option<{{/if~}}
             {{~#unless field_primitive_or_system}}Py{{/unless}}{{field_rust_type}}

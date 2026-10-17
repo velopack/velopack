@@ -216,7 +216,7 @@ pub struct PyVelopackAsset {
 #[pymethods]
 impl PyVelopackAsset {
     #[new]
-    #[pyo3(signature = (PackageId, Version, Type, FileName, SHA1, SHA256, Size, NotesMarkdown, NotesHtml, ChunkIndexOffset, ChunkIndexLength, ChunkIndexSHA256))]
+    #[pyo3(signature = (PackageId, Version, Type, FileName, SHA1, SHA256, Size, NotesMarkdown, NotesHtml, ChunkIndexOffset = 0, ChunkIndexLength = 0, ChunkIndexSHA256 = String::new()))]
     fn new(
         PackageId: String,
         Version: String,
@@ -360,8 +360,8 @@ pub struct PyUpdateOptions {
 #[pymethods]
 impl PyUpdateOptions {
     #[new]
-    #[pyo3(signature = (AllowVersionDowngrade, DisableChunkedUpdates, ExplicitChannel = None))]
-    fn new(AllowVersionDowngrade: bool, DisableChunkedUpdates: bool, ExplicitChannel: Option<String>) -> Self {
+    #[pyo3(signature = (AllowVersionDowngrade, ExplicitChannel = None, DisableChunkedUpdates = false))]
+    fn new(AllowVersionDowngrade: bool, ExplicitChannel: Option<String>, DisableChunkedUpdates: bool) -> Self {
         Self {
             AllowVersionDowngrade: AllowVersionDowngrade,
             ExplicitChannel: ExplicitChannel.map(Into::into),

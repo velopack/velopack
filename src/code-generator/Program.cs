@@ -66,6 +66,29 @@ var types = new List<TypeMap>() {
     TypeMap.Primitive("u64", "uint64_t", "number"),
 }.ToDictionary(v => v.rustType, v => v);
 
+// Fields added to a struct after it shipped. The bindings give them a default (a trailing Python keyword
+// argument, an optional TypeScript property) so code written against the older shape keeps working; the
+// Rust side already treats them as absent when missing (serde default).
+HashSet<string> defaultedFields = [
+    "VelopackAsset.ChunkIndexOffset",
+    "VelopackAsset.ChunkIndexLength",
+    "VelopackAsset.ChunkIndexSHA256",
+    "UpdateOptions.DisableChunkedUpdates",
+];
+
+string RustDefaultFor(RustStruct s, RustStruct_Field f)
+{
+    if (f.field_optional || f.field_vector) {
+        throw new InvalidOperationException($"{s.Name}.{f.field_name}: only plain fields can be defaulted.");
+    }
+    return f.field_rust_type switch {
+        "bool" => "false",
+        "String" => "String::new()",
+        "i32" or "i64" or "u32" or "u64" => "0",
+        _ => throw new InvalidOperationException($"{s.Name}.{f.field_name}: no default for type {f.field_rust_type}."),
+    };
+}
+
 var handlebarData = availableStructs.Select(s => {
     var fields = s.Fields.Select(f => {
         //var isString = types[f.Type].rustType == "PathBuf" || types[f.Type].rustType == "String";
@@ -83,12 +106,19 @@ var handlebarData = availableStructs.Select(s => {
             field_primitive = types[f.Type].primitive,
             field_normal = !f.Vec && !types[f.Type].primitive,
         };
+        if (defaultedFields.Contains(s.Name + "." + f.Name)) {
+            field.field_defaulted = true;
+            field.field_default = RustDefaultFor(s, field);
+        }
         return field;
     }).ToArray();
 
+    // Python positional order: required fields, then the optional ones (= None), then the defaulted ones, so
+    // a positional call written before a defaulted field existed binds exactly as it did.
     var opt_ordered_fields = fields
-        .Where(f => !f.field_optional)
+        .Where(f => !f.field_optional && !f.field_defaulted)
         .Concat(fields.Where(f => f.field_optional))
+        .Concat(fields.Where(f => f.field_defaulted))
         .ToArray();
 
     var stru = new RustStruct_Struct {
@@ -221,6 +251,8 @@ class RustStruct_Field
     public bool field_vector;
     public bool field_system;
     public bool field_normal;
+    public bool field_defaulted;
+    public string field_default;
     public bool field_primitive_or_system => field_primitive || field_system;
     public string rust_comment;
     public string cpp_comment;
