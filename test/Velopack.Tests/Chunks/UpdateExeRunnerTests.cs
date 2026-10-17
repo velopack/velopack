@@ -26,9 +26,17 @@ public class UpdateExeRunnerTests
         public string Exe { get; }
         public List<string> Args { get; } = new();
 
+        /// <summary>The file a <see cref="LiveSleep"/> line appends to while the script is alive.</summary>
+        public string MarkerPath { get; }
+
         public Script(IEnumerable<string> lines)
         {
             _tempDir = TempUtil.GetTempDirectory(out var dir);
+            MarkerPath = Path.Combine(dir, "alive.txt");
+            var marker = MarkerPath;
+            lines = lines.Select(l => l != LiveSleep ? l
+                : VelopackRuntimeInfo.IsWindows ? $":alive\r\necho x>>\"{marker}\"\r\nping -n 2 127.0.0.1 >nul\r\ngoto alive"
+                : $"while true; do echo x >> \"{marker}\"; sleep 1; done");
             if (VelopackRuntimeInfo.IsWindows) {
                 var path = Path.Combine(dir, "fake-update.cmd");
                 File.WriteAllLines(path, new[] { "@echo off" }.Concat(lines.Select(ToCmd)));
@@ -47,6 +55,9 @@ public class UpdateExeRunnerTests
         public static string EchoErr(string text) => "echoerr " + text;
         public static string Exit(int code) => "exit " + code;
         public const string Sleep = "sleep";
+
+        /// <summary>Loops forever, appending a line to <see cref="MarkerPath"/> about every second (a sleeping child each time).</summary>
+        public const string LiveSleep = "livesleep";
 
         private static string ToCmd(string line)
         {
@@ -125,23 +136,54 @@ public class UpdateExeRunnerTests
         Assert.Empty(progress);
     }
 
+    /// <summary>
+    /// The process the runner started has exited, and the script stopped running: its marker file no longer grows (so
+    /// nothing keeps writing into the staged directory after the runner gave up on it).
+    /// </summary>
+    private static async Task AssertKilledAsync(int pid, Script script)
+    {
+        Assert.NotEqual(0, pid);
+        try {
+            using var process = Process.GetProcessById(pid);
+            Assert.True(process.WaitForExit(2000), $"process {pid} is still running after the runner killed it");
+        } catch (ArgumentException) {
+            // already gone
+        }
+        long Length() => File.Exists(script.MarkerPath) ? new FileInfo(script.MarkerPath).Length : 0;
+        long before = Length();
+        await Task.Delay(TimeSpan.FromSeconds(2.5));
+        Assert.Equal(before, Length());
+    }
+
     [Fact]
     public async Task KillsOnCancel()
     {
-        using var script = new Script(new[] { Script.Echo("VPK:PROGRESS 1"), Script.Sleep, Script.Echo("VPK:PROGRESS 100"), Script.Exit(0) });
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        using var script = new Script(new[] { Script.Echo("VPK:PROGRESS 1"), Script.LiveSleep, Script.Echo("VPK:PROGRESS 100"), Script.Exit(0) });
+        var runner = CreateRunner();
+        int pid = 0;
+        runner.OnStarted = id => pid = id;
+        using var cts = new CancellationTokenSource();
         var sw = Stopwatch.StartNew();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CreateRunner().RunAsync(script.Exe, script.Args, null, cts.Token));
+        var run = runner.RunAsync(script.Exe, script.Args, null, cts.Token);
+        // cancel once the script is demonstrably alive
+        while (!File.Exists(script.MarkerPath) && sw.Elapsed < TimeSpan.FromSeconds(10)) await Task.Delay(20);
+        Assert.True(File.Exists(script.MarkerPath));
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
         Assert.True(sw.Elapsed < TimeSpan.FromSeconds(15), $"the runner did not kill the process promptly: {sw.Elapsed}");
+        await AssertKilledAsync(pid, script);
     }
 
     [Fact]
     public async Task KillsAfterInactivity()
     {
-        using var script = new Script(new[] { Script.Echo("VPK:PROGRESS 1"), Script.Sleep, Script.Echo("VPK:PROGRESS 100"), Script.Exit(0) });
+        using var script = new Script(new[] { Script.Echo("VPK:PROGRESS 1"), Script.LiveSleep, Script.Echo("VPK:PROGRESS 100"), Script.Exit(0) });
         var skew = TimeSpan.Zero;
         var runner = CreateRunner();
+        int pid = 0;
+        runner.OnStarted = id => pid = id;
         runner.Clock = () => DateTime.UtcNow + skew;
         var progress = new List<int>();
 
@@ -155,6 +197,7 @@ public class UpdateExeRunnerTests
         var ex = await Assert.ThrowsAsync<AssembleFailedException>(() => run);
         Assert.Contains("no output", ex.Message);
         Assert.True(sw.Elapsed < TimeSpan.FromSeconds(15), $"the runner did not kill the process promptly: {sw.Elapsed}");
+        await AssertKilledAsync(pid, script);
     }
 
     [Fact]

@@ -54,6 +54,9 @@ namespace Velopack.Chunks
         /// <summary>The wall clock used for the inactivity cap. Tests replace this.</summary>
         public Func<DateTime> Clock { get; set; } = () => DateTime.UtcNow;
 
+        /// <summary>Called with the id of the started process. Tests use it to check that a killed process is gone.</summary>
+        internal Action<int>? OnStarted { get; set; }
+
         public UpdateExeRunner(IVelopackLogger log)
         {
             _log = log ?? throw new ArgumentNullException(nameof(log));
@@ -133,6 +136,7 @@ namespace Velopack.Chunks
             };
 
             if (!process.Start()) throw new AssembleFailedException($"Failed to start '{exe}'.");
+            OnStarted?.Invoke(process.Id);
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
