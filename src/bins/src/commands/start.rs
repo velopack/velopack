@@ -35,16 +35,16 @@ fn leftover_timestamp(name: &str, prefix: &str) -> Option<u64> {
 }
 
 /// Repairs the leftovers of an interrupted swap (§7.3): takes the swap lock non-blocking and does
-/// nothing if it is held (an `apply-staged` is between its renames, or root is not writable).
+/// nothing if it is held (an `apply` / `apply-staged` is swapping, or root is not writable).
 pub fn recover_current_dir(root: &Path) -> Result<()> {
-    // A protected root (e.g. Program Files, unelevated) can never hold leftovers we could repair, and
-    // the lock attempt below retries with delays, so bail cheaply first.
+    // A protected root (e.g. Program Files, unelevated) can never hold leftovers we could repair, so bail
+    // cheaply first.
     #[cfg(windows)]
     if !velopack::misc::is_directory_writable(root) {
         debug!("Root {:?} is not writable, skipping recovery.", root);
         return Ok(());
     }
-    let lock = match LockFile::try_acquire_lock(root.join(SWAP_LOCK_NAME)) {
+    let lock = match LockFile::try_acquire_lock_once(root.join(SWAP_LOCK_NAME)) {
         Ok(lock) => lock,
         Err(e) => {
             info!("Swap lock in {:?} is held or unavailable ({}), skipping recovery.", root, e);

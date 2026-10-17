@@ -366,6 +366,14 @@ impl VelopackLocator {
         Ok(lock_file)
     }
 
+    /// Like [`Self::try_get_exclusive_lock`], but makes a single attempt: fails at once (without the
+    /// ~2 s of retries) when another process holds the lock.
+    pub fn try_get_exclusive_lock_once(&self) -> Result<LockFile, Error> {
+        let packages_dir = self.get_packages_dir();
+        std::fs::create_dir_all(&packages_dir)?;
+        Ok(LockFile::try_acquire_lock_once(packages_dir.join(".velopack_lock"))?)
+    }
+
     fn get_or_create_staged_user_id(&self) -> String {
         let packages_dir = self.get_packages_dir();
         let beta_id_path = packages_dir.join(".betaId");

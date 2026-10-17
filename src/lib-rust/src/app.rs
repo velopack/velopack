@@ -187,7 +187,7 @@ impl<'a> VelopackApp<'a> {
         // clean up old packages and staged trees, but only when no other process is downloading
         // (taking the lock would create the packages directory, so skip when there is nothing to clean)
         if packages_dir.is_dir() {
-            match manager.get_locator().try_get_exclusive_lock() {
+            match manager.get_locator().try_get_exclusive_lock_once() {
                 Ok(_lock) => {
                     let local_packages = locator::find_local_full_packages(&packages_dir);
                     cleanup_old_packages_from_list(local_packages, &my_version, pending_version.as_ref());
@@ -260,7 +260,14 @@ mod tests {
         let path = dir.join(&filename);
         let file = std::fs::File::create(&path).unwrap();
         let mut zip = zip::ZipWriter::new(file);
-        let nuspec = format!(
+        zip.start_file(format!("{}.nuspec", id), SimpleFileOptions::default()).unwrap();
+        zip.write_all(test_nuspec(id, version).as_bytes()).unwrap();
+        zip.finish().unwrap();
+        path
+    }
+
+    fn test_nuspec(id: &str, version: &str) -> String {
+        format!(
             r#"<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
@@ -273,11 +280,43 @@ mod tests {
   </metadata>
 </package>"#,
             id, version, id
-        );
-        zip.start_file(format!("{}.nuspec", id), SimpleFileOptions::default()).unwrap();
-        zip.write_all(nuspec.as_bytes()).unwrap();
-        zip.finish().unwrap();
-        path
+        )
+    }
+
+    // POSIX record locks belong to the process, so the lock can only be "held by another process" on Windows here.
+    #[cfg(windows)]
+    #[test]
+    fn run_skips_cleanup_at_once_when_the_packages_lock_is_held() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let root = tmp_dir.path().join("app");
+        let current = root.join("current");
+        let packages = root.join("packages");
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::create_dir_all(&packages).unwrap();
+        std::fs::write(root.join("Update.exe"), b"updater").unwrap();
+        std::fs::write(current.join("sq.version"), test_nuspec("TestApp", "2.0.0")).unwrap();
+        let old_pkg = create_test_nupkg(&packages, "TestApp", "1.0.0");
+        let config = VelopackLocatorConfig {
+            RootAppDir: root.clone(),
+            UpdateExePath: root.join("Update.exe"),
+            PackagesDir: packages.clone(),
+            ManifestPath: current.join("sq.version"),
+            CurrentBinaryDir: current.clone(),
+            IsPortable: true,
+        };
+        let run = || VelopackApp::build().set_args(Vec::new()).set_locator(config.clone()).run();
+
+        // another process (e.g. a download) holds the lock: run must not wait for it
+        let held = crate::lockfile::LockFile::try_acquire_lock_once(packages.join(".velopack_lock")).unwrap();
+        let started = std::time::Instant::now();
+        run();
+        let elapsed = started.elapsed();
+        assert!(elapsed < std::time::Duration::from_secs(1), "run waited {:?} for the lock", elapsed);
+        assert!(old_pkg.exists(), "cleanup is skipped while the lock is held");
+
+        drop(held);
+        run();
+        assert!(!old_pkg.exists(), "cleanup runs once the lock is free");
     }
 
     #[test]
