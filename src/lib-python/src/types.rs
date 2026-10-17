@@ -2,8 +2,8 @@
 #![allow(non_snake_case)]
 #![allow(clippy::all)]
 use pyo3::prelude::*;
-use velopack::{HttpHeader, HttpOptions, VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocatorConfig};
 use std::path::PathBuf;
+use velopack::{locator::VelopackLocatorConfig, HttpHeader, HttpOptions, UpdateInfo, UpdateOptions, VelopackAsset};
 
 /// A single HTTP header (name and value pair) to be sent with a web request.
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
@@ -23,10 +23,7 @@ pub struct PyHttpHeader {
 impl PyHttpHeader {
     #[new]
     #[pyo3(signature = (Name, Value))]
-    fn new(
-        Name: String,
-        Value: String,
-        ) -> Self {
+    fn new(Name: String, Value: String) -> Self {
         Self {
             Name: Name.into(),
             Value: Value.into(),
@@ -71,10 +68,7 @@ pub struct PyHttpOptions {
 impl PyHttpOptions {
     #[new]
     #[pyo3(signature = (Headers, TimeoutMilliseconds))]
-    fn new(
-        Headers: Vec<PyHttpHeader>,
-        TimeoutMilliseconds: u64,
-        ) -> Self {
+    fn new(Headers: Vec<PyHttpHeader>, TimeoutMilliseconds: u64) -> Self {
         Self {
             Headers: Headers.into_iter().map(Into::into).collect(),
             TimeoutMilliseconds: TimeoutMilliseconds,
@@ -137,7 +131,7 @@ impl PyVelopackLocatorConfig {
         ManifestPath: PathBuf,
         CurrentBinaryDir: PathBuf,
         IsPortable: bool,
-        ) -> Self {
+    ) -> Self {
         Self {
             RootAppDir: RootAppDir.into(),
             UpdateExePath: UpdateExePath.into(),
@@ -224,7 +218,7 @@ impl PyVelopackAsset {
         Size: u64,
         NotesMarkdown: String,
         NotesHtml: String,
-        ) -> Self {
+    ) -> Self {
         Self {
             PackageId: PackageId.into(),
             Version: Version.into(),
@@ -267,6 +261,7 @@ impl Into<VelopackAsset> for PyVelopackAsset {
             Size: self.Size,
             NotesMarkdown: self.NotesMarkdown.into(),
             NotesHtml: self.NotesHtml.into(),
+            ..Default::default()
         }
     }
 }
@@ -290,10 +285,7 @@ pub struct PyUpdateInfo {
 impl PyUpdateInfo {
     #[new]
     #[pyo3(signature = (TargetFullRelease, IsDowngrade))]
-    fn new(
-        TargetFullRelease: PyVelopackAsset,
-        IsDowngrade: bool,
-        ) -> Self {
+    fn new(TargetFullRelease: PyVelopackAsset, IsDowngrade: bool) -> Self {
         Self {
             TargetFullRelease: TargetFullRelease.into(),
             IsDowngrade: IsDowngrade,
@@ -346,10 +338,7 @@ pub struct PyUpdateOptions {
 impl PyUpdateOptions {
     #[new]
     #[pyo3(signature = (AllowVersionDowngrade, ExplicitChannel = None))]
-    fn new(
-        AllowVersionDowngrade: bool,
-        ExplicitChannel: Option<String>,
-        ) -> Self {
+    fn new(AllowVersionDowngrade: bool, ExplicitChannel: Option<String>) -> Self {
         Self {
             AllowVersionDowngrade: AllowVersionDowngrade,
             ExplicitChannel: ExplicitChannel.map(Into::into),
@@ -371,7 +360,7 @@ impl Into<UpdateOptions> for PyUpdateOptions {
         UpdateOptions {
             AllowVersionDowngrade: self.AllowVersionDowngrade,
             ExplicitChannel: self.ExplicitChannel.map(Into::into),
+            ..Default::default()
         }
     }
 }
-

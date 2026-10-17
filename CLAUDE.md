@@ -109,6 +109,21 @@ What remains for compatibility:
   `IsDeltaFile`, `ReleaseEntry.IsDelta`, Rust `is_delta`); clients ignore them, and vpk keeps them when it merges or
   rewrites a feed.
 
+**Chunk-based ("delta v2") engine, Rust side** (`src/lib-rust/src/chunks/`, exported via `maybe_pub!(chunks)` so the
+bins use it): `index.rs` parses/validates the content map (Section A, `current/sq.chunks`) and transport map (Section B,
+the `package/velopack/chunks.idx` trailer); `inflate.rs` reconstructs one sync-flushed deflate chunk (`flate2`);
+`blob.rs` is the verified `chunks.bin` store; `plan.rs` decides which chunks to fetch and coalesces ranges; `staging.rs`
+owns the `packages/staged/<id>/` layout, `ready.json` and GC; `assemble.rs` builds the staged tree from local files +
+blob. All formats, caps, names and retry numbers are pinned in `chunks/mod.rs` and must stay byte-identical with
+lib-csharp. The engine never touches anything outside the staged dir. Tests build indexes with the test-only writer in
+`src/lib-rust/tests/common/index_writer.rs` (shared with `src/bins/tests` via `#[path]`); run lib tests with
+`cargo test -p velopack --features public-utils`. Bins commands: `assemble --staged <dir> --parentPid <pid>` (no lock,
+dies with the parent, stdout protocol `VPK:PROGRESS|MISSING|ERROR` at line start, exit codes 0/1/2/3/4) and
+`apply-staged --staged <dir>` (Windows: validate, elevate, lock + `root/.velopack_swap_lock`, copy-under-root when the
+staged dir is outside root, rename `current` → `current.old-<secs>-<hex>` then the new tree into place, hooks,
+registry, shortcuts, cleanup). `commands::recover_current_dir` (called from `start` before the locator) renames the
+newest `current.old-*` back if `current` is missing.
+
 ### Update Flow
 
 1. **`VelopackApp.Run()`** executes at app startup. It handles fast-exit lifecycle hooks invoked by the update binary (`--veloapp-install`, `--veloapp-updated`, `--veloapp-obsolete`, `--veloapp-uninstall` — each with a version arg). These hooks have strict time limits (15-30s) and the process is killed if exceeded. It also auto-applies pending updates if a newer local package exists, fires `OnFirstRun`/`OnRestarted` callbacks based on environment variables (`VELOPACK_FIRSTRUN`, `VELOPACK_RESTART`), and cleans up old packages.

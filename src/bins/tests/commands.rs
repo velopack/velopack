@@ -331,3 +331,60 @@ pub fn test_delta_apply_legacy() {
         assert!(extracted.exists());
     }
 }
+
+/// A package produced by the chunk-aligned writer (golden fixture from the vpk side) must install and
+/// classic-apply exactly like an EasyZip package: `sq.chunks` lands in `current/` and the metadata
+/// trailer entry is ignored.
+#[cfg(target_os = "windows")]
+#[test]
+#[serial_test::file_serial(shortcuts)]
+pub fn test_apply_v2_fixture_with_classic_apply() {
+    dialogs::set_silent(true);
+    let fixtures = find_fixtures().join("delta-v2");
+    let v1 = fixtures.join("ChunkTestApp-1.0.0-win-full.nupkg");
+    let v2 = fixtures.join("ChunkTestApp-1.1.0-win-full.nupkg");
+    if !v1.exists() || !v2.exists() {
+        eprintln!("SKIPPED: golden fixtures {:?} are not present", fixtures);
+        return;
+    }
+
+    let tmp_dir = tempdir().unwrap();
+    let root = tmp_dir.path().join("app");
+    let mut v1_zip = load_bundle_from_file(&v1).unwrap();
+    commands::install(&mut v1_zip, Some(&root), None, None).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root.clone(), None)).unwrap();
+    assert_eq!(locator.get_manifest_version(), semver::Version::parse("1.0.0").unwrap());
+    assert!(root.join("current").join("sq.chunks").exists());
+
+    commands::apply(
+        &locator,
+        false,
+        shared::OperationWait::NoWait,
+        Some(&v2),
+        None,
+        commands::HookRunMode::None,
+    )
+    .unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root.clone(), None)).unwrap();
+    assert_eq!(locator.get_manifest_version(), semver::Version::parse("1.1.0").unwrap());
+
+    // the installed tree equals the package's lib/app contents, byte for byte
+    let extracted = tmp_dir.path().join("extracted");
+    let mut v2_zip = load_bundle_from_file(&v2).unwrap();
+    v2_zip.extract_lib_contents_to_path(&extracted, |_| {}).unwrap();
+    for entry in walkdir::WalkDir::new(&extracted) {
+        let entry = entry.unwrap();
+        if entry.file_type().is_file() {
+            let rel = entry.path().strip_prefix(&extracted).unwrap();
+            assert_eq!(
+                fs::read(entry.path()).unwrap(),
+                fs::read(root.join("current").join(rel)).unwrap(),
+                "{:?}",
+                rel
+            );
+        }
+    }
+    assert!(root.join("current").join("sq.chunks").exists());
+    assert!(!root.join("current").join("package").exists());
+    commands::uninstall(&locator, false).unwrap();
+}

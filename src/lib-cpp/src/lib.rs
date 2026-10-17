@@ -818,6 +818,7 @@ mod tests {
             Size: 1048576,
             NotesMarkdown: "# Release v2".to_string(),
             NotesHtml: "<h1>Release v2</h1>".to_string(),
+            ..Default::default()
         };
 
         let c_asset = unsafe { allocate_VelopackAsset(&asset) };
@@ -857,6 +858,7 @@ mod tests {
                 Size: 5000,
                 NotesMarkdown: "## v3 notes".to_string(),
                 NotesHtml: "<h2>v3 notes</h2>".to_string(),
+                ..Default::default()
             },
             IsDowngrade: false,
         };

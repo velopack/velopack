@@ -66,6 +66,12 @@ define_struct_case_insensitive! {
         pub NotesMarkdown: String,
         /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
         pub NotesHtml: String,
+        /// The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        pub ChunkIndexOffset: u64,
+        /// The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        pub ChunkIndexLength: u64,
+        /// The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+        pub ChunkIndexSHA256: String,
     }
 }
 
@@ -120,6 +126,8 @@ pub struct UpdateOptions {
     /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
     /// without having to reinstall the application.
     pub ExplicitChannel: Option<String>,
+    /// Disables chunk-based updates, so the full update package is always downloaded.
+    pub DisableChunkedUpdates: bool,
 }
 
 struct UpdateManagerInner {
@@ -570,5 +578,6 @@ pub(crate) fn local_path_to_asset(manifest: &Manifest, path: &Path) -> VelopackA
         Size: path.metadata().map(|m| m.len()).unwrap_or(0),
         NotesMarkdown: manifest.release_notes.clone(),
         NotesHtml: manifest.release_notes_html.clone(),
+        ..Default::default()
     }
 }

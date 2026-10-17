@@ -426,6 +426,7 @@ pub fn c_to_VelopackAsset(obj: *mut vpkc_asset_t) -> Result<VelopackAsset> {
         Size: obj.Size,
         NotesMarkdown: c_to_String(obj.NotesMarkdown)?,
         NotesHtml: c_to_String(obj.NotesHtml)?,
+        ..Default::default()
     };
     Ok(result)
 }
@@ -620,6 +621,7 @@ pub fn c_to_UpdateOptions(obj: *mut vpkc_update_options_t) -> Result<UpdateOptio
     let result = UpdateOptions {
         AllowVersionDowngrade: obj.AllowVersionDowngrade,
         ExplicitChannel: c_to_String(obj.ExplicitChannel).ok(),
+        ..Default::default()
     };
     Ok(result)
 }
