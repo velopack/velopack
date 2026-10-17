@@ -6,10 +6,10 @@
 use super::blob::ChunkBlob;
 use super::fetch::{RangeError, RangeReader};
 use super::inflate::{inflate_chunk, sha256, sha256_hex};
-use super::plan::RangeRequest;
+use super::plan::{NeededChunk, RangeRequest};
 use super::*;
 use crate::VelopackAsset;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -147,9 +147,10 @@ impl RetryPolicy {
     }
 }
 
-/// The progress-based budgets shared by all workers of one fetch (§5.6).
+/// The progress clock shared by all workers of one fetch (§5.6). There is deliberately no shared count of
+/// failed attempts: 4 workers failing at once (Wi-Fi drop, DNS failure) would exhaust it in seconds, so a
+/// short outage is ridden out by the per-request budgets and this clock instead.
 pub struct Budget {
-    consecutive_failures: AtomicU32,
     last_progress: Mutex<Instant>,
 }
 
@@ -157,26 +158,17 @@ impl Budget {
     /// A fresh budget whose progress clock starts now.
     pub fn new(policy: &RetryPolicy) -> Budget {
         Budget {
-            consecutive_failures: AtomicU32::new(0),
             last_progress: Mutex::new(policy.now()),
         }
     }
 
-    /// A verified chunk or index segment arrived: every counter resets.
+    /// A verified chunk or index segment arrived: the clock restarts.
     pub fn record_progress(&self, policy: &RetryPolicy) {
-        self.consecutive_failures.store(0, Ordering::Relaxed);
         *self.last_progress.lock().unwrap() = policy.now();
     }
 
-    /// A request attempt failed; fatal once 16 attempts failed in a row or nothing was verified for 10 minutes.
+    /// A request attempt failed; fatal once nothing was verified for 10 minutes.
     pub fn record_failure(&self, policy: &RetryPolicy, what: &str) -> Result<(), FetchError> {
-        let failures = self.consecutive_failures.fetch_add(1, Ordering::Relaxed) + 1;
-        if failures >= MAX_CONSECUTIVE_FAILURES {
-            return Err(FetchError::Fatal(format!(
-                "{} consecutive failed attempts without progress ({})",
-                failures, what
-            )));
-        }
         let since = policy.now().saturating_duration_since(*self.last_progress.lock().unwrap());
         if since >= Duration::from_secs(MAX_SECS_WITHOUT_PROGRESS) {
             return Err(FetchError::Fatal(format!("no progress for {:?} ({})", since, what)));
@@ -211,8 +203,19 @@ fn read_once(reader: &dyn RangeReader, offset: u64, buf: &mut [u8], asset_size: 
     Ok(())
 }
 
+/// How a [`read_retrying`] call ended without a fatal error.
+#[derive(Debug, PartialEq, Eq)]
+enum ReadOutcome {
+    /// `buf` was filled.
+    Filled,
+    /// A transient failure (after its backoff) of a request that may be split: the caller retries it as
+    /// smaller requests instead, so a slow or flaky link that cannot deliver the whole span still progresses.
+    Split,
+}
+
 /// Fills `buf` from `offset`, retrying transient failures within the request and shared budgets. `stop`
 /// is set when another worker already failed fatally, so this request gives up at its next attempt.
+/// With `splittable`, the first transient failure returns [`ReadOutcome::Split`] instead of retrying.
 #[allow(clippy::too_many_arguments)]
 fn read_retrying(
     reader: &dyn RangeReader,
@@ -223,15 +226,16 @@ fn read_retrying(
     budget: &Budget,
     attempts: &mut RequestAttempts,
     stop: Option<&AtomicBool>,
+    splittable: bool,
     what: &str,
-) -> Result<(), FetchError> {
+) -> Result<ReadOutcome, FetchError> {
     loop {
         policy.check_cancel()?;
         if stop.map(|s| s.load(Ordering::Relaxed)).unwrap_or(false) {
             return Err(FetchError::Fatal(format!("{} abandoned after another request failed", what)));
         }
         match read_once(reader, offset, buf, asset_size) {
-            Ok(()) => return Ok(()),
+            Ok(()) => return Ok(ReadOutcome::Filled),
             Err(RangeError::Cancelled) => return Err(FetchError::Cancelled),
             Err(RangeError::Unavailable(m)) => return Err(FetchError::Fatal(format!("{}: {}", what, m))),
             Err(RangeError::Transient(m)) => {
@@ -242,6 +246,9 @@ fn read_retrying(
                 }
                 budget.record_failure(policy, what)?;
                 policy.sleep_before_retry(attempts.failures, retry_after_of(&m))?;
+                if splittable {
+                    return Ok(ReadOutcome::Split);
+                }
             }
         }
     }
@@ -276,6 +283,7 @@ pub fn fetch_index(
                 &budget,
                 &mut attempts,
                 None,
+                false,
                 &what,
             )?;
             budget.record_progress(policy);
@@ -396,15 +404,49 @@ fn verify_chunks(buf: &[u8], request: &RangeRequest) -> Result<Vec<VerifiedChunk
     Ok(out)
 }
 
+/// Splits a multi-chunk request at its middle chunk boundary into two requests covering only their own
+/// chunks (the gap bytes between the halves are not fetched again).
+fn split_request(request: &RangeRequest) -> (RangeRequest, RangeRequest) {
+    let span = |chunks: &[NeededChunk]| {
+        let first = &chunks[0];
+        let last = &chunks[chunks.len() - 1];
+        RangeRequest {
+            offset: first.offset,
+            length: last.offset + last.compressed_length as u64 - first.offset,
+            chunks: chunks.to_vec(),
+        }
+    };
+    let mid = request.chunks.len() / 2;
+    (span(&request.chunks[..mid]), span(&request.chunks[mid..]))
+}
+
+/// Fetches one coalesced request. A transient failure of a request with several chunks splits it into two
+/// halves (each with its own attempt budget) that are fetched in turn, so every attempt is more likely to
+/// land and each verified half counts as progress; a single chunk is retried under its per-request budget.
 fn fetch_request(shared: &Shared<'_>, request: &RangeRequest) -> Result<(), FetchError> {
+    let mut pending = vec![request.clone()];
+    while let Some(request) = pending.pop() {
+        if let Some((first, second)) = fetch_one(shared, &request)? {
+            // the bytes between the halves are never fetched: count them as done so progress still ends at the total
+            let gap = request.length - first.length - second.length;
+            shared.bytes_done.fetch_add(gap, Ordering::Relaxed);
+            pending.push(second);
+            pending.push(first);
+        }
+    }
+    Ok(())
+}
+
+/// Fetches, verifies and appends one request; returns the two halves to fetch instead when it was split.
+fn fetch_one(shared: &Shared<'_>, request: &RangeRequest) -> Result<Option<(RangeRequest, RangeRequest)>, FetchError> {
     let what = format!("range {}+{}", request.offset, request.length);
     let mut attempts = RequestAttempts::default();
     let mut buf = vec![0u8; request.length as usize];
     loop {
         if shared.stop.load(Ordering::Relaxed) {
-            return Ok(());
+            return Ok(None);
         }
-        read_retrying(
+        let outcome = read_retrying(
             shared.reader,
             request.offset,
             &mut buf,
@@ -413,8 +455,13 @@ fn fetch_request(shared: &Shared<'_>, request: &RangeRequest) -> Result<(), Fetc
             &shared.budget,
             &mut attempts,
             Some(&shared.stop),
+            request.chunks.len() > 1,
             &what,
         )?;
+        if outcome == ReadOutcome::Split {
+            info!("Splitting {} ({} chunks) after a failed attempt", what, request.chunks.len());
+            return Ok(Some(split_request(request)));
+        }
         match verify_chunks(&buf, request) {
             Ok(chunks) => {
                 {
@@ -429,7 +476,7 @@ fn fetch_request(shared: &Shared<'_>, request: &RangeRequest) -> Result<(), Fetc
                 shared.budget.record_progress(shared.policy);
                 let done = shared.bytes_done.fetch_add(request.length, Ordering::Relaxed) + request.length;
                 (shared.progress)(done, shared.bytes_total);
-                return Ok(());
+                return Ok(None);
             }
             Err(m) => {
                 attempts.hash_mismatches += 1;

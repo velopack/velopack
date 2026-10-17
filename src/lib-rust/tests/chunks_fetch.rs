@@ -7,10 +7,14 @@ mod common;
 use common::index_writer::*;
 use common::mock_server::{Fault, LoggedRequest, MockHttpServer, IGNORE_RANGE_BODY_LEN};
 use common::package::*;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use velopack::chunks::{self, coalesce, fetch_index, fetch_ranges, plan, ChunkBlob, ChunkIndex, FetchError, LocalRoots, RangeRequest, RetryPolicy};
+use velopack::chunks::{
+    self, coalesce, fetch_index, fetch_ranges, plan, ChunkBlob, ChunkIndex, FetchError, LocalRoots, RangeError, RangeReader, RangeRequest,
+    RetryPolicy,
+};
 use velopack::download::{create_range_agent, HttpRangeReader};
 use velopack::sources::{FileSource, UpdateSource};
 
@@ -141,6 +145,65 @@ fn is_fatal<T>(r: &Result<T, FetchError>) -> bool {
     matches!(r, Err(FetchError::Fatal(_)))
 }
 
+/// An in-memory range reader whose `fail(offset, length, nth call at that offset)` decides which reads fail
+/// (instantly, with a transient error, like a dropped network); every read is logged as `(offset, length, failed)`.
+struct ScriptedReader {
+    bytes: Vec<u8>,
+    calls: Mutex<HashMap<u64, u32>>,
+    log: Mutex<Vec<(u64, usize, bool)>>,
+    fail: Box<dyn Fn(u64, usize, u32) -> bool + Send + Sync>,
+    /// Successful reads wait (up to 10 s) until this many reads have failed.
+    failures_before_success: u32,
+}
+
+impl ScriptedReader {
+    fn new(bytes: &[u8], fail: impl Fn(u64, usize, u32) -> bool + Send + Sync + 'static) -> ScriptedReader {
+        ScriptedReader {
+            bytes: bytes.to_vec(),
+            calls: Mutex::new(HashMap::new()),
+            log: Mutex::new(Vec::new()),
+            fail: Box::new(fail),
+            failures_before_success: 0,
+        }
+    }
+
+    fn failures(&self) -> u32 {
+        self.log.lock().unwrap().iter().filter(|(_, _, f)| *f).count() as u32
+    }
+
+    fn log(&self) -> Vec<(u64, usize, bool)> {
+        self.log.lock().unwrap().clone()
+    }
+}
+
+impl RangeReader for ScriptedReader {
+    fn len(&self) -> Option<u64> {
+        Some(self.bytes.len() as u64)
+    }
+
+    fn read_exact_at(&self, offset: u64, buf: &mut [u8]) -> Result<(), RangeError> {
+        let nth = {
+            let mut calls = self.calls.lock().unwrap();
+            let n = calls.entry(offset).or_insert(0);
+            *n += 1;
+            *n
+        };
+        let failed = (self.fail)(offset, buf.len(), nth);
+        if !failed {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while self.failures() < self.failures_before_success && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        }
+        self.log.lock().unwrap().push((offset, buf.len(), failed));
+        if failed {
+            return Err(RangeError::Transient("scripted failure".to_string()));
+        }
+        buf.copy_from_slice(&self.bytes[offset as usize..offset as usize + buf.len()]);
+        Ok(())
+    }
+}
+
 #[test]
 fn survives_transient_faults() {
     let h = Harness::new(&test_files());
@@ -195,14 +258,72 @@ fn budget_resets_on_progress() {
 }
 
 #[test]
-fn consecutive_failure_budget_is_fatal() {
+fn total_outage_ends_on_the_per_request_budget() {
     let h = Harness::new(&test_files());
-    h.server.push_faults((0..60).map(|_| Fault::Status(500)));
+    h.server.push_faults((0..200).map(|_| Fault::Status(500)));
     let policy = h.policy();
     let result = h.fetch_all(&h.reader(), &policy);
     assert!(is_fatal(&result), "{:?}", result);
     let n = h.ranged_requests().len();
-    assert!((16..20).contains(&n), "16 consecutive failures end the fetch (saw {} requests)", n);
+    // the first request to fail a 9th time ends the fetch; the other 3 workers stop at their next check
+    assert!((9..=40).contains(&n), "saw {} requests", n);
+}
+
+#[test]
+fn parallel_failures_do_not_exhaust_a_shared_budget() {
+    // a short outage: every request fails instantly 6 times (within its 8-attempt budget) before the network
+    // is back, so the 4 workers see at least 24 failures in a row before the first verified chunk
+    let h = Harness::new(&test_files());
+    let mut reader = ScriptedReader::new(&h.pkg.bytes, |_, _, nth| nth <= 6);
+    reader.failures_before_success = 24;
+    let requests = h.per_chunk_requests();
+    assert!(requests.len() >= chunks::FETCH_PARALLELISM);
+    let policy = h.policy();
+    fetch_ranges(&reader, &requests, h.pkg.asset.Size, &h.blob, &policy, &|_, _| {}, false).unwrap();
+    h.assert_blob_complete();
+    let log = reader.log();
+    let leading_failures = log.iter().take_while(|(_, _, failed)| *failed).count();
+    assert!(leading_failures >= 16, "{} failures before the first success", leading_failures);
+    assert_eq!(log.iter().filter(|(_, _, failed)| *failed).count(), requests.len() * 6);
+}
+
+#[test]
+fn failing_coalesced_request_is_split_until_it_lands() {
+    // a link that cannot deliver large requests (they always time out or drop) but delivers single chunks
+    let h = Harness::new(&many_chunk_files());
+    let p = plan(&h.remote, None, &dummy_roots(h.dir.path()), &|_| false);
+    let requests = coalesce(&p);
+    let largest_chunk = p.needed.iter().map(|c| c.compressed_length as usize).max().unwrap();
+    assert!(
+        requests.iter().any(|r| r.chunks.len() > 8 && r.length as usize > 4 * largest_chunk),
+        "the plan coalesces large multi-chunk requests"
+    );
+    let reader = ScriptedReader::new(&h.pkg.bytes, move |_, len, _| len > largest_chunk);
+    let seen = Mutex::new(Vec::new());
+    let policy = h.policy();
+    fetch_ranges(
+        &reader,
+        &requests,
+        h.pkg.asset.Size,
+        &h.blob,
+        &policy,
+        &|done, total| seen.lock().unwrap().push((done, total)),
+        false,
+    )
+    .unwrap();
+    h.assert_blob_complete();
+
+    // every failed span was split rather than retried as a whole
+    let log = reader.log();
+    let failed: Vec<(u64, usize)> = log.iter().filter(|(_, _, f)| *f).map(|(o, l, _)| (*o, *l)).collect();
+    assert!(!failed.is_empty());
+    for span in &failed {
+        assert_eq!(failed.iter().filter(|s| *s == span).count(), 1, "{:?} was retried whole", span);
+    }
+    // the skipped bytes between halves still count, so progress ends at the total
+    let total: u64 = requests.iter().map(|r| r.length).sum();
+    let seen = seen.into_inner().unwrap();
+    assert_eq!(seen.iter().map(|(d, _)| *d).max(), Some(total));
 }
 
 #[test]

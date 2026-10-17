@@ -108,12 +108,14 @@ pub const FREE_SPACE_MARGIN: u64 = 64 * 1024 * 1024;
 pub const HEADERS_TIMEOUT_SECS: u64 = 30;
 pub const READ_STALL_TIMEOUT_SECS: u64 = 30;
 pub const REQUEST_TIMEOUT_SECS: u64 = 300;
+/// The slowest throughput a ranged request's whole-request timeout allows for its body (on top of
+/// `REQUEST_TIMEOUT_SECS`).
+pub const MIN_RANGE_THROUGHPUT_BYTES_PER_SEC: u64 = 16 * 1024;
 pub const BACKOFF_BASE_SECS: u64 = 1;
 pub const BACKOFF_MAX_SECS: u64 = 30;
 pub const RETRY_AFTER_MAX_SECS: u64 = 60;
 pub const MAX_ATTEMPTS_PER_REQUEST: u32 = 8;
 pub const MAX_HASH_MISMATCHES_PER_REQUEST: u32 = 3;
-pub const MAX_CONSECUTIVE_FAILURES: u32 = 16;
 pub const MAX_SECS_WITHOUT_PROGRESS: u64 = 10 * 60;
 pub const MAX_CONSECUTIVE_REFRESHES: u32 = 3;
 pub const MAX_MISSING_ROUNDS: u32 = 2;

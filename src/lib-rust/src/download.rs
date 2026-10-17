@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::chunks::fetcher::transient_with_retry_after;
-use crate::chunks::{RangeError, RangeReader, MAX_CONSECUTIVE_REFRESHES, REQUEST_TIMEOUT_SECS};
+use crate::chunks::{RangeError, RangeReader, MAX_CONSECUTIVE_REFRESHES, MIN_RANGE_THROUGHPUT_BYTES_PER_SEC, REQUEST_TIMEOUT_SECS};
 use crate::{misc, Error};
 
 /// A single HTTP header (name and value pair) to be sent with a web request.
@@ -109,7 +109,8 @@ fn get_download_agent(options: Option<&HttpOptions>) -> Result<ureq::Agent, Erro
 }
 
 /// Builds the pooled agent for ranged chunk requests (§5.5, pinned literally). Statuses and redirects are
-/// returned as responses so the reader can classify them itself.
+/// returned as responses so the reader can classify them itself. Each request raises the whole-request
+/// timeouts to [`range_request_timeout`] of its length.
 pub fn create_range_agent() -> ureq::Agent {
     ureq::Agent::config_builder()
         .http_status_as_error(false)
@@ -146,6 +147,13 @@ pub struct HttpRangeReader {
     refresh_lock: Mutex<()>,
     len: Mutex<Option<u64>>,
     consecutive_refreshes: AtomicU32,
+}
+
+/// The whole-request timeout of a ranged request of `len` bytes: 300 s plus the time the body takes at
+/// 16 KiB/s, so a large coalesced request on a slow link can still complete instead of timing out on every
+/// attempt.
+pub fn range_request_timeout(len: u64) -> Duration {
+    Duration::from_secs(REQUEST_TIMEOUT_SECS + len / MIN_RANGE_THROUGHPUT_BYTES_PER_SEC)
 }
 
 fn host_of(url: &str) -> Option<String> {
@@ -213,11 +221,16 @@ impl HttpRangeReader {
         let original_host = host_of(&self.original_url);
         let mut url = start_url.to_string();
         let mut hops = 0u32;
+        let timeout = Some(range_request_timeout(len as u64));
         loop {
             let same_host = host_of(&url) == original_host;
             let mut req = self
                 .agent
                 .get(&url)
+                .config()
+                .timeout_global(timeout)
+                .timeout_recv_body(timeout)
+                .build()
                 .header("Range", format!("bytes={}-{}", offset, offset + len as u64 - 1))
                 .header("Accept-Encoding", "identity");
             for h in &self.headers {
@@ -418,6 +431,14 @@ mod range_tests {
             _ => panic!(),
         }
         assert_eq!(retry_after_of("status 503"), None);
+    }
+
+    #[test]
+    fn range_request_timeout_scales_with_length() {
+        assert_eq!(range_request_timeout(0), Duration::from_secs(300));
+        assert_eq!(range_request_timeout(64 * 1024), Duration::from_secs(304));
+        // an 8 MiB request has room for 16 KiB/s
+        assert_eq!(range_request_timeout(8 * 1024 * 1024), Duration::from_secs(300 + 512));
     }
 }
 
