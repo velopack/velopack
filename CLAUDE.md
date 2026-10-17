@@ -138,10 +138,14 @@ token cancelled is a cancel; HttpClient timeouts are transient).
   port) and a single-flight re-resolve on 401/403/404. Retry budgets are **progress-based** (reset by every
   verified chunk): 8 attempts per request, 3 hash mismatches, 10 min without progress, 3 refreshes without
   progress, and deliberately **no shared failure count** (4 workers failing instantly during a short outage would
-  exhaust it in seconds); full-jitter backoff, `Retry-After` capped at 60 s. A transient failure of a multi-chunk
-  request splits it in two halves instead of refetching it whole, and the Rust whole-request timeout is
+  exhaust it in seconds); equal-jitter backoff `random(cap/2, cap)` (8 retries always span ~60 s+), `Retry-After`
+  capped at 60 s. A transient failure of a multi-chunk
+  request splits it in two halves instead of refetching it whole, and the whole-request timeout (both libs) is
   `300 s + length / 16 KiB/s`, so slow or flaky links still make progress. A feed `ChunkIndexSHA256` that is not
-  64 hex chars means "no pointer" (it never becomes a path).
+  64 hex chars means "no pointer" (it never becomes a path). C# races every body read against its token and disposes
+  the response when the token wins (on .NET Framework the response stream ignores a token once a read is blocked).
+  A failed append to `chunks.bin` (disk full) is never retried: `StagingIoException` / `FetchError::StagingIo` is
+  fatal and deletes the staged dir. Index path segments are limited to 255 **UTF-16 code units** (the NTFS unit).
   Every chunk is inflated (chunk ‖ `01 00 00 FF FF`, exact length) and hash-verified before it is appended. Sleep and
   clock are injectable; no test really sleeps.
 - Assemble: C# runs `Update.exe --silent assemble --staged <dir> --parentPid <pid> --rootDir <root> --packageDir <pkgs>`
@@ -163,8 +167,10 @@ LocalAppData fallback, custom package dir), then renames `current` → `current.
 `current` back to back (nothing that can fail runs between killing the app and the renames), then registry, hooks,
 shortcuts, updater/stub sync and cleanup. `commands::recover_current_dir` (from `start`, before the locator) renames the
 newest `current.old-*` back if `current` is missing. `VelopackApp.Run` auto-applies the highest pending update of either
-kind and only GCs staged dirs under a single-attempt packages lock (`try_get_exclusive_lock_once`: never waits).
-Staged-dir scans only consider plain dirs named like a staged id, never junctions/symlinks. Both locators copy the
+kind and only GCs staged dirs under a single-attempt packages lock (`try_get_exclusive_lock_once`: never waits): ready
+trees at or below the installed version except the highest, incomplete ones untouched for 7 days. A failed
+`apply-staged` launch at startup discards the tree only when it is invalid; transient failures keep it.
+Rust staged-dir scans only consider plain dirs named like a staged id, never junctions/symlinks. Both locators copy the
 root `Update.exe` over the LocalAppData-fallback one when it is missing, or when they differ **and no downloaded
 update is pending** (a download put the target's newer updater there on purpose; apply syncs it to root).
 
@@ -179,7 +185,14 @@ update is pending** (a download put the target's newer updater there on purpose;
 - `ChunkBlob` opens `chunks.bin` with `FileShare.ReadWrite` so `assemble` can read it while C# still holds it.
 - An upload by an **older** vpk re-serialises the whole channel feed and drops every pointer; clients take full
   downloads until two releases by a new vpk have shipped. Do not mix vpk versions on one channel.
-- Packed fixture regeneration and the `net8.0;net10.0` Packaging.Tests split are described under Packaging Flow.
+- Packed fixture regeneration and the `net8.0;net10.0` Packaging.Tests split are described under Packaging Flow. CI runs
+  each Packaging.Tests framework in its own step (`-f net8.0` / `-f net10.0`) so each writes its own JUnit file.
+- Windows-only chunk tests skip with `Assert.SkipUnless(ChunksSupported, ...)`, never an early `return` (that reports a
+  pass on Linux/macOS); `ChunkPathNotUsedOffWindows` pins the platform gate.
+- `VelopackApp.Run` reads/sets the process-wide `VelopackLocator.Current` and logs to it on a second run, so a stale
+  test logger throws: keep `Run` tests in `UpdateManagerTests` (one class, never parallel) and call `RunVelopackApp`.
+- E2E and cross-compile tests that must prove the chunk path ran zero the Full assets' SHA1/SHA256 in the feed
+  (`ReleaseFeedHelper.CorruptFullAssetChecksums` in TestCommon), so the silent full-download fallback cannot pass.
 
 ### Update Flow
 
