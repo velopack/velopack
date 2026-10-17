@@ -15,6 +15,7 @@ use velopack::chunks::{
     self, coalesce, fetch_index, fetch_ranges, plan, ChunkBlob, ChunkIndex, FetchError, LocalRoots, RangeError, RangeReader, RangeRequest,
     RetryPolicy,
 };
+use velopack::download::HttpHeader;
 use velopack::download::{create_range_agent, HttpRangeReader};
 use velopack::sources::{FileSource, UpdateSource};
 
@@ -461,6 +462,28 @@ fn index_sha_mismatch_retries_once_then_fatal() {
     assert_eq!(h.ranged_requests().len(), 2);
     let progress = progress.into_inner().unwrap();
     assert_eq!(progress.last().unwrap().0, h.pkg.asset.ChunkIndexLength);
+}
+
+#[test]
+fn authorization_not_forwarded_to_another_origin() {
+    let h = Harness::new(&test_files());
+    // the same host on another port: a different origin (as is https -> http on the same host)
+    let other = MockHttpServer::empty();
+    other.add_file(PKG_PATH, h.pkg.bytes.clone());
+    h.server.add_redirect("/r/pkg.nupkg", &format!("{}{}", other.url(), PKG_PATH));
+    let auth = HttpHeader {
+        Name: "Authorization".to_string(),
+        Value: "token secret".to_string(),
+    };
+    let reader = HttpRangeReader::open(create_range_agent(), &format!("{}/r/pkg.nupkg", h.server.url()), &[auth]).unwrap();
+    let policy = h.policy();
+    let index = fetch_index(&reader, &h.pkg.asset, &policy, &|_, _| {}).unwrap();
+    assert_eq!(index, h.pkg.built.trailer());
+    let has_auth = |r: &LoggedRequest| r.headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("authorization"));
+    assert!(h.server.requests().iter().all(has_auth), "the original origin gets the token");
+    let redirected = other.requests();
+    assert!(!redirected.is_empty());
+    assert!(!redirected.iter().any(has_auth), "the token never leaves the original origin");
 }
 
 #[test]

@@ -156,8 +156,16 @@ pub fn range_request_timeout(len: u64) -> Duration {
     Duration::from_secs(REQUEST_TIMEOUT_SECS + len / MIN_RANGE_THROUGHPUT_BYTES_PER_SEC)
 }
 
-fn host_of(url: &str) -> Option<String> {
-    url::Url::parse(url).ok().and_then(|u| u.host_str().map(|h| h.to_ascii_lowercase()))
+/// Whether two URLs have the same origin (scheme, host and effective port). `Authorization` is only ever sent
+/// to the origin of the original URL: never to another host or port, and never downgraded from https to http.
+fn same_origin(a: &str, b: &str) -> bool {
+    match (url::Url::parse(a), url::Url::parse(b)) {
+        (Ok(a), Ok(b)) => {
+            let (a, b) = (a.origin(), b.origin());
+            a.is_tuple() && a == b
+        }
+        _ => false,
+    }
 }
 
 fn map_ureq_error(e: ureq::Error) -> RangeError {
@@ -181,7 +189,7 @@ fn header_str<'a>(headers: &'a ureq::http::HeaderMap, name: &str) -> Option<&'a 
 
 impl HttpRangeReader {
     /// Creates a reader for `url`; no request is made until the first read. `headers` are sent with
-    /// every request (`Authorization` is dropped when a redirect leaves the original host).
+    /// every request (`Authorization` is dropped when a redirect leaves the original origin).
     pub fn open(agent: ureq::Agent, url: &str, headers: &[HttpHeader]) -> Result<HttpRangeReader, RangeError> {
         url::Url::parse(url).map_err(|e| RangeError::Unavailable(format!("invalid url '{}': {}", url, e)))?;
         Ok(HttpRangeReader {
@@ -218,12 +226,11 @@ impl HttpRangeReader {
     /// One GET with a Range header, following up to 10 redirects by hand. Returns the final URL and the
     /// first non-redirect response (its body unread).
     fn request(&self, start_url: &str, offset: u64, len: usize) -> Result<(String, ureq::http::Response<ureq::Body>), RangeError> {
-        let original_host = host_of(&self.original_url);
         let mut url = start_url.to_string();
         let mut hops = 0u32;
         let timeout = Some(range_request_timeout(len as u64));
         loop {
-            let same_host = host_of(&url) == original_host;
+            let same_origin = same_origin(&url, &self.original_url);
             let mut req = self
                 .agent
                 .get(&url)
@@ -234,7 +241,7 @@ impl HttpRangeReader {
                 .header("Range", format!("bytes={}-{}", offset, offset + len as u64 - 1))
                 .header("Accept-Encoding", "identity");
             for h in &self.headers {
-                if !same_host && h.Name.eq_ignore_ascii_case("authorization") {
+                if !same_origin && h.Name.eq_ignore_ascii_case("authorization") {
                     continue;
                 }
                 req = req.header(&h.Name, &h.Value);
@@ -431,6 +438,19 @@ mod range_tests {
             _ => panic!(),
         }
         assert_eq!(retry_after_of("status 503"), None);
+    }
+
+    #[test]
+    fn authorization_only_stays_with_the_same_origin() {
+        assert!(same_origin("https://git.example.com/a/b", "https://GIT.example.com:443/c"));
+        assert!(same_origin("http://127.0.0.1:8080/a", "http://127.0.0.1:8080/b"));
+        assert!(
+            !same_origin("https://git.example.com/a", "http://git.example.com/a"),
+            "https -> http downgrade"
+        );
+        assert!(!same_origin("http://127.0.0.1:8080/a", "http://127.0.0.1:8081/a"), "another port");
+        assert!(!same_origin("https://git.example.com/a", "https://cdn.example.com/a"), "another host");
+        assert!(!same_origin("file:///c:/a", "file:///c:/a"));
     }
 
     #[test]
