@@ -2,6 +2,7 @@
 using System.Text;
 using Velopack.Chunks;
 using Velopack.Core;
+using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.Tests.Chunks;
 using Velopack.Util;
@@ -44,7 +45,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathStagesUpdate()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         await env.DownloadAsync();
 
@@ -89,7 +90,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathMissingRoundFetchesReportedHashes()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         // corrupt a large installed file after planning would trust it by length: the assembler finds the bad chunks
         // and reports them, the manager fetches exactly those and re-runs assembly
@@ -110,7 +111,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackWhenUpdaterLacksAssemble()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         // an old updater: "No known subcommand was used", exit 1, no VPK: line
         env.Assembler.Script.Enqueue(_ => new UpdateExeRunResult(1, false, null, null));
@@ -135,6 +136,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnMissingPointer()
     {
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         var plain = env.V2.Asset with { ChunkIndexOffset = null, ChunkIndexLength = null, ChunkIndexSHA256 = null };
         env.Source.Feed = new VelopackAssetFeed { Assets = new[] { plain } };
@@ -147,8 +149,26 @@ public partial class UpdateManagerTests
     }
 
     [Fact]
+    public async Task ChunkPathNotUsedOffWindows()
+    {
+        Assert.SkipWhen(ChunksSupported, "the chunk path is used on Windows");
+        // everything the chunk path needs is there (pointer, local sq.chunks, ranged source), but this is not Windows
+        using var env = new ChunkTestEnv(_output);
+        Assert.True(env.V2.Asset.HasChunkIndex);
+        Assert.True(File.Exists(Path.Combine(env.Current, ChunkIndex.LocalFileName)));
+
+        await env.DownloadAsync();
+        env.AssertProgressMonotonic(complete: true);
+        Assert.True(File.Exists(env.NupkgPath));
+        Assert.Equal(0, env.Source.ReadersOpened);
+        Assert.Empty(env.Assembler.Calls);
+        Assert.False(Directory.Exists(env.StagedDir));
+    }
+
+    [Fact]
     public async Task ChunkPathFallsBackToFullOnDisabledOption()
     {
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output, new UpdateOptions { DisableChunkedUpdates = true });
         await env.DownloadAsync();
         env.AssertProgressMonotonic(complete: true);
@@ -160,6 +180,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnMissingLocalIndex()
     {
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output, installLocalIndex: false);
         await env.DownloadAsync();
         env.AssertProgressMonotonic(complete: true);
@@ -171,6 +192,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnSourceWithoutRanges()
     {
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output, wrapSource: s => new FullOnlySource(s));
         await env.DownloadAsync();
         env.AssertProgressMonotonic(complete: true);
@@ -182,6 +204,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnNullRangeReader()
     {
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         env.Source.RangesSupported = false;
         await env.DownloadAsync();
@@ -193,7 +216,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnRangeUnavailable()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         env.Source.RangeFault = (_, _) => new RangeUnavailableException("server ignored Range (test)");
         await AssertFallsBackToFullAsync(env, stagedKept: true);
@@ -204,7 +227,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnIndexDigestMismatch()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         long trailerOffset = env.V2.TrailerOffset;
         env.Source.RangeMutate = (offset, buffer, bufferOffset, count) => {
@@ -219,7 +242,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnInvalidIndex()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         // a trailer which hashes correctly but is garbage
         var garbage = TestPackageBuilder.Random(123, env.V2.Trailer.Length);
@@ -236,7 +259,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnTransportCeiling()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         // nothing installed matches the remote: the plan needs (almost) the whole package
         var unrelated = TestPackageBuilder.Build(new Dictionary<string, byte[]> {
             ["Squirrel.exe"] = TestPackageBuilder.Text(31, 300_000),
@@ -256,7 +279,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnFreeSpacePreflight()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         env.Um.FreeSpaceQuery = () => 1024;
 
@@ -270,7 +293,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnFetchBudgetExhausted()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         long trailerOffset = env.V2.TrailerOffset;
         env.Source.RangeFault = (offset, _) => offset == trailerOffset ? null : new IOException("connection reset (test)");
@@ -283,7 +306,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnAssembleInvalid()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         env.Assembler.Script.Enqueue(_ => new UpdateExeRunResult(2, true, null, "bad index"));
         env.Assembler.Script.Enqueue(_ => new UpdateExeRunResult(2, true, null, "bad index"));
@@ -294,7 +317,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnAssembleIoError()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         env.Assembler.Script.Enqueue(_ => new UpdateExeRunResult(4, true, null, "disk full"));
         env.Assembler.Script.Enqueue(_ => new UpdateExeRunResult(4, true, null, "disk full"));
@@ -305,7 +328,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnAssembleFailed()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         env.Assembler.Script.Enqueue(_ => new UpdateExeRunResult(1, true, null, "something else"));
         env.Assembler.Script.Enqueue(_ => new UpdateExeRunResult(1, true, null, "something else"));
@@ -316,7 +339,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnTooManyMissingRounds()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         var someHash = env.V2.Remote.GetChunkHash(0);
         for (int i = 0; i < 6; i++) {
@@ -333,7 +356,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathFallsBackToFullOnSidecarMismatch()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         env.Assembler.CorruptSidecar = true;
         await AssertFallsBackToFullAsync(env, stagedKept: false);
@@ -344,7 +367,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ChunkPathCancellationPropagatesAndKeepsStaged()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         using var cts = new CancellationTokenSource();
         long trailerOffset = env.V2.TrailerOffset;
@@ -375,7 +398,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ReadyStagedMatchedByIdNotVersion()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         await env.DownloadAsync();
         var firstId = env.V2.StagedId;
@@ -441,7 +464,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task AssetJsonIsPlainForGitSources()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         var um = new UpdateManager(new FakeGitSource(env.V2), null, env.Locator) {
             AssembleRunner = env.Assembler.RunAsync,
@@ -467,7 +490,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task StaleFallbackUpdaterIsRefreshedBeforeAssemble()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output, useFallbackUpdateExe: true);
         var rootUpdater = ChunkInflate.Sha256File(Path.Combine(env.Root, "Update.exe")).ToHex();
         Assert.NotEqual(rootUpdater, ChunkInflate.Sha256File(env.UpdateExe).ToHex());
@@ -486,7 +509,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ApplyStagedPinsCliArguments()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         await env.DownloadAsync();
         var stagedDir = env.ReadyStaged!.Dir;
@@ -523,7 +546,7 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task ApplyStagedRefusesMismatchedSidecar()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         await env.DownloadAsync();
         var stagedDir = env.ReadyStaged!.Dir;
@@ -548,12 +571,12 @@ public partial class UpdateManagerTests
     [Fact]
     public async Task VelopackAppAutoAppliesStagedTree()
     {
-        if (!ChunksSupported) return;
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
         using var env = new ChunkTestEnv(_output);
         await env.DownloadAsync();
         var stagedDir = env.ReadyStaged!.Dir;
 
-        VelopackApp.Build().SetLocator(env.Locator).SetArgs(new[] { "--flag" }).Run();
+        RunVelopackApp(env.Locator, args: new[] { "--flag" });
 
         var (exe, args, _) = Assert.Single(env.Locator.Started);
         Assert.Equal(env.UpdateExe, exe);
@@ -561,5 +584,82 @@ public partial class UpdateManagerTests
         Assert.Equal(0, env.Locator.ExitCode);
         // the pending tree survives startup cleanup
         Assert.NotNull(env.ReadyStaged);
+    }
+
+    [Fact]
+    public async Task VelopackAppKeepsStagedTreeWhenLaunchFails()
+    {
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
+        using var env = new ChunkTestEnv(_output);
+        await env.DownloadAsync();
+        env.Locator.StartFault = new IOException("The process cannot access the file 'Update.exe' (test).");
+
+        RunVelopackApp(env.Locator);
+
+        // a transient failure: the app starts normally and the assembled tree is kept for the next launch
+        Assert.Null(env.Locator.ExitCode);
+        Assert.NotNull(env.ReadyStaged);
+
+        env.Locator.StartFault = null;
+        RunVelopackApp(env.Locator);
+        Assert.Single(env.Locator.Started);
+        Assert.Equal(0, env.Locator.ExitCode);
+    }
+
+    [Fact]
+    public async Task VelopackAppDiscardsInvalidStagedTree()
+    {
+        Assert.SkipUnless(ChunksSupported, "chunk updates are Windows-only");
+        using var env = new ChunkTestEnv(_output);
+        await env.DownloadAsync();
+        File.WriteAllBytes(Path.Combine(env.StagedDir, "Update.exe"), new byte[] { 9, 9, 9 });
+
+        RunVelopackApp(env.Locator);
+
+        // the sidecar does not match the marker: the tree can never be applied, so it is deleted (no loop on it)
+        Assert.Empty(env.Locator.Started);
+        Assert.Null(env.Locator.ExitCode);
+        Assert.False(Directory.Exists(env.StagedDir));
+    }
+
+    [Fact]
+    public async Task VelopackAppSkipsCleanupWhilePackagesAreLocked()
+    {
+        // POSIX record locks are per process, so another handle of this process cannot hold the lock off Windows
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "needs a lock held by another handle");
+        using var _ = TempUtil.GetTempDirectory(out var root);
+        var packages = Path.Combine(root, "packages");
+        Directory.CreateDirectory(packages);
+        var locator = new TestVelopackLocator("App", "1.0.0", packages);
+        var oldTree = StagedUpdateTests.WriteReady(packages, "0.8.0", new string('A', 64));
+        var newest = StagedUpdateTests.WriteReady(packages, "0.9.0", new string('B', 64));
+        var stale = Path.Combine(packages, "staged", "stale");
+        Directory.CreateDirectory(stale);
+
+        // another process (here: another handle) is downloading under the packages lock
+        using (var other = new LockFile(Path.Combine(packages, ".velopack_lock"))) {
+            await other.LockAsync();
+            RunVelopackApp(locator, autoApply: false);
+            Assert.True(Directory.Exists(oldTree));
+            Assert.True(Directory.Exists(newest));
+            Assert.True(Directory.Exists(stale));
+        }
+
+        // once the lock is free, the same run cleans up
+        RunVelopackApp(locator, autoApply: false);
+        Assert.False(Directory.Exists(oldTree));
+        Assert.True(Directory.Exists(newest));
+        Assert.False(Directory.Exists(stale));
+    }
+
+    /// <summary>
+    /// Runs <see cref="VelopackApp"/> startup against <paramref name="locator"/>. <c>VelopackLocator.Current</c> is
+    /// process-wide and <c>Run</c> logs to it when it is already set, so it is pointed at this test's live locator first
+    /// (these tests share one class so they never run in parallel with each other).
+    /// </summary>
+    private static void RunVelopackApp(IVelopackLocator locator, bool autoApply = true, string[]? args = null)
+    {
+        VelopackLocator.SetCurrentLocator(locator);
+        VelopackApp.Build().SetLocator(locator).SetArgs(args ?? Array.Empty<string>()).SetAutoApplyOnStartup(autoApply).Run();
     }
 }

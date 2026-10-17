@@ -32,7 +32,7 @@ public class StagedUpdateTests
         };
     }
 
-    private static string WriteReady(string packagesDir, string version, string indexSha, string? dirName = null, string? stagedId = null)
+    internal static string WriteReady(string packagesDir, string version, string indexSha, string? dirName = null, string? stagedId = null)
     {
         var id = dirName ?? ChunkIndex.StagedIdOf(indexSha);
         var staged = new StagedUpdate(Path.Combine(packagesDir, "staged", id), id);
@@ -90,10 +90,11 @@ public class StagedUpdateTests
     public void CleanupOnStartupKeepsHighestReadyAndFreshIncomplete()
     {
         using var _ = TempUtil.GetTempDirectory(out var packages);
-        var locator = Locator(packages);
-        var low = WriteReady(packages, "1.1.0", new string('A', 64));
+        var locator = Locator(packages); // installed 1.0.0
+        var above = WriteReady(packages, "1.1.0", new string('A', 64));
         var highest = WriteReady(packages, "2.0.0", new string('B', 64));
         var downgrade = WriteReady(packages, "0.9.0", new string('C', 64));
+        var installed = WriteReady(packages, "1.0.0", new string('D', 64));
 
         var stale = Path.Combine(packages, "staged", "stale");
         Directory.CreateDirectory(stale);
@@ -112,10 +113,27 @@ public class StagedUpdateTests
         StagedUpdate.CleanupOnStartup(locator);
 
         Assert.True(Directory.Exists(highest));
-        Assert.False(Directory.Exists(low));
+        // §6.6: only ready trees at or below the installed version are deleted (Rust gc_staged_for_run agrees)
+        Assert.True(Directory.Exists(above));
         Assert.False(Directory.Exists(downgrade));
+        Assert.False(Directory.Exists(installed));
         Assert.False(Directory.Exists(stale));
         Assert.True(Directory.Exists(fresh));
+    }
+
+    [Fact]
+    public void CleanupOnStartupKeepsHighestReadyEvenAsDowngrade()
+    {
+        using var _ = TempUtil.GetTempDirectory(out var packages);
+        var locator = Locator(packages); // installed 1.0.0
+        var highest = WriteReady(packages, "0.9.0", new string('A', 64));
+        var lower = WriteReady(packages, "0.8.0", new string('B', 64));
+
+        StagedUpdate.CleanupOnStartup(locator);
+
+        // parity with GetLatestLocalFullPackage, which keeps a staged downgrade
+        Assert.True(Directory.Exists(highest));
+        Assert.False(Directory.Exists(lower));
     }
 
     [Fact]

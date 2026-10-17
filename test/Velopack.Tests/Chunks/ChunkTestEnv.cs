@@ -256,6 +256,7 @@ internal sealed class RecordingLocator : TestVelopackLocator
 
         public void StartProcess(string exePath, IEnumerable<string> args, string workDir, bool showWindow)
         {
+            if (_owner.StartFault != null) throw _owner.StartFault;
             _owner.Started.Add((exePath, args.ToList(), workDir));
         }
 
@@ -265,6 +266,9 @@ internal sealed class RecordingLocator : TestVelopackLocator
     public List<(string exe, List<string> args, string workDir)> Started { get; } = new();
     public uint ProcessId { get; set; }
     public string? ProcessPath { get; set; }
+
+    /// <summary>When set, every <c>StartProcess</c> throws this (a launch failure).</summary>
+    public Exception? StartFault { get; set; }
 
     public RecordingLocator(string appId, string version, string packagesDir, string? appDir, string? rootDir, string? updateExe,
         IVelopackLogger logger)

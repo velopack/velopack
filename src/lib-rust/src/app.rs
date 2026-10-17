@@ -296,6 +296,9 @@ mod tests {
         std::fs::write(root.join("Update.exe"), b"updater").unwrap();
         std::fs::write(current.join("sq.version"), test_nuspec("TestApp", "2.0.0")).unwrap();
         let old_pkg = create_test_nupkg(&packages, "TestApp", "1.0.0");
+        // an abandoned in-progress staged tree (no data files): the cleanup would delete it
+        let staged = packages.join("staged").join("0123456789abcdef0123456789abcdef");
+        std::fs::create_dir_all(&staged).unwrap();
         let config = VelopackLocatorConfig {
             RootAppDir: root.clone(),
             UpdateExePath: root.join("Update.exe"),
@@ -313,10 +316,12 @@ mod tests {
         let elapsed = started.elapsed();
         assert!(elapsed < std::time::Duration::from_secs(1), "run waited {:?} for the lock", elapsed);
         assert!(old_pkg.exists(), "cleanup is skipped while the lock is held");
+        assert!(staged.exists(), "staged trees are not collected while the lock is held");
 
         drop(held);
         run();
         assert!(!old_pkg.exists(), "cleanup runs once the lock is free");
+        assert!(!staged.exists(), "staged trees are collected once the lock is free");
     }
 
     #[test]

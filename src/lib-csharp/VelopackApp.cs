@@ -257,11 +257,16 @@ namespace Velopack
                     if (readyStaged != null) {
                         try {
                             UpdateExe.ApplyStaged(locator, readyStaged.Dir, false, locator.Process.GetCurrentProcessId(), true, args);
-                        } catch (Exception ex) {
-                            // the tree can not be applied (eg. its updater does not match the marker): discard it so we
-                            // never loop on it, and carry on starting the app
-                            log.Error(ex, "Failed to launch the updater for the staged update; discarding it.");
+                        } catch (InvalidDataException ex) {
+                            // the tree itself is invalid (bad ready.json, its updater does not match the marker): discard it
+                            // so we never loop on it, and carry on starting the app
+                            log.Error(ex, "The staged update is invalid; discarding it.");
                             StagedUpdate.DeleteDir(log, readyStaged.Dir);
+                            launched = false;
+                        } catch (Exception ex) {
+                            // a transient failure (Update.exe locked by AV or still exiting, the launch failed): keep the
+                            // assembled tree, which is still valid, and try again on the next launch (as the Rust library does)
+                            log.Error(ex, "Failed to launch the updater for the staged update; will retry on the next launch.");
                             launched = false;
                         }
                     } else {

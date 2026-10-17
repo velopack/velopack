@@ -205,8 +205,10 @@ namespace Velopack.Chunks
         }
 
         /// <summary>
-        /// Startup garbage collection (§6.6): keeps the highest-version ready tree, deletes every other ready tree and
-        /// every incomplete tree whose newest fetch artifact is older than seven days. The caller holds the packages lock.
+        /// Startup garbage collection (§6.6, same rule as Rust's <c>gc_staged_for_run</c>): deletes ready trees whose version
+        /// is not above the installed version, except the highest-version ready tree (parity with
+        /// <c>GetLatestLocalFullPackage</c>, which keeps a downgrade), and every incomplete tree whose newest fetch artifact is
+        /// older than seven days. The caller holds the packages lock.
         /// </summary>
         public static void CleanupOnStartup(IVelopackLocator locator, Func<DateTime>? clock = null)
         {
@@ -222,9 +224,11 @@ namespace Velopack.Chunks
                     else incomplete.Add(dir);
                 }
 
-                var keep = ready.OrderByDescending(r => r.Asset.Version).FirstOrDefault();
+                var current = locator.CurrentlyInstalledVersion;
+                var highest = ready.Count == 0 ? null : ready.Max(r => r.Asset.Version);
                 foreach (var r in ready) {
-                    if (ReferenceEquals(r, keep)) continue;
+                    if (r.Asset.Version == highest) continue;
+                    if (current != null && r.Asset.Version > current) continue;
                     DeleteDir(locator.Log, r.Dir);
                 }
 

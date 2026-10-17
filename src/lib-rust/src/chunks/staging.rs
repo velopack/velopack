@@ -365,3 +365,77 @@ mod tests {
         assert!(victim.join(id).join("keep.txt").exists());
     }
 }
+
+#[cfg(test)]
+mod gc_tests {
+    use super::*;
+
+    fn write_ready(packages: &Path, version: &str, hex: char) -> PathBuf {
+        let sha = hex.to_string().repeat(64);
+        let id = staged_id(&sha).unwrap();
+        let layout = StagedLayout::new(packages, &id);
+        fs::create_dir_all(&layout.dir).unwrap();
+        let marker = StagedReadyMarker {
+            Format: READY_MARKER_FORMAT,
+            StagedId: id,
+            IndexSHA256: sha.clone(),
+            UpdaterSHA256: "b".repeat(64),
+            Asset: VelopackAsset {
+                Version: version.to_string(),
+                ChunkIndexSHA256: sha,
+                ..Default::default()
+            },
+            CreatedUtc: utc_now_rfc3339(),
+        };
+        write_ready_marker(&layout, &marker).unwrap();
+        layout.dir
+    }
+
+    fn write_aged(path: &Path, age: Duration) {
+        fs::write(path, b"x").unwrap();
+        let file = fs::File::options().write(true).open(path).unwrap();
+        file.set_modified(SystemTime::now() - age).unwrap();
+    }
+
+    #[test]
+    fn gc_for_run_keeps_highest_and_newer_trees() {
+        let tmp = tempfile::tempdir().unwrap();
+        let packages = tmp.path();
+        let current = Version::parse("1.0.0").unwrap();
+        let highest = write_ready(packages, "2.0.0", 'a');
+        let above = write_ready(packages, "1.1.0", 'b');
+        let installed = write_ready(packages, "1.0.0", 'c');
+        let downgrade = write_ready(packages, "0.9.0", 'd');
+
+        let week = Duration::from_secs(7 * 24 * 3600);
+        let stale = StagedLayout::new(packages, &"e".repeat(32));
+        fs::create_dir_all(&stale.dir).unwrap();
+        write_aged(&stale.index_bin(), week + Duration::from_secs(3600));
+        write_aged(&stale.chunks_bin(), week + Duration::from_secs(3600));
+        // the newest data file counts: an old index next to a freshly written blob is a resume in progress
+        let fresh = StagedLayout::new(packages, &"f".repeat(32));
+        fs::create_dir_all(&fresh.dir).unwrap();
+        write_aged(&fresh.index_bin(), week * 2);
+        write_aged(&fresh.chunks_bin(), Duration::from_secs(60));
+
+        gc_staged_for_run(packages, &current);
+
+        assert!(highest.exists());
+        assert!(above.exists(), "a ready tree above the installed version is kept");
+        assert!(!installed.exists());
+        assert!(!downgrade.exists());
+        assert!(!stale.dir.exists(), "an incomplete tree untouched for over 7 days is deleted");
+        assert!(fresh.dir.exists(), "a recently written incomplete tree is kept for resume");
+    }
+
+    #[test]
+    fn gc_for_run_keeps_highest_even_as_downgrade() {
+        let tmp = tempfile::tempdir().unwrap();
+        let packages = tmp.path();
+        let highest = write_ready(packages, "0.9.0", 'a');
+        let lower = write_ready(packages, "0.8.0", 'b');
+        gc_staged_for_run(packages, &Version::parse("1.0.0").unwrap());
+        assert!(highest.exists());
+        assert!(!lower.exists());
+    }
+}
