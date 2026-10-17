@@ -196,7 +196,7 @@ Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-
 - **Do not `cd` to the repo root** — you are already there. Never prefix commands with `cd /c/Source/velopack &&`. You may `cd` into a subdirectory only if genuinely needed.
 - **Test framework**: xunit v3. Test helpers in `test/PathHelper.cs` — use `PathHelper.GetFixturesDir()` for test fixture paths and `PathHelper.IsCI` to detect CI.
 - **Versioning**: Nerdbank.GitVersioning (NBGV) — version derived from git height, not manually set.
-- **Assembly signing**: All assemblies signed with `Velopack.snk`.
+- **Assembly signing**: All assemblies signed with `src/Velopack.snk`.
 - **Build output**: Goes to `build/{Configuration}/{TargetFramework}/` (not default `bin/`).
 - **Rust output**: `target/debug/` or `target/release/`.
 - **Main branch**: `develop` (not `main`/`master`). Releases from `master`.
