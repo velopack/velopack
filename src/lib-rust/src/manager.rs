@@ -2,7 +2,10 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::RecvTimeoutError;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use std::{fs, process::exit, sync::mpsc::Sender};
 
 use crate::{
@@ -403,17 +406,30 @@ impl UpdateManager {
         find_files_to_delete(&old_nupkg_pattern, &mut to_delete);
         find_files_to_delete(&old_partial_pattern, &mut to_delete);
 
+        // The source gets its own sender, forwarded onto what is left of the band. The forwarder stops once the
+        // download returned (not when every sender is dropped: a source may keep a clone of it).
         let band_start = report.last().max(0);
         let (sender, receiver) = std::sync::mpsc::channel::<i16>();
+        let done = Arc::new(AtomicBool::new(false));
         let forwarder = std::thread::spawn({
             let report = report.clone();
-            move || {
-                for p in receiver {
-                    report.send_band(band_start, 100, p);
+            let done = Arc::clone(&done);
+            move || loop {
+                if done.load(Ordering::Acquire) {
+                    while let Ok(p) = receiver.try_recv() {
+                        report.send_band(band_start, 100, p);
+                    }
+                    return;
+                }
+                match receiver.recv_timeout(Duration::from_millis(100)) {
+                    Ok(p) => report.send_band(band_start, 100, p),
+                    Err(RecvTimeoutError::Timeout) => {}
+                    Err(RecvTimeoutError::Disconnected) => return,
                 }
             }
         });
         let result = self.inner.source.download_release_entry(target, &partial_file, Some(sender));
+        done.store(true, Ordering::Release);
         let _ = forwarder.join();
         result?;
         self.verify_package_checksum(&partial_file, target)?;

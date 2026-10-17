@@ -9,10 +9,12 @@ use common::mock_server::{Fault, MockHttpServer};
 use common::package::{build_package, compressible, Package};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
-use velopack::chunks::{self, staging, StagedLayout, StagedReadyMarker};
+use std::sync::{mpsc, Mutex};
+use std::time::Duration;
+use velopack::bundle::Manifest;
+use velopack::chunks::{self, staging, RangeReader, StagedLayout, StagedReadyMarker};
 use velopack::locator::VelopackLocatorConfig;
-use velopack::sources::HttpSource;
+use velopack::sources::{HttpSource, UpdateSource};
 use velopack::{ApplyWaitMode, UpdateInfo, UpdateManager, UpdateOptions, VelopackAsset, VelopackAssetFeed};
 
 fn nuspec(version: &str) -> Vec<u8> {
@@ -555,4 +557,53 @@ fn non_hex_chunk_index_digest_is_never_a_path() {
     let escaped = app.packages.join("staged").join(escape);
     assert!(!escaped.exists() && !app.root.parent().unwrap().join("escaped-staged-dir").exists());
     assert!(!StagedLayout::root(&app.packages).exists());
+}
+
+/// A source that keeps a clone of the progress sender after the download returns (allowed by the trait).
+struct SenderKeepingSource {
+    inner: HttpSource,
+    kept: Mutex<Option<mpsc::Sender<i16>>>,
+}
+
+impl UpdateSource for SenderKeepingSource {
+    fn get_release_feed(&self, channel: &str, app: &Manifest, staged_user_id: &str) -> Result<VelopackAssetFeed, velopack::Error> {
+        self.inner.get_release_feed(channel, app, staged_user_id)
+    }
+
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress: Option<mpsc::Sender<i16>>) -> Result<(), velopack::Error> {
+        *self.kept.lock().unwrap() = progress.clone();
+        self.inner.download_release_entry(asset, local_file, progress)
+    }
+
+    fn open_range_reader(&self, asset: &VelopackAsset) -> Result<Option<Box<dyn RangeReader>>, velopack::Error> {
+        self.inner.open_range_reader(asset)
+    }
+}
+
+#[test]
+fn full_download_returns_when_the_source_keeps_its_progress_sender() {
+    let app = install_v1();
+    let server = MockHttpServer::empty();
+    let pkg = serve(&server, &v2_files());
+    let source = SenderKeepingSource {
+        inner: HttpSource::new(server.url()),
+        kept: Mutex::new(None),
+    };
+    let options = UpdateOptions {
+        DisableChunkedUpdates: true,
+        ..Default::default()
+    };
+    let um = UpdateManager::new(source, Some(options), Some(app.config.clone())).unwrap();
+    let info = update_info(&pkg);
+    let (done_tx, done_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let (tx, rx) = mpsc::channel();
+        let result = um.download_updates(&info, Some(tx)).map_err(|e| e.to_string());
+        let progress: Vec<i16> = rx.try_iter().collect();
+        let _ = done_tx.send((result, progress));
+    });
+    let (result, progress) = done_rx.recv_timeout(Duration::from_secs(60)).expect("download_updates returned");
+    result.unwrap();
+    assert_eq!(progress.last(), Some(&100));
+    assert_eq!(fs::read(app.packages.join(V2_NAME)).unwrap(), pkg.bytes);
 }
