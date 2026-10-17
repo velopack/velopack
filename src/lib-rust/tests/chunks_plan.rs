@@ -221,6 +221,7 @@ fn plan_of(chunks: Vec<NeededChunk>) -> Plan {
         bytes_needed,
         plaintext_needed: bytes_needed,
         bytes_total: 0,
+        whole_file_copies: 0,
     }
 }
 

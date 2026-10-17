@@ -2,7 +2,7 @@
 
 use super::index::{ChunkIndex, Disposition, FileKind, FileRecord};
 use super::inflate::sha256_file;
-use super::{COALESCE_GAP, PLANNING_HASH_THRESHOLD, REQUEST_CAP, TRANSPORT_CEILING};
+use super::{COALESCE_GAP, PLANNING_HASH_THRESHOLD, REQUEST_CAP, TRANSPORT_CEILING_DENOMINATOR, TRANSPORT_CEILING_NUMERATOR};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -54,6 +54,8 @@ pub struct Plan {
     pub plaintext_needed: u64,
     /// Σ plaintext bytes of every File record in the remote index.
     pub bytes_total: u64,
+    /// Remote files that are copied whole from a usable local file (nothing fetched for them).
+    pub whole_file_copies: usize,
 }
 
 /// One coalesced range request.
@@ -101,12 +103,27 @@ fn needed_chunk(remote: &ChunkIndex, chunk_index: usize) -> NeededChunk {
 /// Builds the plan: every chunk of every remote File record that is neither available from a usable
 /// local file (whole file or chunk) nor already in the blob.
 pub fn plan(remote: &ChunkIndex, local: Option<&ChunkIndex>, roots: &LocalRoots, blob_has: &dyn Fn(&[u8; 32]) -> bool) -> Plan {
+    plan_with(
+        remote,
+        local,
+        &|local, record| local_file_usable(&roots.destination(local, record), record),
+        blob_has,
+    )
+}
+
+/// [`plan`] with an explicit usability check for local File records (the cross-language plan vectors
+/// describe usability as data instead of files on disk).
+pub fn plan_with(
+    remote: &ChunkIndex,
+    local: Option<&ChunkIndex>,
+    usable: &dyn Fn(&ChunkIndex, &FileRecord) -> bool,
+    blob_has: &dyn Fn(&[u8; 32]) -> bool,
+) -> Plan {
     let mut have: HashSet<[u8; 32]> = HashSet::new();
     let mut have_file: HashSet<[u8; 32]> = HashSet::new();
     if let Some(local) = local {
         for record in local.files() {
-            let dest = roots.destination(local, &record);
-            if !local_file_usable(&dest, &record) {
+            if record.kind != FileKind::File || record.chunk_count == 0 || !usable(local, &record) {
                 continue;
             }
             have_file.insert(record.sha256);
@@ -123,7 +140,11 @@ pub fn plan(remote: &ChunkIndex, local: Option<&ChunkIndex>, roots: &LocalRoots,
             continue;
         }
         plan.bytes_total += record.length;
-        if record.length == 0 || have_file.contains(&record.sha256) {
+        if record.length == 0 {
+            continue;
+        }
+        if have_file.contains(&record.sha256) {
+            plan.whole_file_copies += 1;
             continue;
         }
         let method = remote.b_file(record.index).map(|b| b.method).unwrap_or(0);
@@ -168,8 +189,9 @@ pub fn plan_for_hashes(remote: &ChunkIndex, hashes: &[[u8; 32]]) -> Plan {
 }
 
 /// True when fetching the plan would cost at least 90 % of the full package (classic path instead).
+/// Integer form of `bytes_needed >= 0.9 * asset_size`, so C# and Rust never disagree on rounding.
 pub fn exceeds_transport_ceiling(plan: &Plan, asset_size: u64) -> bool {
-    plan.bytes_needed as f64 >= TRANSPORT_CEILING * asset_size as f64
+    plan.bytes_needed as u128 * TRANSPORT_CEILING_DENOMINATOR >= asset_size as u128 * TRANSPORT_CEILING_NUMERATOR
 }
 
 /// Merges needed chunks into requests: sorted by offset, a chunk joins the current request when the

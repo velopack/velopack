@@ -17,8 +17,10 @@ pub use blob::ChunkBlob;
 pub use fetch::{RangeError, RangeReader};
 pub use fetcher::{fetch_index, fetch_ranges, Budget, ErrorClass, FetchError, RetryPolicy};
 pub use index::{staged_id, ChunkIndex, ChunkRecord, Disposition, FileKind, FileRecord, IndexError};
-pub use inflate::{inflate_chunk, sha256, sha256_file, sha256_hex, InflateError};
-pub use plan::{coalesce, exceeds_transport_ceiling, local_file_usable, plan, plan_for_hashes, LocalRoots, NeededChunk, Plan, RangeRequest};
+pub use inflate::{inflate_chunk, parse_sha256_hex, sha256, sha256_file, sha256_hex, InflateError};
+pub use plan::{
+    coalesce, exceeds_transport_ceiling, local_file_usable, plan, plan_for_hashes, plan_with, LocalRoots, NeededChunk, Plan, RangeRequest,
+};
 pub use staging::{find_ready_staged, find_ready_staged_for, gc_staged, gc_staged_for_run, read_ready_marker, StagedLayout, StagedReadyMarker};
 
 /// Magic of Section A (the content map), "VPKA".
@@ -96,6 +98,9 @@ pub const FETCH_PARALLELISM: usize = 4;
 pub const REQUEST_CAP: u64 = 8 * 1024 * 1024;
 pub const COALESCE_GAP: u64 = 32 * 1024;
 pub const TRANSPORT_CEILING: f64 = 0.9;
+/// `TRANSPORT_CEILING` as the exact fraction used for the comparison (`needed * 10 >= size * 9`).
+pub const TRANSPORT_CEILING_NUMERATOR: u128 = 9;
+pub const TRANSPORT_CEILING_DENOMINATOR: u128 = 10;
 pub const PLANNING_HASH_THRESHOLD: u64 = 64 * 1024;
 pub const BLOB_FLUSH_INTERVAL: u64 = 16 * 1024 * 1024;
 pub const FREE_SPACE_FACTOR: f64 = 1.1;
