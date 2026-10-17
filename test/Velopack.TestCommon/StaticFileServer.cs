@@ -105,7 +105,7 @@ public sealed class StaticFileServer : IDisposable
         while (!ct.IsCancellationRequested) {
             HttpListenerContext ctx;
             try {
-                ctx = await _listener.GetContextAsync();
+                ctx = await _listener.GetContextAsync().ConfigureAwait(false);
             } catch (Exception) {
                 break; // listener stopped/disposed
             }
