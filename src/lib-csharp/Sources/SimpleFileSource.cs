@@ -13,7 +13,7 @@ namespace Velopack.Sources
     /// Retrieves available updates from a local or network-attached disk. The directory
     /// must contain one or more valid packages, as well as a 'releases.{channel}.json' index file.
     /// </summary>
-    public class SimpleFileSource : IUpdateSource
+    public class SimpleFileSource : IUpdateSource, IRangeReadableUpdateSource
     {
         /// <summary> The local directory containing packages to update to. </summary>
         public virtual DirectoryInfo BaseDirectory { get; }
@@ -81,6 +81,58 @@ namespace Velopack.Sources
             File.Copy(releasePath, localFile, true);
             progress?.Invoke(100);
             return Task.CompletedTask;
+        }
+
+        /// <inheritdoc />
+        public virtual Task<IRangeReader?> OpenRangeReaderAsync(IVelopackLogger logger, VelopackAsset asset, CancellationToken cancelToken)
+        {
+            if (asset == null) throw new ArgumentNullException(nameof(asset));
+            var releasePath = Path.Combine(BaseDirectory.FullName, asset.FileName);
+            if (!File.Exists(releasePath)) {
+                logger.Warn($"The file '{releasePath}' does not exist, ranged reads are not available.");
+                return Task.FromResult<IRangeReader?>(null);
+            }
+
+            return Task.FromResult<IRangeReader?>(new FileRangeReader(releasePath));
+        }
+
+        /// <summary>Byte-range access to a local file.</summary>
+        private sealed class FileRangeReader : IRangeReader
+        {
+            private readonly string _path;
+            private long _length;
+
+            public FileRangeReader(string path)
+            {
+                _path = path;
+                _length = -1;
+            }
+
+            public long Length => Interlocked.Read(ref _length);
+
+            public async Task ReadExactAsync(long offset, byte[] buffer, int bufferOffset, int count, CancellationToken cancelToken)
+            {
+                if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+                if (bufferOffset < 0 || count < 0 || buffer.Length - bufferOffset < count) throw new ArgumentOutOfRangeException(nameof(count));
+                cancelToken.ThrowIfCancellationRequested();
+                using var fs = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
+                Interlocked.Exchange(ref _length, fs.Length);
+                if (offset < 0 || offset + count > fs.Length) {
+                    throw new RangeUnavailableException($"Range {offset}+{count} is outside the file ({fs.Length} bytes).");
+                }
+
+                fs.Seek(offset, SeekOrigin.Begin);
+                int read = 0;
+                while (read < count) {
+                    int n = await fs.ReadAsync(buffer, bufferOffset + read, count - read, cancelToken).ConfigureAwait(false);
+                    if (n <= 0) throw new IOException("The file ended before the requested range was read.");
+                    read += n;
+                }
+            }
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

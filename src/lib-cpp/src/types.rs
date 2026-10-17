@@ -410,6 +410,12 @@ pub struct vpkc_asset_t {
     pub NotesMarkdown: *mut c_char,
     /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
     pub NotesHtml: *mut c_char,
+    /// The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+    pub ChunkIndexOffset: u64,
+    /// The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+    pub ChunkIndexLength: u64,
+    /// The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+    pub ChunkIndexSHA256: *mut c_char,
 }
 
 #[rustfmt::skip]
@@ -426,6 +432,9 @@ pub fn c_to_VelopackAsset(obj: *mut vpkc_asset_t) -> Result<VelopackAsset> {
         Size: obj.Size,
         NotesMarkdown: c_to_String(obj.NotesMarkdown)?,
         NotesHtml: c_to_String(obj.NotesHtml)?,
+        ChunkIndexOffset: obj.ChunkIndexOffset,
+        ChunkIndexLength: obj.ChunkIndexLength,
+        ChunkIndexSHA256: c_to_String(obj.ChunkIndexSHA256)?,
     };
     Ok(result)
 }
@@ -459,6 +468,9 @@ pub unsafe fn allocate_VelopackAsset<'a, T: Into<Option<&'a VelopackAsset>>>(dto
     (*obj).Size = dto.Size;
     (*obj).NotesMarkdown = allocate_String(&dto.NotesMarkdown);
     (*obj).NotesHtml = allocate_String(&dto.NotesHtml);
+    (*obj).ChunkIndexOffset = dto.ChunkIndexOffset;
+    (*obj).ChunkIndexLength = dto.ChunkIndexLength;
+    (*obj).ChunkIndexSHA256 = allocate_String(&dto.ChunkIndexSHA256);
     obj
 }
 
@@ -493,6 +505,9 @@ pub unsafe fn free_VelopackAsset(obj: *mut vpkc_asset_t) {
     
     free_String((*obj).NotesMarkdown);
     free_String((*obj).NotesHtml);
+    
+    
+    free_String((*obj).ChunkIndexSHA256);
     libc::free(obj as *mut c_void);
     log::debug!("vpkc_asset_t freed");
 }
@@ -514,15 +529,8 @@ pub unsafe fn free_VelopackAsset_vec(obj: *mut *mut vpkc_asset_t, count: size_t)
 pub struct vpkc_update_info_t {
     /// The available version that we are updating to.
     pub TargetFullRelease: *mut vpkc_asset_t,
-    /// The base release that this update is based on. This is only available if the update is a delta update.
-    pub BaseRelease: *mut vpkc_asset_t,
-    /// The list of delta updates that can be applied to the base version to get to the target version.
-    pub DeltasToTarget: *mut *mut vpkc_asset_t,
-    /// The number of elements in the DeltasToTarget array.
-    pub DeltasToTargetCount: size_t,
     /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-    /// deleted.
+    /// In this case, any local packages on disk newer than the downloaded version will be deleted.
     pub IsDowngrade: bool,
 }
 
@@ -532,8 +540,6 @@ pub fn c_to_UpdateInfo(obj: *mut vpkc_update_info_t) -> Result<UpdateInfo> {
     let obj = unsafe { &*obj };
     let result = UpdateInfo {
         TargetFullRelease: c_to_VelopackAsset(obj.TargetFullRelease)?,
-        BaseRelease: c_to_VelopackAsset(obj.BaseRelease).ok(),
-        DeltasToTarget: c_to_VelopackAsset_vec(obj.DeltasToTarget, obj.DeltasToTargetCount)?,
         IsDowngrade: obj.IsDowngrade,
     };
     Ok(result)
@@ -560,8 +566,6 @@ pub unsafe fn allocate_UpdateInfo<'a, T: Into<Option<&'a UpdateInfo>>>(dto: T) -
     let dto = dto.unwrap();
     let obj = libc::malloc(size_of::<vpkc_update_info_t>()) as *mut vpkc_update_info_t;
     (*obj).TargetFullRelease = allocate_VelopackAsset(&dto.TargetFullRelease);
-    (*obj).BaseRelease = allocate_VelopackAsset(&dto.BaseRelease);
-    (*obj).DeltasToTarget = allocate_VelopackAsset_vec(&dto.DeltasToTarget, &mut (*obj).DeltasToTargetCount);
     (*obj).IsDowngrade = dto.IsDowngrade;
     obj
 }
@@ -589,8 +593,6 @@ pub unsafe fn allocate_UpdateInfo_vec(dto: &Vec<UpdateInfo>, count: *mut size_t)
 pub unsafe fn free_UpdateInfo(obj: *mut vpkc_update_info_t) {
     if obj.is_null() { return; }
     free_VelopackAsset((*obj).TargetFullRelease);
-    free_VelopackAsset((*obj).BaseRelease);
-    free_VelopackAsset_vec((*obj).DeltasToTarget, (*obj).DeltasToTargetCount);
     
     libc::free(obj as *mut c_void);
     log::debug!("vpkc_update_info_t freed");
@@ -624,9 +626,8 @@ pub struct vpkc_update_options_t {
     /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
     /// without having to reinstall the application.
     pub ExplicitChannel: *mut c_char,
-    /// Sets the maximum number of deltas to consider before falling back to a full update.
-    /// The default is 10. Set to a negative number (eg. -1) to disable deltas.
-    pub MaximumDeltasBeforeFallback: i32,
+    /// Disables chunk-based updates, so the full update package is always downloaded.
+    pub DisableChunkedUpdates: bool,
 }
 
 #[rustfmt::skip]
@@ -636,7 +637,7 @@ pub fn c_to_UpdateOptions(obj: *mut vpkc_update_options_t) -> Result<UpdateOptio
     let result = UpdateOptions {
         AllowVersionDowngrade: obj.AllowVersionDowngrade,
         ExplicitChannel: c_to_String(obj.ExplicitChannel).ok(),
-        MaximumDeltasBeforeFallback: obj.MaximumDeltasBeforeFallback,
+        DisableChunkedUpdates: obj.DisableChunkedUpdates,
     };
     Ok(result)
 }
@@ -663,7 +664,7 @@ pub unsafe fn allocate_UpdateOptions<'a, T: Into<Option<&'a UpdateOptions>>>(dto
     let obj = libc::malloc(size_of::<vpkc_update_options_t>()) as *mut vpkc_update_options_t;
     (*obj).AllowVersionDowngrade = dto.AllowVersionDowngrade;
     (*obj).ExplicitChannel = allocate_String(&dto.ExplicitChannel);
-    (*obj).MaximumDeltasBeforeFallback = dto.MaximumDeltasBeforeFallback;
+    (*obj).DisableChunkedUpdates = dto.DisableChunkedUpdates;
     obj
 }
 

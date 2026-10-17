@@ -7,7 +7,7 @@ using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
-using Velopack.Packaging.Compression;
+using Velopack.Packaging.Chunking;
 using Velopack.Util;
 
 namespace Velopack.Packaging;
@@ -29,6 +29,12 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
     protected string MainExePath { get; private set; }
 
     protected Dictionary<string, string> ExtraNuspecMetadata { get; } = new();
+
+    /// <summary>
+    /// The chunk content index of the pack directory (delta-v2), built by <see cref="BuildChunkIndex"/> after code
+    /// signing. Null when the target does not produce chunk-aligned packages; the release package is then a plain zip.
+    /// </summary>
+    protected PackContentIndex ContentIndex { get; private set; }
 
     private readonly Regex REGEX_EXCLUDES = new(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -112,11 +118,9 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
 
         await Console.ExecuteProgressAsync(
             async (ctx) => {
-                ReleasePackage prev = null;
                 await ctx.RunTask(
                     "Pre-process steps",
                     async (progress) => {
-                        prev = entryHelper.GetPreviousFullRelease(SemanticVersion.Parse(packVersion));
                         packDirectory = await PreprocessPackDir(progress, packDirectory);
                     });
 
@@ -127,6 +131,13 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
                             await CodeSign(progress, packDirectory);
                         });
                 }
+
+                await ctx.RunTask(
+                    "Indexing package contents",
+                    async (progress) => {
+                        ContentIndex = await BuildChunkIndex(progress, packDirectory);
+                        progress(100);
+                    });
 
                 Task portableTask = null;
                 if (TargetOs == RuntimeOs.Linux || !Options.NoPortable) {
@@ -146,7 +157,7 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
                 await ctx.RunTask(
                     $"Building release {packVersion}",
                     async (progress) => {
-                        var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, false, TargetOs);
+                        var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, TargetOs);
                         releasePath = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Full);
                         await CreateReleasePackage(progress, packDirectory, releasePath);
                     });
@@ -159,21 +170,6 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
                             var suggestedName = DefaultName.GetSuggestedSetupName(packId, channel, TargetOs);
                             var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Installer);
                             await CreateSetupPackage(progress, releasePath, packDirectory, path, assetCache.MakeAssetPath);
-                        });
-                }
-
-                if (prev != null && options.DeltaMode != DeltaMode.None) {
-                    await ctx.RunTask(
-                        $"Building delta {prev.Version} -> {packVersion}",
-                        async (progress) => {
-                            var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, true, TargetOs);
-                            var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Delta);
-                            var deltaPkg = await CreateDeltaPackage(
-                                progress,
-                                releasePath,
-                                prev.PackageFile,
-                                path,
-                                options.DeltaMode);
                         });
                 }
 
@@ -269,14 +265,16 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
         return Task.CompletedTask;
     }
 
-    protected abstract Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath);
-
-    protected virtual Task<string> CreateDeltaPackage(Action<int> progress, string releasePkg, string prevReleasePkg, string outputPath, DeltaMode mode)
+    /// <summary>
+    /// Builds the chunk content index of the (signed) pack directory and writes <c>sq.chunks</c> into it, so the
+    /// release package can be written chunk-aligned. The default produces no index (plain zip packages).
+    /// </summary>
+    protected virtual Task<PackContentIndex> BuildChunkIndex(Action<int> progress, string packDir)
     {
-        var deltaBuilder = new DeltaPackageBuilder(Log);
-        var (dp, stats) = deltaBuilder.CreateDeltaPackage(new ReleasePackage(prevReleasePkg), new ReleasePackage(releasePkg), outputPath, mode, progress);
-        return Task.FromResult(dp.PackageFile);
+        return Task.FromResult<PackContentIndex>(null);
     }
+
+    protected abstract Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath);
 
     protected virtual Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string outputPath, Func<string, VelopackAssetType, string> createAsset)
     {
@@ -298,9 +296,22 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
             File.Copy(kvp.Value, Path.Combine(stagingDir.FullName, kvp.Key), true);
         }
 
-        AddContentTypesAndRel(nuspecPath);
+        AddContentTypesAndRel(nuspecPath, ContentIndex != null ? ["idx"] : null);
 
-        await EasyZip.CreateZipFromDirectoryAsync(Log.ToVelopackLogger(), outputPath, stagingDir.FullName, CoreUtil.CreateProgressDelegate(progress, 30, 100));
+        if (ContentIndex != null) {
+            Log.Debug($"Compressing '{stagingDir.FullName}' to '{outputPath}' using the chunk-aligned writer...");
+            var index = ContentIndex;
+            var zipProgress = CoreUtil.CreateProgressDelegate(progress, 30, 100);
+            var pointer = await Task.Run(() => ChunkedZipWriter.Write(stagingDir.FullName, index, outputPath, progress: zipProgress));
+            Log.Debug($"Chunk index trailer written at offset {pointer.Offset} ({pointer.Length} bytes, SHA256 {pointer.Sha256}).");
+        } else {
+            await EasyZip.CreateZipFromDirectoryAsync(
+                Log.ToVelopackLogger(),
+                outputPath,
+                stagingDir.FullName,
+                CoreUtil.CreateProgressDelegate(progress, 30, 100));
+        }
+
         progress(100);
     }
 
@@ -369,11 +380,12 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
         }
     }
 
-    protected virtual void AddContentTypesAndRel(string nuspecPath)
+    protected virtual void AddContentTypesAndRel(string nuspecPath, IEnumerable<string> extraExtensions = null)
     {
         var rootDirectory = Path.GetDirectoryName(nuspecPath);
         var extensions = Directory.EnumerateFiles(rootDirectory, "*", SearchOption.AllDirectories)
             .Select(p => Path.GetExtension(p).TrimStart('.').ToLower())
+            .Concat(extraExtensions ?? [])
             .Distinct()
             .Where(ext => !String.IsNullOrWhiteSpace(ext))
             .Select(ext => $"""  <Default Extension="{ext}" ContentType="application/octet" />""")

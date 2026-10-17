@@ -87,6 +87,18 @@ pub fn start_impl(
         anyhow::bail!("Cannot use both legacy args and new args format at the same time.");
     }
 
+    // Repair an interrupted swap before locating the manifest, which fails when current/ is missing.
+    let recovery_root = match &context {
+        LocationContext::FromSpecifiedRootDir(root, _) => Some(root.clone()),
+        LocationContext::IAmUpdateExe => std::env::current_exe().ok().and_then(|p| p.parent().map(Path::to_path_buf)),
+        _ => None,
+    };
+    if let Some(root) = recovery_root {
+        if let Err(e) = super::recover_current_dir(&root) {
+            warn!("Failed to recover the application directory in {:?}: {}", root, e);
+        }
+    }
+
     let locator = legacy_locator(context)?;
     let root_dir = locator.get_root_dir();
     let manifest = locator.get_manifest();

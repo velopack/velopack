@@ -1,13 +1,14 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
+using System.IO.Compression;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
 using Microsoft.Win32;
 using NuGet.Packaging;
+using Velopack.Chunks;
 using Velopack.Core;
-using Velopack.Packaging.Commands;
-using Velopack.Packaging.Compression;
 using Velopack.Packaging.Windows.Commands;
+using WixToolset.Dtf.WindowsInstaller;
 using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
@@ -201,6 +202,138 @@ public class WindowsPackTests
     }
 
     [Fact]
+    public void PackedNupkgHasTrailerAndFeedPointer()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+        var version = "1.0.0";
+        var title = "Test Squirrel App";
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        File.WriteAllText(Path.Combine(tmpOutput, "words.txt"), string.Concat(Enumerable.Repeat("velopack chunked update ", 20_000)));
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackTitle = title,
+            PackDirectory = tmpOutput,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        runner.Run(options).GetAwaiterResult();
+
+        var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-full.nupkg");
+        Assert.True(File.Exists(nupkgPath));
+        var nupkgBytes = File.ReadAllBytes(nupkgPath);
+
+        // the trailer is the last, stored entry and the feed pointer addresses exactly its bytes
+        using var zip = ZipFile.OpenRead(nupkgPath);
+        var trailerEntry = zip.Entries[^1];
+        Assert.Equal(ChunkIndex.TrailerEntryName, trailerEntry.FullName);
+        Assert.Equal(trailerEntry.Length, trailerEntry.CompressedLength);
+        Assert.Equal(zip.Entries[0].FullName, $"{id}.nuspec");
+        Assert.Equal("lib/app/Squirrel.exe", zip.Entries.First(e => e.FullName.StartsWith("lib/")).FullName);
+
+        var asset = VelopackAsset.FromNupkgNoChecksum(nupkgPath);
+        Assert.True(asset.HasChunkIndex);
+        Assert.Equal(trailerEntry.Length, asset.ChunkIndexLength);
+        var trailer = nupkgBytes.AsSpan((int) asset.ChunkIndexOffset!.Value, (int) asset.ChunkIndexLength!.Value).ToArray();
+        Assert.Equal(ReadEntry(trailerEntry), trailer);
+        Assert.Equal(ChunkInflate.Sha256(trailer).ToHex(), asset.ChunkIndexSHA256);
+
+        var feed = VelopackAssetFeed.FromJson(File.ReadAllText(Path.Combine(tmpReleaseDir, "releases.win.json")));
+        var feedAsset = Assert.Single(feed.Assets);
+        Assert.Equal(asset.ChunkIndexOffset, feedAsset.ChunkIndexOffset);
+        Assert.Equal(asset.ChunkIndexLength, feedAsset.ChunkIndexLength);
+        Assert.Equal(asset.ChunkIndexSHA256, feedAsset.ChunkIndexSHA256);
+
+        // the index parses, describes every app file, and its Section A is what was installed as lib/app/sq.chunks
+        var index = ChunkIndex.ParseTrailer(trailer, nupkgBytes.Length);
+        Assert.Equal(index.CopySectionA(), ReadEntry(zip.GetEntry("lib/app/sq.chunks")!));
+        var appFiles = zip.Entries.Where(e => e.FullName.StartsWith("lib/app/") && e.FullName != "lib/app/sq.chunks").ToList();
+        Assert.Equal(appFiles.Count, index.FileCount);
+        foreach (var entry in appFiles) {
+            int i = index.FindFile(entry.FullName.Substring("lib/app/".Length));
+            Assert.True(i >= 0, entry.FullName);
+            Assert.Equal(entry.Length, index.GetFileLength(i));
+            Assert.Equal(ChunkInflate.Sha256(ReadEntry(entry)), index.GetFileHash(i));
+        }
+
+        Assert.Equal(ChunkFileDisposition.Updater, index.GetFile(index.FindFile("Squirrel.exe")).Disposition);
+        Assert.Equal(ChunkFileDisposition.Stub, index.GetFile(index.FindFile($"{title}_ExecutionStub.exe")).Disposition);
+        Assert.Equal(ChunkFileDisposition.AppFile, index.GetFile(index.FindFile(exe)).Disposition);
+        Assert.Equal(ReadEntry(zip.GetEntry($"{id}.nuspec")!), ReadEntry(zip.GetEntry("lib/app/sq.version")!));
+
+        // the compressible file is deflated in self-contained chunks, the (already compressed) exe may be stored
+        var wordsTransport = index.GetTransportFile(index.FindFile("words.txt"));
+        Assert.True(wordsTransport.IsDeflate);
+        Assert.True(index.GetFile(index.FindFile("words.txt")).ChunkCount > 1);
+    }
+
+    [Fact]
+    public void PortableAndMsiContainSqChunks()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        using var _3 = TempUtil.GetTempDirectory(out var portableDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+        var version = "1.0.0";
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            BuildMsi = true,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        runner.Run(options).GetAwaiterResult();
+
+        using var zip = ZipFile.OpenRead(Path.Combine(tmpReleaseDir, $"{id}-{version}-full.nupkg"));
+        var sqChunks = ReadEntry(zip.GetEntry("lib/app/sq.chunks")!);
+        Assert.NotNull(ChunkIndex.ParseLocal(sqChunks));
+
+        // portable: current/sq.chunks is the same content map as the package's
+        var portablePath = Directory.EnumerateFiles(tmpReleaseDir, "*-Portable.zip").Single();
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), portablePath, portableDir);
+        Assert.Equal(sqChunks, File.ReadAllBytes(Path.Combine(portableDir, "current", "sq.chunks")));
+        Assert.Equal(ReadEntry(zip.GetEntry("lib/app/sq.version")!), File.ReadAllBytes(Path.Combine(portableDir, "current", "sq.version")));
+
+        // msi: the File table carries sq.chunks (installed into current\)
+        var msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+        using var db = new Database(msiPath);
+        var fileNames = db.ExecuteStringQuery("SELECT `FileName` FROM `File`");
+        Assert.Contains(fileNames, f => f.EndsWith("sq.chunks", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(fileNames, f => f.EndsWith("sq.version", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static byte[] ReadEntry(ZipArchiveEntry entry)
+    {
+        using var s = entry.Open();
+        var ms = new MemoryStream();
+        s.CopyTo(ms);
+        return ms.ToArray();
+    }
+
+    [Fact]
     public void PackBuildRefuseSameVersion()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
@@ -271,81 +404,6 @@ public class WindowsPackTests
         Assert.Throws<UserInfoException>(() => runner.Run(options).GetAwaiterResult());
     }
 
-    [Fact]
-    public async Task TestPackGeneratesValidDelta()
-    {
-        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
-        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-        string id = "SquirrelDeltaTest";
-        await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
-        await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, true);
-        await PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
-
-        // did a zsdiff get created for the changed file in our v2 update? (test_string.txt is the
-        // only file that differs between versions now that the test string is not compiled in)
-        var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
-        Assert.True(File.Exists(deltaPath));
-        using var _2 = TempUtil.GetTempDirectory(out var extractDir);
-        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), deltaPath, extractDir);
-        var extractStringDiff = Path.Combine(extractDir, "lib", "app", "test_string.txt.zsdiff");
-        var extractStringShasum = Path.Combine(extractDir, "lib", "app", "test_string.txt.shasum");
-        Assert.True(File.Exists(extractStringDiff));
-        Assert.True(new FileInfo(extractStringDiff).Length > 0);
-        Assert.True(File.Exists(extractStringShasum));
-        Assert.True(new FileInfo(extractStringShasum).Length > 0);
-
-        // unchanged files get zero-length dummy .diff markers
-        var extractDllDiff = Path.Combine(extractDir, "lib", "app", "TestApp.dll.diff");
-        Assert.True(File.Exists(extractDllDiff));
-        Assert.True(new FileInfo(extractDllDiff).Length == 0);
-        var extractAppDiff = Path.Combine(extractDir, "lib", "app", "TestApp.exe.diff");
-        Assert.True(File.Exists(extractAppDiff));
-        Assert.True(new FileInfo(extractAppDiff).Length == 0);
-
-        // new file should exist but not have shasum
-        var extractNewFile = Path.Combine(extractDir, "lib", "app", "NewFile.txt");
-        Assert.True(File.Exists(extractNewFile));
-        Assert.True(new FileInfo(extractNewFile).Length > 0);
-        var extractNewFileShasum = Path.Combine(extractDir, "lib", "app", "NewFile.txt.shasum");
-        Assert.False(File.Exists(extractNewFileShasum));
-
-        // apply delta and check package
-        var output = Path.Combine(releaseDir, "delta.patched");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(
-            new DeltaPatchOptions {
-                BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
-                OutputFile = output,
-                PatchFiles = [new FileInfo(deltaPath)],
-            }).GetAwaiterResult();
-
-        // are the packages the same?
-        Assert.True(File.Exists(output));
-        var v2 = Path.Combine(releaseDir, $"{id}-2.0.0-full.nupkg");
-        var f1 = File.ReadAllBytes(output);
-        var f2 = File.ReadAllBytes(v2);
-        Assert.True(new ReadOnlySpan<byte>(f1).SequenceEqual(new ReadOnlySpan<byte>(f2)));
-        Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v2));
-
-        // can apply multiple deltas, and handle add/removing files?
-        output = Path.Combine(releaseDir, "delta.patched2");
-        var deltav3 = Path.Combine(releaseDir, $"{id}-3.0.0-delta.nupkg");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(
-            new DeltaPatchOptions {
-                BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
-                OutputFile = output,
-                PatchFiles = [new FileInfo(deltaPath), new FileInfo(deltav3)],
-            }).GetAwaiterResult();
-
-        // are the packages the same?
-        Assert.True(File.Exists(output));
-        var v3 = Path.Combine(releaseDir, $"{id}-3.0.0-full.nupkg");
-        var f4 = File.ReadAllBytes(output);
-        var f5 = File.ReadAllBytes(v3);
-        Assert.True(new ReadOnlySpan<byte>(f4).SequenceEqual(new ReadOnlySpan<byte>(f5)));
-        Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v3));
-    }
-
     internal static async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger)
     {
         if (variant == "csharp") {
@@ -384,17 +442,13 @@ public class WindowsPackTests
     }
 
     internal static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null)
+        string assemblyNameOverride = null, string mainExeSubfolder = null)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
         {
             var publishDir = Path.Combine(workDir, "publish");
             TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger, singleFile: assemblyNameOverride != null);
-
-            if (addNewFile) {
-                File.WriteAllText(Path.Combine(publishDir, "NewFile.txt"), "New File Test");
-            }
 
             if (assemblyNameOverride != null) {
                 var targetExe = Path.Combine(publishDir, assemblyNameOverride + ".exe");

@@ -417,7 +417,7 @@ export class UpdateManager {
 
   /**
    * Checks for updates, returning None if there are none available. If there are updates available, this method will return an
-   * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+   * UpdateInfo object containing the latest available release.
    */
   checkForUpdatesAsync(): Promise<UpdateInfo | null> {
     let json: Promise<string | null> = addon.js_check_for_updates_async(this.opaque);
@@ -432,10 +432,6 @@ export class UpdateManager {
   /**
    * Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
    * This function will acquire a global update lock so may fail if there is already another update operation in progress.
-   * - If the update contains delta packages and the delta feature is enabled
-   *   this method will attempt to unpack and prepare them.
-   * - If there is no delta update available, or there is an error preparing delta
-   *   packages, this method will fall back to downloading the full version of the update.
    */
   downloadUpdateAsync(update: UpdateInfo, progress?: (perc: number) => void): Promise<void> {
     if (!update) {

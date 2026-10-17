@@ -55,20 +55,21 @@ export type VelopackAsset = {
     NotesMarkdown: string,
     /** The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string. */
     NotesHtml: string,
+    /** The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index. */
+    ChunkIndexOffset?: number,
+    /** The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index. */
+    ChunkIndexLength?: number,
+    /** The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index. */
+    ChunkIndexSHA256?: string,
 }
 
 /** Holds information about the current version and pending updates, such as how many there are, and access to release notes. */
 export type UpdateInfo = {
     /** The available version that we are updating to. */
     TargetFullRelease: VelopackAsset,
-    /** The base release that this update is based on. This is only available if the update is a delta update. */
-    BaseRelease?: VelopackAsset,
-    /** The list of delta updates that can be applied to the base version to get to the target version. */
-    DeltasToTarget: VelopackAsset[],
     /**
      * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-     * deleted.
+     * In this case, any local packages on disk newer than the downloaded version will be deleted.
      */
     IsDowngrade: boolean,
 }
@@ -92,10 +93,7 @@ export type UpdateOptions = {
      * without having to reinstall the application.
      */
     ExplicitChannel?: string,
-    /**
-     * Sets the maximum number of deltas to consider before falling back to a full update.
-     * The default is 10. Set to a negative number (eg. -1) to disable deltas.
-     */
-    MaximumDeltasBeforeFallback: number,
+    /** Disables chunk-based updates, so the full update package is always downloaded. */
+    DisableChunkedUpdates?: boolean,
 }
 

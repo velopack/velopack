@@ -11,7 +11,7 @@ namespace Velopack.Sources
     /// <summary>
     /// Base class to provide some shared implementation between sources which download releases from a Git repository.
     /// </summary>
-    public abstract class GitBase<T> : IUpdateSource
+    public abstract class GitBase<T> : IUpdateSource, IRangeReadableUpdateSource
     {
         /// <summary> 
         /// The URL of the repository to download releases from.
@@ -67,6 +67,26 @@ namespace Velopack.Sources
             }
 
             throw new ArgumentException($"Expected releaseEntry to be {nameof(GitBaseAsset)} but got {releaseEntry.GetType().Name}.");
+        }
+
+        /// <inheritdoc />
+        public virtual Task<IRangeReader?> OpenRangeReaderAsync(IVelopackLogger logger, VelopackAsset asset, CancellationToken cancelToken)
+        {
+            if (asset == null) throw new ArgumentNullException(nameof(asset));
+            if (asset is not GitBaseAsset gitAsset) {
+                logger.Debug($"Asset is not a {nameof(GitBaseAsset)}, ranged reads are not available.");
+                return Task.FromResult<IRangeReader?>(null);
+            }
+
+            if (Downloader is not IRangeFileDownloader rangeDownloader) {
+                logger.Debug("The downloader does not support ranged reads.");
+                return Task.FromResult<IRangeReader?>(null);
+            }
+
+            // the same url + headers DownloadReleaseEntry uses
+            var assetUrl = GetAssetUrlFromName(gitAsset.Release, asset.FileName);
+            logger.Info($"Opening ranged reader for '{asset.FileName}' at '{assetUrl}'.");
+            return Task.FromResult<IRangeReader?>(rangeDownloader.OpenRangeReader(assetUrl, GetRequestHeaders("application/octet-stream"), 30));
         }
 
         /// <inheritdoc />
@@ -161,6 +181,9 @@ namespace Velopack.Sources
                 Size = entry.Size;
                 NotesMarkdown = entry.NotesMarkdown;
                 NotesHTML = entry.NotesHTML;
+                ChunkIndexOffset = entry.ChunkIndexOffset;
+                ChunkIndexLength = entry.ChunkIndexLength;
+                ChunkIndexSHA256 = entry.ChunkIndexSHA256;
             }
         }
     }

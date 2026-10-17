@@ -2,8 +2,8 @@
 #![allow(non_snake_case)]
 #![allow(clippy::all)]
 use pyo3::prelude::*;
-use velopack::{HttpHeader, HttpOptions, VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocatorConfig};
 use std::path::PathBuf;
+use velopack::{locator::VelopackLocatorConfig, HttpHeader, HttpOptions, UpdateInfo, UpdateOptions, VelopackAsset};
 
 /// A single HTTP header (name and value pair) to be sent with a web request.
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
@@ -23,10 +23,7 @@ pub struct PyHttpHeader {
 impl PyHttpHeader {
     #[new]
     #[pyo3(signature = (Name, Value))]
-    fn new(
-        Name: String,
-        Value: String,
-        ) -> Self {
+    fn new(Name: String, Value: String) -> Self {
         Self {
             Name: Name.into(),
             Value: Value.into(),
@@ -71,10 +68,7 @@ pub struct PyHttpOptions {
 impl PyHttpOptions {
     #[new]
     #[pyo3(signature = (Headers, TimeoutMilliseconds))]
-    fn new(
-        Headers: Vec<PyHttpHeader>,
-        TimeoutMilliseconds: u64,
-        ) -> Self {
+    fn new(Headers: Vec<PyHttpHeader>, TimeoutMilliseconds: u64) -> Self {
         Self {
             Headers: Headers.into_iter().map(Into::into).collect(),
             TimeoutMilliseconds: TimeoutMilliseconds,
@@ -137,7 +131,7 @@ impl PyVelopackLocatorConfig {
         ManifestPath: PathBuf,
         CurrentBinaryDir: PathBuf,
         IsPortable: bool,
-        ) -> Self {
+    ) -> Self {
         Self {
             RootAppDir: RootAppDir.into(),
             UpdateExePath: UpdateExePath.into(),
@@ -207,13 +201,22 @@ pub struct PyVelopackAsset {
     /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
     #[pyo3(get, set)]
     pub NotesHtml: String,
+    /// The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+    #[pyo3(get, set)]
+    pub ChunkIndexOffset: u64,
+    /// The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+    #[pyo3(get, set)]
+    pub ChunkIndexLength: u64,
+    /// The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+    #[pyo3(get, set)]
+    pub ChunkIndexSHA256: String,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyVelopackAsset {
     #[new]
-    #[pyo3(signature = (PackageId, Version, Type, FileName, SHA1, SHA256, Size, NotesMarkdown, NotesHtml))]
+    #[pyo3(signature = (PackageId, Version, Type, FileName, SHA1, SHA256, Size, NotesMarkdown, NotesHtml, ChunkIndexOffset = 0, ChunkIndexLength = 0, ChunkIndexSHA256 = String::new()))]
     fn new(
         PackageId: String,
         Version: String,
@@ -224,7 +227,10 @@ impl PyVelopackAsset {
         Size: u64,
         NotesMarkdown: String,
         NotesHtml: String,
-        ) -> Self {
+        ChunkIndexOffset: u64,
+        ChunkIndexLength: u64,
+        ChunkIndexSHA256: String,
+    ) -> Self {
         Self {
             PackageId: PackageId.into(),
             Version: Version.into(),
@@ -235,6 +241,9 @@ impl PyVelopackAsset {
             Size: Size,
             NotesMarkdown: NotesMarkdown.into(),
             NotesHtml: NotesHtml.into(),
+            ChunkIndexOffset: ChunkIndexOffset,
+            ChunkIndexLength: ChunkIndexLength,
+            ChunkIndexSHA256: ChunkIndexSHA256.into(),
         }
     }
 }
@@ -251,6 +260,9 @@ impl From<VelopackAsset> for PyVelopackAsset {
             Size: value.Size,
             NotesMarkdown: value.NotesMarkdown.into(),
             NotesHtml: value.NotesHtml.into(),
+            ChunkIndexOffset: value.ChunkIndexOffset,
+            ChunkIndexLength: value.ChunkIndexLength,
+            ChunkIndexSHA256: value.ChunkIndexSHA256.into(),
         }
     }
 }
@@ -267,6 +279,9 @@ impl Into<VelopackAsset> for PyVelopackAsset {
             Size: self.Size,
             NotesMarkdown: self.NotesMarkdown.into(),
             NotesHtml: self.NotesHtml.into(),
+            ChunkIndexOffset: self.ChunkIndexOffset,
+            ChunkIndexLength: self.ChunkIndexLength,
+            ChunkIndexSHA256: self.ChunkIndexSHA256.into(),
         }
     }
 }
@@ -279,15 +294,8 @@ pub struct PyUpdateInfo {
     /// The available version that we are updating to.
     #[pyo3(get, set)]
     pub TargetFullRelease: PyVelopackAsset,
-    /// The base release that this update is based on. This is only available if the update is a delta update.
-    #[pyo3(get, set)]
-    pub BaseRelease: Option<PyVelopackAsset>,
-    /// The list of delta updates that can be applied to the base version to get to the target version.
-    #[pyo3(get, set)]
-    pub DeltasToTarget: Vec<PyVelopackAsset>,
     /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-    /// deleted.
+    /// In this case, any local packages on disk newer than the downloaded version will be deleted.
     #[pyo3(get, set)]
     pub IsDowngrade: bool,
 }
@@ -296,17 +304,10 @@ pub struct PyUpdateInfo {
 #[pymethods]
 impl PyUpdateInfo {
     #[new]
-    #[pyo3(signature = (TargetFullRelease, DeltasToTarget, IsDowngrade, BaseRelease = None))]
-    fn new(
-        TargetFullRelease: PyVelopackAsset,
-        DeltasToTarget: Vec<PyVelopackAsset>,
-        IsDowngrade: bool,
-        BaseRelease: Option<PyVelopackAsset>,
-        ) -> Self {
+    #[pyo3(signature = (TargetFullRelease, IsDowngrade))]
+    fn new(TargetFullRelease: PyVelopackAsset, IsDowngrade: bool) -> Self {
         Self {
             TargetFullRelease: TargetFullRelease.into(),
-            BaseRelease: BaseRelease.map(Into::into),
-            DeltasToTarget: DeltasToTarget.into_iter().map(Into::into).collect(),
             IsDowngrade: IsDowngrade,
         }
     }
@@ -316,8 +317,6 @@ impl From<UpdateInfo> for PyUpdateInfo {
     fn from(value: UpdateInfo) -> Self {
         PyUpdateInfo {
             TargetFullRelease: value.TargetFullRelease.into(),
-            BaseRelease: value.BaseRelease.map(Into::into),
-            DeltasToTarget: value.DeltasToTarget.into_iter().map(Into::into).collect(),
             IsDowngrade: value.IsDowngrade,
         }
     }
@@ -327,8 +326,6 @@ impl Into<UpdateInfo> for PyUpdateInfo {
     fn into(self) -> UpdateInfo {
         UpdateInfo {
             TargetFullRelease: self.TargetFullRelease.into(),
-            BaseRelease: self.BaseRelease.map(Into::into),
-            DeltasToTarget: self.DeltasToTarget.into_iter().map(Into::into).collect(),
             IsDowngrade: self.IsDowngrade,
         }
     }
@@ -354,26 +351,21 @@ pub struct PyUpdateOptions {
     /// without having to reinstall the application.
     #[pyo3(get, set)]
     pub ExplicitChannel: Option<String>,
-    /// Sets the maximum number of deltas to consider before falling back to a full update.
-    /// The default is 10. Set to a negative number (eg. -1) to disable deltas.
+    /// Disables chunk-based updates, so the full update package is always downloaded.
     #[pyo3(get, set)]
-    pub MaximumDeltasBeforeFallback: i32,
+    pub DisableChunkedUpdates: bool,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyUpdateOptions {
     #[new]
-    #[pyo3(signature = (AllowVersionDowngrade, MaximumDeltasBeforeFallback, ExplicitChannel = None))]
-    fn new(
-        AllowVersionDowngrade: bool,
-        MaximumDeltasBeforeFallback: i32,
-        ExplicitChannel: Option<String>,
-        ) -> Self {
+    #[pyo3(signature = (AllowVersionDowngrade, ExplicitChannel = None, DisableChunkedUpdates = false))]
+    fn new(AllowVersionDowngrade: bool, ExplicitChannel: Option<String>, DisableChunkedUpdates: bool) -> Self {
         Self {
             AllowVersionDowngrade: AllowVersionDowngrade,
             ExplicitChannel: ExplicitChannel.map(Into::into),
-            MaximumDeltasBeforeFallback: MaximumDeltasBeforeFallback,
+            DisableChunkedUpdates: DisableChunkedUpdates,
         }
     }
 }
@@ -383,7 +375,7 @@ impl From<UpdateOptions> for PyUpdateOptions {
         PyUpdateOptions {
             AllowVersionDowngrade: value.AllowVersionDowngrade,
             ExplicitChannel: value.ExplicitChannel.map(Into::into),
-            MaximumDeltasBeforeFallback: value.MaximumDeltasBeforeFallback,
+            DisableChunkedUpdates: value.DisableChunkedUpdates,
         }
     }
 }
@@ -393,8 +385,7 @@ impl Into<UpdateOptions> for PyUpdateOptions {
         UpdateOptions {
             AllowVersionDowngrade: self.AllowVersionDowngrade,
             ExplicitChannel: self.ExplicitChannel.map(Into::into),
-            MaximumDeltasBeforeFallback: self.MaximumDeltasBeforeFallback,
+            DisableChunkedUpdates: self.DisableChunkedUpdates,
         }
     }
 }
-

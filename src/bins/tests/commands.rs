@@ -300,6 +300,46 @@ pub fn test_apply_locked_dir_does_not_delete_package() {
     assert!(update_pkg.exists(), "Valid package should be preserved when install phase fails");
 }
 
+/// The classic apply holds the swap lock across its renames, like apply-staged, so recovery in `start`
+/// cannot restore a stale backup while `current` is briefly missing.
+#[cfg(target_os = "windows")]
+#[test]
+#[serial_test::file_serial(shortcuts)]
+pub fn test_apply_holds_the_swap_lock() {
+    dialogs::set_silent(true);
+    let fixtures = find_fixtures();
+    let tmp_dir = tempdir().unwrap();
+    let tmp_buf = tmp_dir.path().to_path_buf();
+    let mut tmp_zip = load_bundle_from_file(fixtures.join("AvaloniaCrossPlat-1.0.11-win-full.nupkg")).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None, None).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
+    let update_pkg = fixtures.join("AvaloniaCrossPlat-1.0.15-win-full.nupkg");
+    let apply = |locator: &velopack::locator::VelopackLocator| {
+        commands::apply(
+            locator,
+            false,
+            shared::OperationWait::NoWait,
+            Some(&update_pkg),
+            None,
+            commands::HookRunMode::None,
+        )
+    };
+
+    // another process is swapping (or recovering) the application directory
+    let lock = velopack::lockfile::LockFile::try_acquire_lock(tmp_buf.join(velopack::chunks::SWAP_LOCK_NAME)).unwrap();
+    assert!(apply(&locator).is_err(), "apply must not swap while the swap lock is held");
+    let still = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
+    assert_eq!(semver::Version::parse("1.0.11").unwrap(), still.get_manifest_version());
+    drop(lock);
+
+    apply(&locator).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
+    assert_eq!(semver::Version::parse("1.0.15").unwrap(), locator.get_manifest_version());
+    // the lock is released once the swap is done
+    drop(velopack::lockfile::LockFile::try_acquire_lock_once(tmp_buf.join(velopack::chunks::SWAP_LOCK_NAME)).unwrap());
+    commands::uninstall(&locator, false).unwrap();
+}
+
 #[test]
 pub fn test_delta_apply_legacy() {
     dialogs::set_silent(true);
@@ -330,4 +370,57 @@ pub fn test_delta_apply_legacy() {
         let extracted = extract_dir.join("Clowd.dll");
         assert!(extracted.exists());
     }
+}
+
+/// A package produced by the chunk-aligned writer (golden fixture from the vpk side) must install and
+/// classic-apply exactly like an EasyZip package: `sq.chunks` lands in `current/` and the metadata
+/// trailer entry is ignored.
+#[cfg(target_os = "windows")]
+#[test]
+#[serial_test::file_serial(shortcuts)]
+pub fn test_apply_v2_fixture_with_classic_apply() {
+    dialogs::set_silent(true);
+    let fixtures = find_fixtures().join("delta-v2");
+    let v1 = fixtures.join("ChunkTestApp-1.0.0-win-full.nupkg");
+    let v2 = fixtures.join("ChunkTestApp-1.1.0-win-full.nupkg");
+
+    let tmp_dir = tempdir().unwrap();
+    let root = tmp_dir.path().join("app");
+    let mut v1_zip = load_bundle_from_file(&v1).unwrap();
+    commands::install(&mut v1_zip, Some(&root), None, None).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root.clone(), None)).unwrap();
+    assert_eq!(locator.get_manifest_version(), semver::Version::parse("1.0.0").unwrap());
+    assert!(root.join("current").join("sq.chunks").exists());
+
+    commands::apply(
+        &locator,
+        false,
+        shared::OperationWait::NoWait,
+        Some(&v2),
+        None,
+        commands::HookRunMode::None,
+    )
+    .unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root.clone(), None)).unwrap();
+    assert_eq!(locator.get_manifest_version(), semver::Version::parse("1.1.0").unwrap());
+
+    // the installed tree equals the package's lib/app contents, byte for byte
+    let extracted = tmp_dir.path().join("extracted");
+    let mut v2_zip = load_bundle_from_file(&v2).unwrap();
+    v2_zip.extract_lib_contents_to_path(&extracted, |_| {}).unwrap();
+    for entry in walkdir::WalkDir::new(&extracted) {
+        let entry = entry.unwrap();
+        if entry.file_type().is_file() {
+            let rel = entry.path().strip_prefix(&extracted).unwrap();
+            assert_eq!(
+                fs::read(entry.path()).unwrap(),
+                fs::read(root.join("current").join(rel)).unwrap(),
+                "{:?}",
+                rel
+            );
+        }
+    }
+    assert!(root.join("current").join("sq.chunks").exists());
+    assert!(!root.join("current").join("package").exists());
+    commands::uninstall(&locator, false).unwrap();
 }

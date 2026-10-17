@@ -189,40 +189,18 @@ class UpdateInfo:
         The available version that we are updating to.
         """
     @property
-    def BaseRelease(self) -> typing.Optional[VelopackAsset]:
-        r"""
-        The base release that this update is based on. This is only available if the update is a delta update.
-        """
-    @BaseRelease.setter
-    def BaseRelease(self, value: typing.Optional[VelopackAsset]) -> None:
-        r"""
-        The base release that this update is based on. This is only available if the update is a delta update.
-        """
-    @property
-    def DeltasToTarget(self) -> builtins.list[VelopackAsset]:
-        r"""
-        The list of delta updates that can be applied to the base version to get to the target version.
-        """
-    @DeltasToTarget.setter
-    def DeltasToTarget(self, value: typing.Sequence[VelopackAsset]) -> None:
-        r"""
-        The list of delta updates that can be applied to the base version to get to the target version.
-        """
-    @property
     def IsDowngrade(self) -> builtins.bool:
         r"""
         True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-        In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-        deleted.
+        In this case, any local packages on disk newer than the downloaded version will be deleted.
         """
     @IsDowngrade.setter
     def IsDowngrade(self, value: builtins.bool) -> None:
         r"""
         True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-        In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-        deleted.
+        In this case, any local packages on disk newer than the downloaded version will be deleted.
         """
-    def __new__(cls, TargetFullRelease: VelopackAsset, DeltasToTarget: typing.Sequence[VelopackAsset], IsDowngrade: builtins.bool, BaseRelease: typing.Optional[VelopackAsset] = None) -> UpdateInfo: ...
+    def __new__(cls, TargetFullRelease: VelopackAsset, IsDowngrade: builtins.bool) -> UpdateInfo: ...
 
 @typing.final
 class UpdateManager:
@@ -299,18 +277,16 @@ class UpdateOptions:
         without having to reinstall the application.
         """
     @property
-    def MaximumDeltasBeforeFallback(self) -> builtins.int:
+    def DisableChunkedUpdates(self) -> builtins.bool:
         r"""
-        Sets the maximum number of deltas to consider before falling back to a full update.
-        The default is 10. Set to a negative number (eg. -1) to disable deltas.
+        Disables chunk-based updates, so the full update package is always downloaded.
         """
-    @MaximumDeltasBeforeFallback.setter
-    def MaximumDeltasBeforeFallback(self, value: builtins.int) -> None:
+    @DisableChunkedUpdates.setter
+    def DisableChunkedUpdates(self, value: builtins.bool) -> None:
         r"""
-        Sets the maximum number of deltas to consider before falling back to a full update.
-        The default is 10. Set to a negative number (eg. -1) to disable deltas.
+        Disables chunk-based updates, so the full update package is always downloaded.
         """
-    def __new__(cls, AllowVersionDowngrade: builtins.bool, MaximumDeltasBeforeFallback: builtins.int, ExplicitChannel: typing.Optional[builtins.str] = None) -> UpdateOptions: ...
+    def __new__(cls, AllowVersionDowngrade: builtins.bool, ExplicitChannel: typing.Optional[builtins.str] = None, DisableChunkedUpdates: builtins.bool = False) -> UpdateOptions: ...
 
 @typing.final
 class VelopackAsset:
@@ -407,7 +383,37 @@ class VelopackAsset:
         r"""
         The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
         """
-    def __new__(cls, PackageId: builtins.str, Version: builtins.str, Type: builtins.str, FileName: builtins.str, SHA1: builtins.str, SHA256: builtins.str, Size: builtins.int, NotesMarkdown: builtins.str, NotesHtml: builtins.str) -> VelopackAsset: ...
+    @property
+    def ChunkIndexOffset(self) -> builtins.int:
+        r"""
+        The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @ChunkIndexOffset.setter
+    def ChunkIndexOffset(self, value: builtins.int) -> None:
+        r"""
+        The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @property
+    def ChunkIndexLength(self) -> builtins.int:
+        r"""
+        The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @ChunkIndexLength.setter
+    def ChunkIndexLength(self, value: builtins.int) -> None:
+        r"""
+        The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @property
+    def ChunkIndexSHA256(self) -> builtins.str:
+        r"""
+        The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+        """
+    @ChunkIndexSHA256.setter
+    def ChunkIndexSHA256(self, value: builtins.str) -> None:
+        r"""
+        The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+        """
+    def __new__(cls, PackageId: builtins.str, Version: builtins.str, Type: builtins.str, FileName: builtins.str, SHA1: builtins.str, SHA256: builtins.str, Size: builtins.int, NotesMarkdown: builtins.str, NotesHtml: builtins.str, ChunkIndexOffset: builtins.int = 0, ChunkIndexLength: builtins.int = 0, ChunkIndexSHA256: builtins.str = '') -> VelopackAsset: ...
 
 @typing.final
 class VelopackFlowSource:

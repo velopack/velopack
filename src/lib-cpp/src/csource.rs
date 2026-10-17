@@ -117,6 +117,7 @@ mod tests {
             Size: 1048576,
             NotesMarkdown: String::new(),
             NotesHtml: String::new(),
+            ..Default::default()
         }
     }
 

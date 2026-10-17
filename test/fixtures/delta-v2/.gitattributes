@@ -1,0 +1,4 @@
+*.bin binary
+*.nupkg binary
+*.json text eol=lf
+*.md text eol=lf

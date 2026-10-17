@@ -1,6 +1,12 @@
 #[allow(dead_code, unused_imports)]
 pub mod mock_server;
 
+#[allow(dead_code, unused_imports)]
+pub mod index_writer;
+
+#[allow(dead_code, unused_imports)]
+pub mod package;
+
 #[allow(unused_imports)]
 pub use mock_server::{MockHttpServer, MockRoute};
 
@@ -47,5 +53,6 @@ pub fn sample_asset() -> VelopackAsset {
         Size: 1048576,
         NotesMarkdown: "# v2".to_string(),
         NotesHtml: "<h1>v2</h1>".to_string(),
+        ..Default::default()
     }
 }

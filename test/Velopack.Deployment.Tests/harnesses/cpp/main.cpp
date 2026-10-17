@@ -198,10 +198,9 @@ int run(const std::string& configPath) {
     locator.IsPortable = loc.at("IsPortable").get<bool>();
 
     const std::string channel = config.at("channel").get<std::string>();
-    Velopack::UpdateOptions options;
+    Velopack::UpdateOptions options{};
     options.AllowVersionDowngrade = false;
     options.ExplicitChannel = channel;
-    options.MaximumDeltasBeforeFallback = 10;
 
     auto source = build_source(config.at("source"));
     Velopack::UpdateManager manager(std::move(source), &options, &locator);

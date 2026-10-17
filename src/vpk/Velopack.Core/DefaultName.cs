@@ -2,15 +2,15 @@
 
 public static class DefaultName
 {
-    public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta, RuntimeOs os)
+    public static string GetSuggestedReleaseName(string id, string version, string channel, RuntimeOs os)
     {
         var suffix = GetUniqueAssetSuffix(channel);
         version = SemanticVersion.Parse(version).ToNormalizedString();
         if (os == RuntimeOs.Windows && channel == GetDefaultChannel(RuntimeOs.Windows)) {
-            return $"{id}-{version}{(delta ? "-delta" : "-full")}.nupkg";
+            return $"{id}-{version}-full.nupkg";
         }
 
-        return $"{id}-{version}{suffix}{(delta ? "-delta" : "-full")}.nupkg";
+        return $"{id}-{version}{suffix}-full.nupkg";
     }
 
     public static string GetSuggestedPortableName(string id, string channel, RuntimeOs os)

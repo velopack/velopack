@@ -196,12 +196,20 @@ jobs:
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Tests.xml
-      - name: Test Velopack.Packaging.Tests
+      # Packaging.Tests targets net8.0 and net10.0: run each framework on its own so each writes its own JUnit file
+      # (one shared filename would let the second framework's report overwrite the first)
+      - name: Test Velopack.Packaging.Tests (net8.0)
         run: >-
           dotnet test --project test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
-          --no-build -c Release
+          --no-build -c Release -f net8.0
           --report-github
-          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.xml
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.net8.0.xml
+      - name: Test Velopack.Packaging.Tests (net10.0)
+        run: >-
+          dotnet test --project test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
+          --no-build -c Release -f net10.0
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.net10.0.xml
       - name: Test Velopack.CommandLine.Tests
         run: >-
           dotnet test --project test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj

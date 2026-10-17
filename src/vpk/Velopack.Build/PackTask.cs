@@ -44,8 +44,6 @@ public class PackTask : MSBuildAsyncTask
 
     public string? ReleaseNotes { get; set; }
 
-    public string? DeltaMode { get; set; } = "BestSpeed";
-
     public string? Channel { get; set; }
 
     public string? Exclude { get; set; }

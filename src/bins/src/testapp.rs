@@ -8,12 +8,7 @@ use velopack::{locator, sources, UpdateCheck, UpdateManager, VelopackApp};
 velopack_win7_shims::link_win7_shims!();
 
 fn main() -> Result<()> {
-    let _ = TermLogger::init(
-        LevelFilter::Info,
-        Config::default(),
-        TerminalMode::Stderr,
-        ColorChoice::Never,
-    );
+    let _ = TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Stderr, ColorChoice::Never);
     let args: Vec<String> = env::args().skip(1).collect();
 
     // Log args to args.txt BEFORE VelopackApp::run(), which may exit on fast hooks.
@@ -27,9 +22,7 @@ fn main() -> Result<()> {
 
     let should_auto_update = args.iter().any(|a| a.eq_ignore_ascii_case("--autoupdate"));
 
-    VelopackApp::build()
-        .set_auto_apply_on_startup(should_auto_update)
-        .run();
+    VelopackApp::build().set_auto_apply_on_startup(should_auto_update).run();
 
     if should_auto_update {
         process::exit(-1);
@@ -55,7 +48,7 @@ fn main() -> Result<()> {
 
     if args.len() == 2 {
         if args[0] == "check" {
-            let source = sources::FileSource::new(&args[1]);
+            let source = sources::AutoSource::new(&args[1]);
             let um = UpdateManager::new(source, None, None)?;
             match um.check_for_updates()? {
                 UpdateCheck::UpdateAvailable(info) => {
@@ -67,7 +60,7 @@ fn main() -> Result<()> {
         }
 
         if args[0] == "download" {
-            let source = sources::FileSource::new(&args[1]);
+            let source = sources::AutoSource::new(&args[1]);
             let um = UpdateManager::new(source, None, None)?;
             match um.check_for_updates()? {
                 UpdateCheck::UpdateAvailable(info) => {
@@ -82,7 +75,7 @@ fn main() -> Result<()> {
         }
 
         if args[0] == "apply" {
-            let source = sources::FileSource::new(&args[1]);
+            let source = sources::AutoSource::new(&args[1]);
             let um = UpdateManager::new(source, None, None)?;
             match um.get_update_pending_restart() {
                 Some(asset) => {

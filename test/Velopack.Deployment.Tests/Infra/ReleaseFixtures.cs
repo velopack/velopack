@@ -10,7 +10,7 @@ public sealed record PackedRelease(string ReleaseDir, string Id, string[] Versio
 public static class ReleaseFixtures
 {
     /// <summary>
-    /// Packs each of <paramref name="versions"/> (in order, so later versions produce deltas) into a
+    /// Packs each of <paramref name="versions"/> (in order) into a
     /// single fresh temp release directory. The caller owns the returned directory's lifetime.
     /// </summary>
     public static PackedRelease PackVersions(string id, string channel, ILogger log, params string[] versions)

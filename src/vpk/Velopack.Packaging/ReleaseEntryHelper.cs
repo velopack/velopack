@@ -8,14 +8,12 @@ namespace Velopack.Packaging;
 
 public class ReleaseEntryHelper
 {
-    private readonly string _outputDir;
     private readonly ILogger _logger;
     private readonly string _channel;
     private Dictionary<string, List<VelopackAsset>> _releases;
 
-    private ReleaseEntryHelper(string outputDir, string channel, ILogger logger, Dictionary<string, List<VelopackAsset>> releases)
+    private ReleaseEntryHelper(string channel, ILogger logger, Dictionary<string, List<VelopackAsset>> releases)
     {
-        _outputDir = outputDir;
         _logger = logger;
         _channel = channel;
         _releases = releases;
@@ -25,7 +23,7 @@ public class ReleaseEntryHelper
     {
         channel ??= DefaultName.GetDefaultChannel(os);
         var releases = await GetReleasesFromDirAsync(outputDir).ConfigureAwait(false);
-        return new ReleaseEntryHelper(outputDir, channel, logger, releases);
+        return new ReleaseEntryHelper(channel, logger, releases);
     }
 
     private static async Task<Dictionary<string, List<VelopackAsset>>> GetReleasesFromDirAsync(string dir)
@@ -53,20 +51,6 @@ public class ReleaseEntryHelper
         }
 
         return false;
-    }
-
-    public ReleasePackage GetPreviousFullRelease(SemanticVersion version)
-    {
-        var releases = _releases.ContainsKey(_channel) ? _releases[_channel] : null;
-        if (releases == null || !releases.Any()) return null;
-        var entry = releases
-            .Where(x => x.Type == VelopackAssetType.Full)
-            .Where(x => x.Version < version)
-            .OrderByDescending(x => x.Version)
-            .FirstOrDefault();
-        if (entry == null) return null;
-        var file = Path.Combine(_outputDir, entry.FileName);
-        return new ReleasePackage(file);
     }
 
     public VelopackAsset GetLatestFullRelease()

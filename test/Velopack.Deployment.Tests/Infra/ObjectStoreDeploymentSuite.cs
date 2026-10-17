@@ -80,9 +80,6 @@ public abstract class ObjectStoreDeploymentSuite
     private static VelopackAsset[] Fulls(VelopackAssetFeed feed)
         => feed.Assets.Where(a => a.Type == VelopackAssetType.Full).OrderBy(a => a.Version).ToArray();
 
-    private static VelopackAsset[] Deltas(VelopackAssetFeed feed)
-        => feed.Assets.Where(a => a.Type == VelopackAssetType.Delta).ToArray();
-
     /// <summary> When a public URL exists, additionally verify the feed is reachable via <see cref="SimpleWebSource"/>. </summary>
     protected async Task VerifyPublicFeedAsync(string expectedLatestVersion, ILogger log)
     {
@@ -122,7 +119,7 @@ public abstract class ObjectStoreDeploymentSuite
     }
 
     [Fact]
-    public async Task IncrementalUploadAddsDeltaAndPrunes()
+    public async Task IncrementalUploadAddsReleaseAndPrunes()
     {
         await SkipUnlessReadyAsync();
         using var log = CreateLogger();
@@ -135,11 +132,10 @@ public abstract class ObjectStoreDeploymentSuite
             // 1) baseline full
             await UploadAsync(p1.ReleaseDir, Channel, 0, log);
 
-            // 2) delta added, no pruning yet
+            // 2) release added, no pruning yet
             await UploadAsync(p2.ReleaseDir, Channel, 0, log);
             var feed2 = await ReadRemoteFeedAsync(log);
             Assert.Equal(new[] { "1.0.0", "2.0.0" }, Fulls(feed2).Select(a => a.Version.ToString()).ToArray());
-            Assert.Contains(Deltas(feed2), a => a.Version.ToString() == "2.0.0");
             Assert.True(await RemoteObjectExistsAsync(FullNupkgName("2.0.0"), log));
 
             // 3) prune to newest 2 fulls -> 1.0.0 removed from feed AND deleted from store

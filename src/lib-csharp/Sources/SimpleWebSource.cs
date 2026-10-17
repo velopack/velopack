@@ -12,7 +12,7 @@ namespace Velopack.Sources
     /// Will perform a request for '{baseUri}/RELEASES' to locate the available packages,
     /// and provides query parameters to specify the name of the requested package.
     /// </summary>
-    public class SimpleWebSource : IUpdateSource
+    public class SimpleWebSource : IUpdateSource, IRangeReadableUpdateSource
     {
         /// <summary> The timeout for http requests, in minutes. </summary>
         public double Timeout { get; set; }
@@ -72,16 +72,35 @@ namespace Velopack.Sources
             if (releaseEntry == null) throw new ArgumentNullException(nameof(releaseEntry));
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
 
-            // releaseUri can be a relative url (eg. "MyPackage.nupkg") or it can be an 
-            // absolute url (eg. "https://example.com/MyPackage.nupkg"). In the former case
-            var sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
-
-            var source = HttpUtil.IsHttpUrl(releaseEntry.FileName)
-                ? releaseEntry.FileName
-                : HttpUtil.AppendPathToUri(sourceBaseUri, releaseEntry.FileName).ToString();
-
+            var source = GetAssetUrl(releaseEntry);
             logger.Info($"Downloading '{releaseEntry.FileName}' from '{source}'.");
             await Downloader.DownloadFile(source, localFile, progress, timeout: Timeout, cancelToken: cancelToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public virtual Task<IRangeReader?> OpenRangeReaderAsync(IVelopackLogger logger, VelopackAsset asset, CancellationToken cancelToken)
+        {
+            if (asset == null) throw new ArgumentNullException(nameof(asset));
+            if (Downloader is not IRangeFileDownloader rangeDownloader) {
+                logger.Debug("The downloader does not support ranged reads.");
+                return Task.FromResult<IRangeReader?>(null);
+            }
+
+            var source = GetAssetUrl(asset);
+            logger.Info($"Opening ranged reader for '{asset.FileName}' at '{source}'.");
+            return Task.FromResult<IRangeReader?>(rangeDownloader.OpenRangeReader(source, null, Timeout));
+        }
+
+        /// <summary>
+        /// The download URL of an asset: its file name can be a relative url (eg. "MyPackage.nupkg") resolved
+        /// against <see cref="BaseUri"/>, or an absolute url (eg. "https://example.com/MyPackage.nupkg").
+        /// </summary>
+        protected virtual string GetAssetUrl(VelopackAsset asset)
+        {
+            var sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
+            return HttpUtil.IsHttpUrl(asset.FileName)
+                ? asset.FileName
+                : HttpUtil.AppendPathToUri(sourceBaseUri, asset.FileName).ToString();
         }
     }
 }

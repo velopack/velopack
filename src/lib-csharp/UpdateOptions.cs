@@ -24,9 +24,10 @@
         public string? ExplicitChannel { get; set; }
 
         /// <summary>
-        /// Sets the maximum number of deltas to consider before falling back to a full update.
-        /// The default is 10. Set to a negative number to disable deltas.
+        /// Disables chunk-based updates, which download only the parts of a release package that differ from the
+        /// installed application and assemble the new version locally. When disabled (or when a release, source or
+        /// platform does not support them) the full package is downloaded instead.
         /// </summary>
-        public int? MaximumDeltasBeforeFallback { get; set; }
+        public bool DisableChunkedUpdates { get; set; }
     }
 }

@@ -408,7 +408,7 @@ pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manage
 }
 
 /// Checks for updates. If there are updates available, this method will return an
-/// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+/// UpdateInfo object containing the latest available release.
 /// @param p_manager The update manager instance.
 /// @param p_update A pointer to where the new vpkc_update_info_t* instance will be stored if an update is available.
 /// @returns A `vpkc_update_check_t` value indicating the result of the check. If an update is available, the value will be `HasUpdate` and `p_update` will be populated.
@@ -438,10 +438,6 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, 
 
 /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional callback.
 /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
-/// - If the update contains delta packages and the delta feature is enabled
-///   this method will attempt to unpack and prepare them.
-/// - If there is no delta update available, or there is an error preparing delta
-///   packages, this method will fall back to downloading the full version of the update.
 /// @param p_manager The update manager instance.
 /// @param p_update The update info object from `vpkc_check_for_updates`.
 /// @param cb_progress An optional callback to report download progress (0-100).
@@ -822,6 +818,7 @@ mod tests {
             Size: 1048576,
             NotesMarkdown: "# Release v2".to_string(),
             NotesHtml: "<h1>Release v2</h1>".to_string(),
+            ..Default::default()
         };
 
         let c_asset = unsafe { allocate_VelopackAsset(&asset) };
@@ -861,9 +858,8 @@ mod tests {
                 Size: 5000,
                 NotesMarkdown: "## v3 notes".to_string(),
                 NotesHtml: "<h2>v3 notes</h2>".to_string(),
+                ..Default::default()
             },
-            BaseRelease: None,
-            DeltasToTarget: Vec::new(),
             IsDowngrade: false,
         };
 
@@ -873,8 +869,6 @@ mod tests {
         let roundtripped = c_to_UpdateInfo(c_update).unwrap();
         assert_eq!(roundtripped.TargetFullRelease.NotesMarkdown, "## v3 notes");
         assert_eq!(roundtripped.TargetFullRelease.NotesHtml, "<h2>v3 notes</h2>");
-        assert!(roundtripped.BaseRelease.is_none());
-        assert!(roundtripped.DeltasToTarget.is_empty());
 
         unsafe { free_UpdateInfo(c_update) };
     }
