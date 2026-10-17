@@ -144,11 +144,14 @@ namespace Velopack.Locators
                         UpdateExePath = Path.Combine(fallbackBase, "Update.exe");
                         initLog.Info($"Root directory is not writable, using fallback directory: {fallbackBase}");
 
-                        // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install), or is
-                        // stale (an MSI/IT upgrade or another user's elevated apply replaced the root one), copy it
-                        // from the root directory so UpdateExePath always points to the updater vendored with the app.
+                        // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install), or differs
+                        // from the root one (an MSI/IT upgrade or another user's elevated apply replaced it) while no
+                        // downloaded update is pending, copy it from the root directory. A download puts the target's
+                        // newer updater in the fallback path on purpose and apply syncs it to the root, so it must not be
+                        // reverted before that (same rule as the Rust locator).
                         var rootUpdateExe = Path.Combine(RootAppDir, "Update.exe");
-                        if (File.Exists(rootUpdateExe) && FallbackUpdateExeNeedsRefresh(rootUpdateExe, UpdateExePath)) {
+                        if (File.Exists(rootUpdateExe)
+                            && FallbackUpdateExeNeedsRefresh(rootUpdateExe, UpdateExePath, FindPendingUpdateVersion, initLog)) {
                             try {
                                 File.Copy(rootUpdateExe, UpdateExePath, true);
                                 initLog.Info($"Copied Update.exe from root to fallback: {UpdateExePath}");
@@ -185,18 +188,43 @@ namespace Velopack.Locators
         }
 
         /// <summary>
-        /// True when the fallback copy of Update.exe is missing or differs from the root one in length or last-write time.
+        /// True when the fallback copy of Update.exe is missing, or differs from the root one in length or last-write time
+        /// while <paramref name="pendingUpdate"/> reports no downloaded update (a full package or a ready staged tree above
+        /// the installed version). A pending download may have put its newer updater in the fallback path on purpose.
         /// </summary>
-        internal static bool FallbackUpdateExeNeedsRefresh(string rootUpdateExe, string fallbackUpdateExe)
+        internal static bool FallbackUpdateExeNeedsRefresh(string rootUpdateExe, string fallbackUpdateExe, Func<SemanticVersion?> pendingUpdate,
+            IVelopackLogger? log = null)
         {
             try {
                 var fallback = new FileInfo(fallbackUpdateExe);
                 if (!fallback.Exists) return true;
                 var root = new FileInfo(rootUpdateExe);
-                return root.Length != fallback.Length || root.LastWriteTimeUtc != fallback.LastWriteTimeUtc;
+                if (root.Length == fallback.Length && root.LastWriteTimeUtc == fallback.LastWriteTimeUtc) return false;
+                var pending = pendingUpdate();
+                if (pending != null) {
+                    log?.Info($"Keeping the fallback Update.exe, which may belong to the pending update {pending}.");
+                    return false;
+                }
+                return true;
             } catch (Exception) {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// The version of a downloaded update waiting to be applied: the higher of the latest local full package and the
+        /// highest ready staged tree, when it is above the installed version (Rust: <c>find_pending_update</c>).
+        /// </summary>
+        private SemanticVersion? FindPendingUpdateVersion()
+        {
+            var current = CurrentlyInstalledVersion;
+            if (current == null) return null;
+            SemanticVersion? best = null;
+            var staged = Chunks.StagedUpdate.FindReadyStaged(this);
+            if (staged != null && staged.Asset.Version > current) best = staged.Asset.Version;
+            var full = GetLatestLocalFullPackage();
+            if (full != null && full.Version > current && (best == null || full.Version > best)) best = full.Version;
+            return best;
         }
     }
 }

@@ -745,7 +745,14 @@ mod tests {
         assert!(needs_refresh(&f), "a missing fallback is copied");
         fs::copy(&f.root_exe, &f.fallback_exe).unwrap();
         assert!(!needs_refresh(&f), "a plain copy of the root updater is current");
+        // same length, another last-write time (an upgrade to an updater of the same size)
+        let modified = fs::metadata(&f.fallback_exe).unwrap().modified().unwrap();
+        let root = fs::File::options().write(true).open(&f.root_exe).unwrap();
+        root.set_modified(modified + std::time::Duration::from_secs(300)).unwrap();
+        drop(root);
+        assert!(needs_refresh(&f), "a different last-write time is a different updater");
         // an MSI/IT upgrade replaced the root updater
+        fs::copy(&f.root_exe, &f.fallback_exe).unwrap();
         fs::write(&f.root_exe, b"root updater from an MSI upgrade").unwrap();
         assert!(needs_refresh(&f));
     }
