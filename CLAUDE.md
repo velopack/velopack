@@ -136,7 +136,7 @@ token cancelled is a cancel; HttpClient timeouts are transient).
   4 workers, strict `206` + exact `Content-Range` (a `200` is fatal and its body never read), identity encoding,
   manual redirects with the final URL cached (`Authorization` only to the original URL's origin: scheme, host and
   port) and a single-flight re-resolve on 401/403/404. Retry budgets are **progress-based** (reset by every
-  verified chunk): 8 attempts per request, 3 hash mismatches, 10 min without progress, 3 refreshes without
+  verified chunk): 8 retries per request (the 9th failure is fatal), 3 hash mismatches, 10 min without progress, 3 refreshes without
   progress, and deliberately **no shared failure count** (4 workers failing instantly during a short outage would
   exhaust it in seconds); equal-jitter backoff `random(cap/2, cap)` (8 retries always span ~60 s+), `Retry-After`
   capped at 60 s. A transient failure of a multi-chunk
