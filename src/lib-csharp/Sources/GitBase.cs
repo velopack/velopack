@@ -161,6 +161,9 @@ namespace Velopack.Sources
                 Size = entry.Size;
                 NotesMarkdown = entry.NotesMarkdown;
                 NotesHTML = entry.NotesHTML;
+                ChunkIndexOffset = entry.ChunkIndexOffset;
+                ChunkIndexLength = entry.ChunkIndexLength;
+                ChunkIndexSHA256 = entry.ChunkIndexSHA256;
             }
         }
     }

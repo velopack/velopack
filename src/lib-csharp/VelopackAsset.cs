@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Velopack.Chunks;
 using Velopack.Util;
 using Velopack.NuGet;
 
@@ -76,12 +77,49 @@ namespace Velopack
         public string NotesHTML { get; set; }
 
         /// <summary>
+        /// For packages carrying a chunk index (used for chunk-based updates): the byte offset of the index trailer
+        /// inside the package file. Null for packages without one.
+        /// </summary>
+        public long? ChunkIndexOffset { get; set; }
+
+        /// <summary> The byte length of the chunk index trailer, or null for packages without one. </summary>
+        public long? ChunkIndexLength { get; set; }
+
+        /// <summary> The SHA256 checksum (upper-case hex) of the chunk index trailer bytes, or null for packages without one. </summary>
+        public string ChunkIndexSHA256 { get; set; }
+
+        /// <summary> True when this asset carries a chunk index pointer. </summary>
+        internal bool HasChunkIndex => ChunkIndexLength > 0 && !string.IsNullOrEmpty(ChunkIndexSHA256);
+
+        /// <summary>
+        /// Returns a plain <see cref="VelopackAsset"/> carrying exactly the feed fields of this asset, so that derived
+        /// assets (eg. git release wrappers) never serialise their extra payload into <c>asset.json</c> / <c>ready.json</c>.
+        /// </summary>
+        internal VelopackAsset ToPlainAsset()
+        {
+            return new VelopackAsset {
+                PackageId = PackageId,
+                Version = Version,
+                Type = Type,
+                FileName = FileName,
+                SHA1 = SHA1,
+                SHA256 = SHA256,
+                Size = Size,
+                NotesMarkdown = NotesMarkdown,
+                NotesHTML = NotesHTML,
+                ChunkIndexOffset = ChunkIndexOffset,
+                ChunkIndexLength = ChunkIndexLength,
+                ChunkIndexSHA256 = ChunkIndexSHA256,
+            };
+        }
+
+        /// <summary>
         /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/> without computing checksums.
         /// </summary>
         public static VelopackAsset FromZipPackageNoChecksum(ZipPackage zip)
         {
             var filePath = zip.LoadedFromPath;
-            return new VelopackAsset {
+            var asset = new VelopackAsset {
                 PackageId = zip.Id,
                 Version = zip.Version,
                 NotesMarkdown = zip.ReleaseNotes,
@@ -90,6 +128,26 @@ namespace Velopack
                 FileName = Path.GetFileName(filePath),
                 Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
             };
+            FillChunkIndexPointer(asset, filePath);
+            return asset;
+        }
+
+        /// <summary>
+        /// Locates the chunk index trailer entry (<see cref="ChunkIndex.TrailerEntryName"/>) in the package and records
+        /// its offset, length and SHA256. Packages without the entry are left untouched.
+        /// </summary>
+        private static void FillChunkIndexPointer(VelopackAsset asset, string filePath)
+        {
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024);
+            var entry = ZipCentralDirectory.FindEntryData(stream, ChunkIndex.TrailerEntryName);
+            if (entry == null) return;
+            if (entry.Length <= 0 || entry.Length > ChunkIndex.MaxTrailerLength) {
+                throw new InvalidDataException($"Chunk index trailer in '{filePath}' has an invalid length ({entry.Length}).");
+            }
+            stream.Seek(entry.Offset, SeekOrigin.Begin);
+            asset.ChunkIndexOffset = entry.Offset;
+            asset.ChunkIndexLength = entry.Length;
+            asset.ChunkIndexSHA256 = ChunkInflate.Sha256(stream, entry.Length).ToHex();
         }
 
         /// <summary>
