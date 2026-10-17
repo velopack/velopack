@@ -134,9 +134,14 @@ failures keep it for resume; a real caller cancel propagates (C#: only an `Opera
 token cancelled is a cancel; HttpClient timeouts are transient).
 - Fetch (`Chunks/HttpRangeReader.cs` + `ChunkFetcher.cs` + `RetryPolicy.cs`; `download.rs` + `chunks/fetcher.rs`):
   4 workers, strict `206` + exact `Content-Range` (a `200` is fatal and its body never read), identity encoding,
-  manual redirects with the final URL cached and a single-flight re-resolve on 401/403/404. Retry budgets are
-  **progress-based** (reset by every verified chunk): 8 attempts per request, 3 hash mismatches, 16 consecutive
-  failures, 10 min without progress, 3 refreshes without progress; full-jitter backoff, `Retry-After` capped at 60 s.
+  manual redirects with the final URL cached (`Authorization` only to the original URL's origin: scheme, host and
+  port) and a single-flight re-resolve on 401/403/404. Retry budgets are **progress-based** (reset by every
+  verified chunk): 8 attempts per request, 3 hash mismatches, 10 min without progress, 3 refreshes without
+  progress, and deliberately **no shared failure count** (4 workers failing instantly during a short outage would
+  exhaust it in seconds); full-jitter backoff, `Retry-After` capped at 60 s. A transient failure of a multi-chunk
+  request splits it in two halves instead of refetching it whole, and the Rust whole-request timeout is
+  `300 s + length / 16 KiB/s`, so slow or flaky links still make progress. A feed `ChunkIndexSHA256` that is not
+  64 hex chars means "no pointer" (it never becomes a path).
   Every chunk is inflated (chunk ‖ `01 00 00 FF FF`, exact length) and hash-verified before it is appended. Sleep and
   clock are injectable; no test really sleeps.
 - Assemble: C# runs `Update.exe --silent assemble --staged <dir> --parentPid <pid> --rootDir <root> --packageDir <pkgs>`
@@ -150,14 +155,18 @@ token cancelled is a cancel; HttpClient timeouts are transient).
 **Apply**: `UpdateExe.ApplyStaged` / `unsafe_apply_updates` verify the sidecar against `ready.json`'s `UpdaterSHA256`,
 copy it over `UpdateExePath` (mandatory), and run the **target's** updater:
 `[--silent] apply-staged --staged <dir> [--waitPid N] [--norestart] --rootDir <root> --packageDir <pkgs> [-- args]`.
-It validates the tree (failure deletes it), elevates if root is not writable, takes the packages lock +
-`root/.velopack_swap_lock`, copies the tree under root first when the staged dir is outside root (ACL inheritance;
+It validates the tree (failure deletes it), elevates if root is not writable (the unelevated parent holds the
+packages lock and does the packages-dir cleanup; the `--elevatedChild` runs as admin and never locks, deletes or
+cleans anything in the user-controlled packages dir), takes the packages lock + `root/.velopack_swap_lock` (the
+classic `apply` holds the swap lock across its renames too), copies the tree under root first when the staged dir is outside root (ACL inheritance;
 LocalAppData fallback, custom package dir), then renames `current` → `current.old-<secs>-<hex>` and the new tree →
 `current` back to back (nothing that can fail runs between killing the app and the renames), then registry, hooks,
 shortcuts, updater/stub sync and cleanup. `commands::recover_current_dir` (from `start`, before the locator) renames the
 newest `current.old-*` back if `current` is missing. `VelopackApp.Run` auto-applies the highest pending update of either
-kind and only GCs staged dirs under a non-blocking packages lock. Both locators refresh a stale LocalAppData-fallback
-`Update.exe` from the root one.
+kind and only GCs staged dirs under a single-attempt packages lock (`try_get_exclusive_lock_once`: never waits).
+Staged-dir scans only consider plain dirs named like a staged id, never junctions/symlinks. Both locators copy the
+root `Update.exe` over the LocalAppData-fallback one when it is missing, or when they differ **and no downloaded
+update is pending** (a download put the target's newer updater there on purpose; apply syncs it to root).
 
 **Gotchas**
 - `update.exe` uses clap `ignore_errors(true)`: unknown args are silently dropped, so `assemble`/`apply-staged` validate
