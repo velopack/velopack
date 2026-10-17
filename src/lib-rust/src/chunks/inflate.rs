@@ -70,7 +70,7 @@ pub fn sha256_hex(hash: &[u8]) -> String {
 /// Parses a 64-character hex SHA-256 (either case).
 pub fn parse_sha256_hex(hex: &str) -> Option<[u8; 32]> {
     let hex = hex.trim();
-    if hex.len() != 64 {
+    if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
     let mut out = [0u8; 32];

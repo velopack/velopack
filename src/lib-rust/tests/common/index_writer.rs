@@ -136,7 +136,7 @@ impl BuiltIndex {
     }
 
     pub fn staged_id(&self) -> String {
-        chunks::staged_id(&self.digest_hex())
+        chunks::staged_id(&self.digest_hex()).unwrap()
     }
 
     pub fn chunk_hashes(&self) -> Vec<[u8; 32]> {

@@ -347,7 +347,7 @@ fn no_marker_without_success() {
     let mut asset = asset_for(&s.v2, "2.0.0");
     asset.ChunkIndexSHA256 = chunks::sha256_hex(&chunks::sha256(&t));
     staging::write_asset_json(&s.layout, &asset).unwrap();
-    let renamed = s.packages.join("staged").join(chunks::staged_id(&asset.ChunkIndexSHA256));
+    let renamed = s.packages.join("staged").join(chunks::staged_id(&asset.ChunkIndexSHA256).unwrap());
     fs::rename(&s.layout.dir, &renamed).unwrap();
     let ctx = AssembleContext {
         staged_dir: renamed.clone(),

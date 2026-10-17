@@ -119,7 +119,7 @@ pub fn assemble(ctx: &AssembleContext, progress: &(dyn Fn(i16) + Sync)) -> Resul
     if !digest.eq_ignore_ascii_case(&asset.ChunkIndexSHA256) {
         return invalid("index.bin does not match the asset's ChunkIndexSHA256");
     }
-    let id = staged_id(&digest);
+    let id = staged_id(&digest).unwrap_or_default();
     if layout.id() != id {
         return invalid(format!("staged directory name {:?} does not match the staged id {}", layout.id(), id));
     }

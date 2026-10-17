@@ -374,8 +374,8 @@ impl UpdateManager {
                 Err(ChunkPathError::Cancelled) => return Err(Error::Other("The update was cancelled".to_string())),
                 Err(e) => {
                     warn!("Chunk update failed, falling back to a full download: {}", e);
-                    if e.deletes_staged_dir() {
-                        let dir = StagedLayout::new(packages_dir, &chunks::staged_id(&target.ChunkIndexSHA256)).dir;
+                    if let Some(id) = chunks::staged_id(&target.ChunkIndexSHA256).filter(|_| e.deletes_staged_dir()) {
+                        let dir = StagedLayout::new(packages_dir, &id).dir;
                         if dir.exists() {
                             if let Err(e) = misc::retry_io(|| fs::remove_dir_all(&dir)) {
                                 warn!("Failed to delete staged directory {:?}: {}", dir, e);
@@ -501,7 +501,8 @@ impl UpdateManager {
     ) -> Result<(), ChunkPathError> {
         let locator = &self.inner.locator;
         let packages_dir = locator.get_packages_dir();
-        let id = chunks::staged_id(&target.ChunkIndexSHA256);
+        let id = chunks::staged_id(&target.ChunkIndexSHA256)
+            .ok_or_else(|| ChunkPathError::Invalid("the feed's ChunkIndexSHA256 is not a SHA-256".to_string()))?;
         info!("Starting chunk update of {} to staged id {}", target.FileName, id);
 
         chunks::gc_staged(&packages_dir, Some(&id));
@@ -898,7 +899,7 @@ fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<PathBuf>) {
 fn asset_has_chunk_index(asset: &VelopackAsset) -> bool {
     asset.ChunkIndexLength > 0
         && asset.ChunkIndexLength <= chunks::MAX_TRAILER_LEN
-        && !asset.ChunkIndexSHA256.is_empty()
+        && chunks::staged_id(&asset.ChunkIndexSHA256).is_some()
         && asset
             .ChunkIndexOffset
             .checked_add(asset.ChunkIndexLength)

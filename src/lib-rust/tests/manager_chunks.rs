@@ -426,3 +426,21 @@ fn staged_path_helpers() {
     assert_eq!(locator.get_staged_dir("abc"), app.packages.join("staged").join("abc"));
     drop(um);
 }
+
+#[test]
+fn non_hex_chunk_index_digest_is_never_a_path() {
+    let app = install_v1();
+    let server = MockHttpServer::empty();
+    let pkg = serve(&server, &v2_files());
+    let mut info = update_info(&pkg);
+    let escape = "../../../escaped-staged-dir";
+    info.TargetFullRelease.ChunkIndexSHA256 = format!("{}{}", escape, "a".repeat(64 - escape.len()));
+    let um = manager(&app, &server, None);
+    let progress = download(&um, &info);
+    assert_monotonic_to_100(&progress);
+    assert_eq!(fs::read(app.packages.join(V2_NAME)).unwrap(), pkg.bytes);
+    assert!(server.requests().iter().all(|r| r.range.is_none()), "the chunk path was not attempted");
+    let escaped = app.packages.join("staged").join(escape);
+    assert!(!escaped.exists() && !app.root.parent().unwrap().join("escaped-staged-dir").exists());
+    assert!(!StagedLayout::root(&app.packages).exists());
+}

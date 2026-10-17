@@ -403,7 +403,7 @@ fn vpk_packages_assemble_1_0_0_to_1_1_0_through_file_ranges() {
     assert_eq!(progress.last(), Some(&100));
 
     let (staged, marker) = chunks::find_ready_staged_for(&packages, &target).expect("a ready staged tree");
-    assert_eq!(marker.StagedId, chunks::staged_id(&target.ChunkIndexSHA256));
+    assert_eq!(Some(marker.StagedId), chunks::staged_id(&target.ChunkIndexSHA256));
     let nupkgs: Vec<String> = tree(&packages).into_iter().filter(|p| p.ends_with(".nupkg")).collect();
     assert!(nupkgs.is_empty(), "the chunk path downloads no package: {:?}", nupkgs);
     let pending = um.get_update_pending_restart().expect("the staged tree is pending");

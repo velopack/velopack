@@ -100,9 +100,13 @@ fn u64_at(b: &[u8], off: usize) -> u64 {
 }
 
 /// Returns the first 32 hex characters of a trailer SHA-256, lowercase: the staged directory name and
-/// the identity of a staged tree.
-pub fn staged_id(sha256_hex: &str) -> String {
-    sha256_hex.chars().take(32).collect::<String>().to_ascii_lowercase()
+/// the identity of a staged tree. None unless `sha256_hex` is exactly 64 hex characters, so a feed value
+/// can never become a path (`..`, separators, a drive) under the packages directory.
+pub fn staged_id(sha256_hex: &str) -> Option<String> {
+    if sha256_hex.len() != 64 || !sha256_hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(sha256_hex[..32].to_ascii_lowercase())
 }
 
 /// Maps ASCII `A..Z` to `a..z`, leaving every other byte untouched (the index uniqueness rule).

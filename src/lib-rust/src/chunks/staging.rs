@@ -91,7 +91,7 @@ impl StagedReadyMarker {
     /// Whether a feed asset refers to this staged tree (identity = staged id + index digest, never version).
     pub fn matches_asset(&self, asset: &VelopackAsset) -> bool {
         !asset.ChunkIndexSHA256.is_empty()
-            && staged_id(&asset.ChunkIndexSHA256) == self.StagedId
+            && staged_id(&asset.ChunkIndexSHA256).as_deref() == Some(self.StagedId.as_str())
             && self.IndexSHA256.eq_ignore_ascii_case(&asset.ChunkIndexSHA256)
     }
 }
@@ -148,7 +148,7 @@ pub fn read_ready_marker(dir: &Path) -> Option<StagedReadyMarker> {
     if marker.Format != READY_MARKER_FORMAT {
         return None;
     }
-    if marker.StagedId.is_empty() || marker.StagedId != layout.id() || marker.StagedId != staged_id(&marker.IndexSHA256) {
+    if marker.StagedId != layout.id() || staged_id(&marker.IndexSHA256).as_deref() != Some(marker.StagedId.as_str()) {
         return None;
     }
     Some(marker)
@@ -180,10 +180,7 @@ pub fn find_ready_staged(packages_dir: &Path) -> Option<(PathBuf, StagedReadyMar
 
 /// The ready staged tree matching an asset's staged id, if any.
 pub fn find_ready_staged_for(packages_dir: &Path, asset: &VelopackAsset) -> Option<(PathBuf, StagedReadyMarker)> {
-    if asset.ChunkIndexSHA256.is_empty() {
-        return None;
-    }
-    let dir = StagedLayout::new(packages_dir, &staged_id(&asset.ChunkIndexSHA256)).dir;
+    let dir = StagedLayout::new(packages_dir, &staged_id(&asset.ChunkIndexSHA256)?).dir;
     let marker = read_ready_marker(&dir)?;
     if marker.matches_asset(asset) {
         Some((dir, marker))

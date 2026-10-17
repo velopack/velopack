@@ -339,11 +339,31 @@ fn accepts_unicode_fold_sample() {
 #[test]
 fn staged_id_is_first_32_hex_lower() {
     let sha = "ABCDEF0123456789ABCDEF0123456789abcdef0123456789ABCDEF0123456789";
-    assert_eq!(staged_id(sha), "abcdef0123456789abcdef0123456789");
-    assert_eq!(staged_id("ABC"), "abc");
+    assert_eq!(staged_id(sha).as_deref(), Some("abcdef0123456789abcdef0123456789"));
     let built = sample();
-    assert_eq!(built.staged_id(), staged_id(&built.digest_hex()));
+    assert_eq!(Some(built.staged_id()), staged_id(&built.digest_hex()));
     assert_eq!(built.staged_id().len(), 32);
+}
+
+#[test]
+fn staged_id_rejects_anything_but_64_hex() {
+    let hex = "ab".repeat(32);
+    assert!(staged_id(&hex).is_some());
+    let bad = [
+        String::new(),
+        "ABC".to_string(),
+        hex[..63].to_string(),
+        format!("{}0", hex),
+        format!("../../../../Desktop/{}", &hex[..44]),
+        format!("C:/Users/Public/{}", &hex[..48]),
+        format!("+f{}", &hex[..62]),
+        format!(" {}", &hex[..63]),
+        format!("a\u{e9}{}", &hex[..61]),
+    ];
+    for value in &bad {
+        assert!(staged_id(value).is_none(), "{:?}", value);
+        assert!(chunks::parse_sha256_hex(value).is_none(), "{:?}", value);
+    }
 }
 
 #[test]
