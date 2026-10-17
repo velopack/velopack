@@ -38,7 +38,10 @@ namespace Velopack.Chunks
         /// <summary>Time allowed for one body read to make progress.</summary>
         public TimeSpan ReadStallTimeout { get; set; } = RetryPolicy.ReadStallTimeout;
 
-        /// <summary>Time allowed for one whole request.</summary>
+        /// <summary>
+        /// Base time allowed for one whole request; each request adds the time its body takes at
+        /// <see cref="RetryPolicy.MinRangeThroughputBytesPerSecond"/>.
+        /// </summary>
         public TimeSpan RequestTimeout { get; set; } = RetryPolicy.RequestTimeout;
 
         /// <summary>The reader takes ownership of <paramref name="client"/>.</summary>
@@ -78,7 +81,8 @@ namespace Velopack.Chunks
             if (_disposed) throw new ObjectDisposedException(nameof(HttpRangeReader));
 
             using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-            requestCts.CancelAfter(RequestTimeout);
+            // scaled with the length so a large coalesced request on a slow link can complete (§5.5)
+            requestCts.CancelAfter(RetryPolicy.GetRequestTimeout(RequestTimeout, count));
             try {
                 await ReadCoreAsync(offset, buffer, bufferOffset, count, requestCts.Token).ConfigureAwait(false);
             } catch (OperationCanceledException ex) when (!cancelToken.IsCancellationRequested) {
@@ -143,14 +147,14 @@ namespace Velopack.Chunks
                 using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
                 int read = 0;
                 while (read < count) {
-                    int n = await ReadWithStallTimeoutAsync(stream, buffer, bufferOffset + read, count - read, ct).ConfigureAwait(false);
+                    int n = await ReadWithStallTimeoutAsync(response, stream, buffer, bufferOffset + read, count - read, ct).ConfigureAwait(false);
                     if (n <= 0) throw new RangeTransientException($"Short body: got {read} of {count} bytes.");
                     read += n;
                     Interlocked.Add(ref _bodyBytesRead, n);
                 }
                 if (!contentLength.HasValue) {
                     var probe = new byte[1];
-                    if (await ReadWithStallTimeoutAsync(stream, probe, 0, 1, ct).ConfigureAwait(false) != 0) {
+                    if (await ReadWithStallTimeoutAsync(response, stream, probe, 0, 1, ct).ConfigureAwait(false) != 0) {
                         throw new RangeUnavailableException("The response body is longer than the requested range.");
                     }
                 }
@@ -160,11 +164,36 @@ namespace Velopack.Chunks
             }
         }
 
-        private async Task<int> ReadWithStallTimeoutAsync(System.IO.Stream stream, byte[] buffer, int offset, int count, CancellationToken ct)
+        /// <summary>
+        /// One body read bounded by <see cref="ReadStallTimeout"/> and <paramref name="ct"/>. The token alone is not enough:
+        /// on .NET Framework the response stream does not observe it once a read is blocked (the base
+        /// <c>Stream.ReadAsync</c> only checks it before starting), so a silent connection would hang until
+        /// <c>HttpWebRequest.ReadWriteTimeout</c> (5 minutes) and a cancel would wait as long. When the token fires first,
+        /// the response is disposed to tear the connection down and the read is abandoned.
+        /// </summary>
+        private async Task<int> ReadWithStallTimeoutAsync(HttpResponseMessage response, System.IO.Stream stream, byte[] buffer, int offset, int count,
+            CancellationToken ct)
         {
             using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             readCts.CancelAfter(ReadStallTimeout);
-            return await stream.ReadAsync(buffer, offset, count, readCts.Token).ConfigureAwait(false);
+            var readTask = stream.ReadAsync(buffer, offset, count, readCts.Token);
+            if (!readTask.IsCompleted) {
+                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using (readCts.Token.Register(() => cancelled.TrySetResult(true))) {
+                    if (await Task.WhenAny(readTask, cancelled.Task).ConfigureAwait(false) != readTask) {
+                        try {
+                            response.Dispose();
+                        } catch {
+                            // best effort: the read is abandoned either way
+                        }
+                        // the abandoned read fails (or completes) later; observe it so it is never an unobserved exception
+                        _ = readTask.ContinueWith(t => _ = t.Exception, CancellationToken.None,
+                            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                        readCts.Token.ThrowIfCancellationRequested();
+                    }
+                }
+            }
+            return await readTask.ConfigureAwait(false);
         }
 
         private async Task<HttpResponseMessage> SendAsync(Uri uri, long offset, long end, CancellationToken ct)

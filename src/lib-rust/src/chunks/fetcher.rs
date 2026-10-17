@@ -23,6 +23,10 @@ pub enum FetchError {
     /// staged directory deleted (§11).
     #[error("chunk index invalid: {0}")]
     IndexInvalid(String),
+    /// Writing the chunk blob failed (disk full, access denied). Not retried, since fetching again cannot
+    /// help; the chunk path is abandoned and the staged directory deleted so the full download gets the space.
+    #[error("could not write the chunk blob: {0}")]
+    StagingIo(String),
     /// The caller cancelled the update; the staged directory is kept for resume.
     #[error("chunk fetch cancelled")]
     Cancelled,
@@ -131,15 +135,17 @@ impl RetryPolicy {
         (self.now)()
     }
 
-    /// Full-jitter backoff: `random(0, min(30 s, 1 s * 2^(attempt-1)))`, or `min(Retry-After, 60 s)` when the
-    /// server asked for a delay.
+    /// Equal-jitter backoff: `random(cap / 2, cap)` with `cap = min(30 s, 1 s * 2^(attempt-1))`, or
+    /// `min(Retry-After, 60 s)` when the server asked for a delay. The half-cap floor means the 8 retries of a
+    /// request always span at least a minute, so a short outage with instant connect failures cannot use them up
+    /// within seconds.
     pub fn backoff_delay(attempt: u32, retry_after: Option<Duration>) -> Duration {
         if let Some(ra) = retry_after {
             return ra.min(Duration::from_secs(RETRY_AFTER_MAX_SECS));
         }
         let exp = BACKOFF_BASE_SECS.saturating_mul(1u64 << attempt.saturating_sub(1).min(16));
         let cap = exp.min(BACKOFF_MAX_SECS) as f64;
-        Duration::from_secs_f64(cap * rand::random::<f64>())
+        Duration::from_secs_f64(cap / 2.0 + cap / 2.0 * rand::random::<f64>())
     }
 
     fn sleep_before_retry(&self, attempt: u32, retry_after: Option<Duration>) -> Result<(), FetchError> {
@@ -472,8 +478,7 @@ fn fetch_one(shared: &Shared<'_>, request: &RangeRequest) -> Result<Option<(Rang
                     let mut blob = shared.blob.lock().unwrap();
                     for (hash, plain) in &chunks {
                         if shared.force_append || !blob.contains(hash) {
-                            blob.append(hash, plain)
-                                .map_err(|e| FetchError::Fatal(format!("failed to append to the chunk blob: {}", e)))?;
+                            blob.append(hash, plain).map_err(|e| FetchError::StagingIo(e.to_string()))?;
                         }
                     }
                 }

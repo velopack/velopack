@@ -148,6 +148,12 @@ namespace Velopack.Chunks
             }
         }
 
+        /// <summary>
+        /// Flushes and closes the blob, best effort: a failed flush (disk full after a failed append) must not replace the
+        /// exception that is unwinding through the caller's <c>using</c>. Unflushed records are not lost silently: the next
+        /// open verifies every record and the plan fetches whatever is missing. Callers that need the data on disk call
+        /// <see cref="Flush"/> first.
+        /// </summary>
         public void Dispose()
         {
             lock (_lock) {
@@ -155,8 +161,13 @@ namespace Velopack.Chunks
                 _disposed = true;
                 try {
                     FlushCore();
-                } finally {
+                } catch {
+                    // see above
+                }
+                try {
                     _stream.Dispose();
+                } catch {
+                    // the handle is closed even when the final buffer flush throws
                 }
             }
         }

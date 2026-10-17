@@ -69,6 +69,17 @@ namespace Velopack.Chunks
         }
     }
 
+    /// <summary>
+    /// Writing the chunk blob in the staged directory failed (disk full, access denied). Fatal for the chunk path without
+    /// a retry (fetching again cannot help), and the staged directory is deleted so the classic download gets the space.
+    /// </summary>
+    internal class StagingIoException : Exception
+    {
+        public StagingIoException(string message, Exception? innerException) : base(message, innerException)
+        {
+        }
+    }
+
     /// <summary><c>Update.exe assemble</c> exited 2 (invalid input); the staged directory is deleted.</summary>
     internal class AssembleInvalidException : Exception
     {

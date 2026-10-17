@@ -185,20 +185,133 @@ public class ChunkFetcherTests
         h.AssertComplete();
         Assert.True(h.Server.Faults.Applied >= 40, $"only {h.Server.Faults.Applied} faults were applied");
         Assert.Equal(requests.Count, h.Server.Faults.Applied);
-        Assert.Equal(0, h.Policy.ConsecutiveFailures);
     }
 
     [Fact]
-    public async Task ConsecutiveFailureBudgetIsFatal()
+    public async Task ShortOutageIsRiddenOut()
     {
         using var h = new Harness(_output, parallelism: 4);
-        h.Server.Faults.AddRule((_, _) => Fault.Status(500));
+        var requests = h.PerChunkRequests();
+        // the network drops: the first 7 attempts of each worker's first request fail instantly (28 failures across
+        // the 4 workers, far past what a shared failure count would allow), then it comes back
+        var outage = new HashSet<string>(requests.Take(4).Select(Harness.RangeOf));
+        var failures = new Dictionary<string, int>();
+        h.Server.Faults.AddRule((req, _) => {
+            lock (failures) {
+                if (!outage.Contains(req.Range!)) return Fault.None;
+                failures.TryGetValue(req.Range!, out int n);
+                if (n >= 7) return Fault.None;
+                failures[req.Range!] = n + 1;
+                return Fault.Status(503);
+            }
+        });
 
-        var ex = await AssertFatalAsync<ChunkFetchFatalException>(h.FetchAsync(h.PerChunkRequests()));
-        Assert.Contains("consecutive", ex.Message);
-        // 16 failures across the 4 workers; at most a few more requests were in flight when the budget tripped
-        Assert.InRange(h.Server.Faults.Applied, RetryPolicy.MaxConsecutiveFailures, RetryPolicy.MaxConsecutiveFailures + 4);
-        Assert.Equal(0, h.Blob.Count);
+        await h.FetchAsync(requests);
+        h.AssertComplete();
+        Assert.Equal(4 * 7, h.Server.Faults.Applied);
+        // equal jitter: every backoff waits at least half its cap
+        lock (h.Sleeps) {
+            Assert.Equal(4 * 7, h.Sleeps.Count);
+            Assert.All(h.Sleeps, s => Assert.True(s >= TimeSpan.FromSeconds(0.5), $"backoff {s} below the jitter floor"));
+        }
+    }
+
+    [Fact]
+    public void BackoffIsEqualJitter()
+    {
+        var policy = new RetryPolicy(randomSeed: 42);
+        for (int attempt = 1; attempt <= 12; attempt++) {
+            double cap = Math.Min(30, Math.Pow(2, attempt - 1));
+            for (int i = 0; i < 50; i++) {
+                var d = policy.GetBackoff(attempt, null).TotalSeconds;
+                Assert.InRange(d, cap / 2, cap);
+            }
+        }
+        // the 8 retries of one request always wait at least 0.5+1+2+4+8+15+15+15 seconds
+        double floor = Enumerable.Range(1, RetryPolicy.MaxRetriesPerRequest).Sum(a => Math.Min(30, Math.Pow(2, a - 1)) / 2);
+        Assert.Equal(60.5, floor);
+    }
+
+    [Fact]
+    public void RequestTimeoutScalesWithLength()
+    {
+        Assert.Equal(TimeSpan.FromSeconds(300), RetryPolicy.GetRequestTimeout(RetryPolicy.RequestTimeout, 0));
+        Assert.Equal(TimeSpan.FromSeconds(304), RetryPolicy.GetRequestTimeout(RetryPolicy.RequestTimeout, 64 * 1024));
+        // an 8 MiB coalesced request has room for 16 KiB/s
+        Assert.Equal(TimeSpan.FromSeconds(300 + 512), RetryPolicy.GetRequestTimeout(RetryPolicy.RequestTimeout, ChunkPlan.MaxRequestLength));
+    }
+
+    [Fact]
+    public async Task FailingMultiChunkRequestIsSplit()
+    {
+        using var h = new Harness(_output, parallelism: 1);
+        var requests = h.GroupedRequests(8);
+        var first = requests[0];
+        Assert.Equal(8, first.Chunks.Count);
+        // the whole span fails once (eg. it timed out on a slow link): it is fetched as two halves, never whole again
+        h.Server.Faults.Enqueue(Fault.ResetAfter(1000));
+        var progress = new List<long>();
+
+        await h.Fetcher.FetchRangesAsync(requests, h.Blob, false, p => { lock (progress) progress.Add(p); }, CancellationToken.None);
+        h.AssertComplete();
+
+        var counts = h.RangedRequestCounts();
+        Assert.Equal(1, counts[Harness.RangeOf(first)]);
+        var left = new RangeRequest(first.Chunks[0]);
+        for (int i = 1; i < 4; i++) left.Add(first.Chunks[i]);
+        var right = new RangeRequest(first.Chunks[4]);
+        for (int i = 5; i < 8; i++) right.Add(first.Chunks[i]);
+        Assert.Equal(1, counts[Harness.RangeOf(left)]);
+        Assert.Equal(1, counts[Harness.RangeOf(right)]);
+        Assert.Equal(requests.Count + 2, h.RangedRequests);
+        Assert.Single(h.Sleeps);
+        // progress still ends at the total and never goes backwards
+        Assert.Equal(requests.Sum(r => r.Length), progress[^1]);
+        Assert.Equal(progress.OrderBy(p => p), progress);
+    }
+
+    [Fact]
+    public async Task SplitHalvesSplitAgainDownToSingleChunks()
+    {
+        using var h = new Harness(_output, parallelism: 1);
+        var requests = h.GroupedRequests(8);
+        var doomedOffset = requests[0].Chunks[5].Offset;
+        // every request covering chunk 5 of the first group fails its first attempt: 8 -> 4 -> 2 -> 1, then retried
+        var failedOnce = new HashSet<string>();
+        h.Server.Faults.AddRule((req, _) => {
+            var range = req.Range!;
+            long start = long.Parse(range.Substring(6, range.IndexOf('-') - 6));
+            long end = long.Parse(range.Substring(range.IndexOf('-') + 1));
+            if (start <= doomedOffset && doomedOffset <= end) {
+                lock (failedOnce) {
+                    if (failedOnce.Add(range)) return Fault.Status(500);
+                }
+            }
+            return Fault.None;
+        });
+
+        await h.FetchAsync(requests);
+        h.AssertComplete();
+        // 8, 4, 2 and 1 chunk spans each failed once
+        Assert.Equal(4, h.Server.Faults.Applied);
+        Assert.Equal(4, h.Sleeps.Count);
+    }
+
+    [Fact]
+    public async Task BlobWriteFailureIsFatalWithoutRetry()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "byte-range locks are mandatory only on Windows");
+        using var h = new Harness(_output, parallelism: 2);
+        // another handle locks the whole blob file: appends fail (once the write buffer spills) like a full disk would
+        using var locker = new FileStream(Path.Combine(h.Dir, ChunkBlob.FileName), FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+        locker.Lock(0, 1L << 40);
+
+        var ex = await AssertFatalAsync<StagingIoException>(h.FetchAsync(h.PerChunkRequests()));
+        Assert.IsAssignableFrom<IOException>(ex.InnerException);
+        Assert.Equal(RetryClass.Fatal, RetryPolicy.Classify(ex, CancellationToken.None));
+        // a local write error is not retried as a network error: no range is downloaded twice and nothing backs off
+        Assert.Empty(h.Sleeps);
+        Assert.All(h.RangedRequestCounts().Values, n => Assert.Equal(1, n));
     }
 
     [Fact]
@@ -423,7 +536,8 @@ public class ChunkFetcherTests
         h.AssertComplete();
         Assert.Equal(3, h.Sleeps.Count);
         Assert.Equal(TimeSpan.FromSeconds(30), h.Sleeps[2]);
-        Assert.True(h.Sleeps[0] <= TimeSpan.FromSeconds(1) && h.Sleeps[1] <= TimeSpan.FromSeconds(2));
+        Assert.InRange(h.Sleeps[0], TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(1));
+        Assert.InRange(h.Sleeps[1], TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(1));
         Assert.True(sw.Elapsed < TimeSpan.FromSeconds(20), $"the fetch really waited: {sw.Elapsed}");
     }
 

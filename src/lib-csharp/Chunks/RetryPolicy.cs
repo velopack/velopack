@@ -19,8 +19,11 @@ namespace Velopack.Chunks
     }
 
     /// <summary>
-    /// The chunk fetch retry policy (§5.6): classification of failures, full-jitter backoff and the progress-based
-    /// budgets shared by all fetch workers. The sleep function and the clock are injectable so tests never wait.
+    /// The chunk fetch retry policy (§5.6): classification of failures, equal-jitter backoff and the progress-based
+    /// budgets shared by all fetch workers. There is deliberately no shared count of failed attempts: 4 workers failing
+    /// instantly at once (Wi-Fi drop, DNS failure) would exhaust it within seconds, so a short outage is ridden out by
+    /// the per-request budgets and the no-progress clock instead. The sleep function and the clock are injectable so
+    /// tests never wait.
     /// </summary>
     internal sealed class RetryPolicy
     {
@@ -32,12 +35,16 @@ namespace Velopack.Chunks
         public static readonly TimeSpan MaxRetryAfter = TimeSpan.FromSeconds(60);
         public static readonly TimeSpan MaxTimeWithoutProgress = TimeSpan.FromMinutes(10);
 
+        /// <summary>
+        /// The slowest body throughput the whole-request timeout of a ranged request allows on top of
+        /// <see cref="RequestTimeout"/>, so a large coalesced request on a slow link can still complete.
+        /// </summary>
+        public const long MinRangeThroughputBytesPerSecond = 16 * 1024;
+
         /// <summary>A request may fail this many times and still be retried; the next failure is fatal.</summary>
         public const int MaxRetriesPerRequest = 8;
         /// <summary>Chunk hash/length mismatches on the same request before it is fatal.</summary>
         public const int MaxHashMismatchesPerRequest = 3;
-        /// <summary>Failed attempts across all workers since the last verified chunk before the fetch is fatal.</summary>
-        public const int MaxConsecutiveFailures = 16;
         /// <summary>Consecutive redirect refreshes without a verified chunk before the fetch is fatal.</summary>
         public const int MaxConsecutiveRefreshes = 3;
         /// <summary>Extra <c>assemble</c> rounds allowed to fetch hashes reported in <c>missing.bin</c>.</summary>
@@ -47,7 +54,6 @@ namespace Velopack.Chunks
 
         private readonly object _lock = new object();
         private readonly Random _random;
-        private int _consecutiveFailures;
         private int _consecutiveRefreshes;
         private DateTime _lastProgress;
 
@@ -63,11 +69,13 @@ namespace Velopack.Chunks
             _lastProgress = DateTime.UtcNow;
         }
 
-        /// <summary>Failed attempts across all workers since the last verified chunk.</summary>
-        public int ConsecutiveFailures {
-            get {
-                lock (_lock) return _consecutiveFailures;
-            }
+        /// <summary>
+        /// The whole-request timeout of a ranged request of <paramref name="length"/> bytes: <paramref name="baseTimeout"/>
+        /// plus the time the body takes at <see cref="MinRangeThroughputBytesPerSecond"/>.
+        /// </summary>
+        public static TimeSpan GetRequestTimeout(TimeSpan baseTimeout, long length)
+        {
+            return baseTimeout + TimeSpan.FromSeconds(Math.Max(0, length) / MinRangeThroughputBytesPerSecond);
         }
 
         /// <summary>Must be called once before the first request so the no-progress clock starts from the policy's clock.</summary>
@@ -75,7 +83,6 @@ namespace Velopack.Chunks
         {
             lock (_lock) {
                 _lastProgress = Clock();
-                _consecutiveFailures = 0;
                 _consecutiveRefreshes = 0;
             }
         }
@@ -84,23 +91,18 @@ namespace Velopack.Chunks
         public void OnProgress()
         {
             lock (_lock) {
-                _consecutiveFailures = 0;
                 _consecutiveRefreshes = 0;
                 _lastProgress = Clock();
             }
         }
 
         /// <summary>
-        /// Records a failed attempt. Throws <see cref="ChunkFetchFatalException"/> when the consecutive-failure or
-        /// no-progress budget is exhausted.
+        /// Records a failed attempt. Throws <see cref="ChunkFetchFatalException"/> once nothing was verified for
+        /// <see cref="MaxTimeWithoutProgress"/>.
         /// </summary>
         public void OnFailure(Exception error)
         {
             lock (_lock) {
-                _consecutiveFailures++;
-                if (_consecutiveFailures >= MaxConsecutiveFailures) {
-                    throw new ChunkFetchFatalException($"{_consecutiveFailures} consecutive failed requests without progress.", error);
-                }
                 if (Clock() - _lastProgress >= MaxTimeWithoutProgress) {
                     throw new ChunkFetchFatalException($"No progress for {MaxTimeWithoutProgress.TotalMinutes} minutes.", error);
                 }
@@ -123,6 +125,8 @@ namespace Velopack.Chunks
         {
             if (ex is OperationCanceledException && callerToken.IsCancellationRequested) return RetryClass.Cancel;
             if (ex is ChunkFetchFatalException || ex is ChunkIndexInvalidException || ex is RangeUnavailableException) return RetryClass.Fatal;
+            // a local write to the staging directory failed (disk full, access denied): fetching again cannot help
+            if (ex is StagingIoException) return RetryClass.Fatal;
             if (ex is RangeRefreshException) return RetryClass.Refresh;
             // connect/read/timeout/IO errors, HttpClient timeouts (OperationCanceledException while the caller's
             // token is not cancelled), short bodies, retryable statuses and chunk mismatches
@@ -130,8 +134,10 @@ namespace Velopack.Chunks
         }
 
         /// <summary>
-        /// The delay before retry number <paramref name="attempt"/> (1-based): full-jitter exponential backoff capped at 30 s,
-        /// or <c>min(Retry-After, 60 s)</c> when the server sent a hint.
+        /// The delay before retry number <paramref name="attempt"/> (1-based): equal-jitter exponential backoff,
+        /// <c>random(cap / 2, cap)</c> with <c>cap = min(30 s, 1 s * 2^(attempt-1))</c>, or <c>min(Retry-After, 60 s)</c> when
+        /// the server sent a hint. The half-cap floor means the 8 retries of a request always span at least a minute, so a short
+        /// outage with instant connect failures cannot use them up within seconds.
         /// </summary>
         public TimeSpan GetBackoff(int attempt, TimeSpan? retryAfter)
         {
@@ -141,10 +147,10 @@ namespace Velopack.Chunks
                 return ra > MaxRetryAfter ? MaxRetryAfter : ra;
             }
             if (attempt < 1) attempt = 1;
-            double maxSeconds = Math.Min(MaxBackoff.TotalSeconds, BaseBackoff.TotalSeconds * Math.Pow(2, attempt - 1));
+            double maxSeconds = Math.Min(MaxBackoff.TotalSeconds, BaseBackoff.TotalSeconds * Math.Pow(2, Math.Min(attempt - 1, 16)));
             double seconds;
             lock (_lock) {
-                seconds = _random.NextDouble() * maxSeconds;
+                seconds = (maxSeconds / 2) + (_random.NextDouble() * maxSeconds / 2);
             }
             return TimeSpan.FromSeconds(seconds);
         }

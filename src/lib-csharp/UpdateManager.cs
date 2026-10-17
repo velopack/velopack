@@ -259,7 +259,7 @@ namespace Velopack
                     throw; // a real cancel: the staged directory is kept for resume
                 } catch (Exception ex) {
                     Log.Warn(ex, "Chunk update failed, falling back to a full download.");
-                    if (ex is ChunkIndexInvalidException || ex is AssembleInvalidException || ex is AssembleIoException) {
+                    if (ex is ChunkIndexInvalidException || ex is AssembleInvalidException || ex is AssembleIoException || ex is StagingIoException) {
                         StagedUpdate.DeleteDir(Log, Locator.GetStagedDir(ChunkIndex.StagedIdOf(targetRelease.ChunkIndexSHA256)));
                     }
                     if (ex is AssembleUnsupportedException) {

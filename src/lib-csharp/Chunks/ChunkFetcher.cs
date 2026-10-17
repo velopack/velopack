@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack.Logging;
@@ -54,6 +55,7 @@ namespace Velopack.Chunks
                     int segmentStart = (int) done;
                     await RunRequestAsync(
                         $"index {segmentOffset}+{n}",
+                        false,
                         async () => {
                             await _reader.ReadExactAsync(segmentOffset, data, segmentStart, n, ct).ConfigureAwait(false);
                             CheckAssetLength();
@@ -89,13 +91,17 @@ namespace Velopack.Chunks
             Exception? firstError = null;
             var errorLock = new object();
 
+            void Report(long bytes)
+            {
+                long total = Interlocked.Add(ref received, bytes);
+                progress?.Invoke(total);
+            }
+
             async Task Worker()
             {
                 while (!abort.IsCancellationRequested && queue.TryDequeue(out var request)) {
                     try {
-                        await FetchRequestAsync(request, blob, forceAppend, abort.Token).ConfigureAwait(false);
-                        long total = Interlocked.Add(ref received, request.Length);
-                        progress?.Invoke(total);
+                        await FetchRequestAsync(request, blob, forceAppend, Report, abort.Token).ConfigureAwait(false);
                     } catch (Exception ex) {
                         lock (errorLock) {
                             firstError ??= ex;
@@ -118,13 +124,43 @@ namespace Velopack.Chunks
             }
         }
 
-        private async Task FetchRequestAsync(RangeRequest request, ChunkBlob blob, bool forceAppend, CancellationToken ct)
+        /// <summary>
+        /// Fetches one coalesced request. A transient failure of a request with several chunks splits it at its middle
+        /// chunk into two requests (each with fresh per-request budgets) which this worker fetches in turn, so a link that
+        /// cannot deliver a large span (timeouts, connections dropping every few MB) still lands smaller requests and makes
+        /// verified progress; a single chunk is retried under its per-request budget (§5.6).
+        /// </summary>
+        private async Task FetchRequestAsync(RangeRequest request, ChunkBlob blob, bool forceAppend, Action<long> report, CancellationToken ct)
+        {
+            var pending = new Stack<RangeRequest>();
+            pending.Push(request);
+            while (pending.Count > 0) {
+                var current = pending.Pop();
+                var halves = await FetchOneAsync(current, blob, forceAppend, ct).ConfigureAwait(false);
+                if (halves == null) {
+                    report(current.Length);
+                    continue;
+                }
+                // the bytes between the halves are never fetched: count them as done so progress still ends at the total
+                var (first, second) = halves.Value;
+                long gap = current.Length - first.Length - second.Length;
+                if (gap > 0) report(gap);
+                pending.Push(second);
+                pending.Push(first);
+            }
+        }
+
+        /// <summary>Fetches, verifies and appends one request; returns the two halves to fetch instead when it was split.</summary>
+        private async Task<(RangeRequest First, RangeRequest Second)?> FetchOneAsync(RangeRequest request, ChunkBlob blob, bool forceAppend,
+            CancellationToken ct)
         {
             int hashMismatches = 0;
-            var buffer = new byte[request.Length];
-            await RunRequestAsync(
+            bool split = await RunRequestAsync(
                 $"range {request.Offset}+{request.Length}",
+                request.Chunks.Count > 1,
                 async () => {
+                    // a fresh buffer per attempt: on .NET Framework an abandoned read may still complete into the old one
+                    var buffer = new byte[request.Length];
                     long done = 0;
                     while (done < request.Length) {
                         int n = (int) Math.Min(MaxReadLength, request.Length - done);
@@ -142,11 +178,29 @@ namespace Velopack.Chunks
                             }
                             throw new ChunkMismatchException($"Chunk {chunk.ChunkIndex} did not verify after decoding.");
                         }
-                        blob.Append(chunk.Hash, plain);
+                        try {
+                            blob.Append(chunk.Hash, plain);
+                        } catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) {
+                            // a local write failure is not a network error: fetching the range again cannot fix it
+                            throw new StagingIoException("Could not write the chunk blob: " + ex.Message, ex);
+                        }
                         _policy.OnProgress();
                     }
                 },
                 ct).ConfigureAwait(false);
+            if (!split) return null;
+
+            _log.Info($"Splitting range {request.Offset}+{request.Length} ({request.Chunks.Count} chunks) after a failed attempt.");
+            int mid = request.Chunks.Count / 2;
+            return (Span(request.Chunks, 0, mid), Span(request.Chunks, mid, request.Chunks.Count - mid));
+        }
+
+        /// <summary>A request covering only <paramref name="count"/> chunks of <paramref name="chunks"/> from <paramref name="start"/>.</summary>
+        private static RangeRequest Span(List<NeededChunk> chunks, int start, int count)
+        {
+            var request = new RangeRequest(chunks[start]);
+            for (int i = start + 1; i < start + count; i++) request.Add(chunks[i]);
+            return request;
         }
 
         private void CheckAssetLength()
@@ -157,20 +211,24 @@ namespace Velopack.Chunks
             }
         }
 
-        /// <summary>Runs one request attempt loop under the retry policy.</summary>
-        private async Task RunRequestAsync(string what, Func<Task> attempt, CancellationToken ct)
+        /// <summary>
+        /// Runs one request attempt loop under the retry policy. With <paramref name="splittable"/>, the first transient
+        /// failure other than a chunk mismatch returns true after its backoff, so the caller fetches the request as two
+        /// halves instead of retrying it whole.
+        /// </summary>
+        private async Task<bool> RunRequestAsync(string what, bool splittable, Func<Task> attempt, CancellationToken ct)
         {
             int failures = 0;
             while (true) {
                 ct.ThrowIfCancellationRequested();
                 try {
                     await attempt().ConfigureAwait(false);
-                    return;
+                    return false;
                 } catch (Exception ex) {
                     var cls = RetryPolicy.Classify(ex, ct);
                     if (cls == RetryClass.Cancel) throw;
                     if (cls == RetryClass.Fatal) {
-                        if (ex is ChunkFetchFatalException || ex is ChunkIndexInvalidException) throw;
+                        if (ex is ChunkFetchFatalException || ex is ChunkIndexInvalidException || ex is StagingIoException) throw;
                         throw new ChunkFetchFatalException($"Fatal error fetching {what}: {ex.Message}", ex);
                     }
                     failures++;
@@ -186,6 +244,8 @@ namespace Velopack.Chunks
                     var delay = _policy.GetBackoff(failures, RetryPolicy.GetRetryAfter(ex));
                     _log.Debug($"Fetching {what} failed ({ex.Message}); retry {failures} in {delay.TotalSeconds:0.##}s.");
                     await _policy.Sleep(delay, ct).ConfigureAwait(false);
+                    // a corrupt body is retried whole (the bytes did arrive, like the Rust fetcher), anything else splits
+                    if (splittable && !(ex is ChunkMismatchException)) return true;
                 }
             }
         }

@@ -753,3 +753,20 @@ fn auto_source_forwards_range_reader() {
     assert_eq!(reader.len(), Some(h.pkg.asset.Size));
     assert!(chunks::ChunkIndex::parse_trailer(&index).is_ok());
 }
+
+#[test]
+fn backoff_is_equal_jitter() {
+    for attempt in 1..=12u32 {
+        let cap = (1u64 << (attempt - 1)).min(30) as f64;
+        for _ in 0..50 {
+            let d = RetryPolicy::backoff_delay(attempt, None).as_secs_f64();
+            assert!(d >= cap / 2.0 && d <= cap, "attempt {}: {} not in [{}, {}]", attempt, d, cap / 2.0, cap);
+        }
+    }
+    // the 8 retries of one request always wait at least 0.5+1+2+4+8+15+15+15 seconds
+    let floor: f64 = (1..=chunks::MAX_ATTEMPTS_PER_REQUEST)
+        .map(|a| ((1u64 << (a - 1)).min(30) as f64) / 2.0)
+        .sum();
+    assert_eq!(floor, 60.5);
+    assert_eq!(RetryPolicy::backoff_delay(3, Some(Duration::from_secs(120))), Duration::from_secs(60));
+}

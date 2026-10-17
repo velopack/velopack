@@ -276,7 +276,7 @@ public partial class UpdateManagerTests
         env.Source.RangeFault = (offset, _) => offset == trailerOffset ? null : new IOException("connection reset (test)");
         await AssertFallsBackToFullAsync(env, stagedKept: true);
         Assert.Empty(env.Assembler.Calls);
-        Assert.True(env.Sleeps.Count >= RetryPolicy.MaxConsecutiveFailures - 1);
+        Assert.True(env.Sleeps.Count >= RetryPolicy.MaxRetriesPerRequest);
         Assert.True(File.Exists(Path.Combine(env.Packages, env.V2.Asset.FileName)));
     }
 

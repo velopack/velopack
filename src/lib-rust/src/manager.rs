@@ -849,6 +849,7 @@ impl From<chunks::FetchError> for ChunkPathError {
         match e {
             chunks::FetchError::Fatal(m) => ChunkPathError::Fatal(m),
             chunks::FetchError::IndexInvalid(m) => ChunkPathError::Invalid(m),
+            chunks::FetchError::StagingIo(m) => ChunkPathError::Io(std::io::Error::other(m)),
             chunks::FetchError::Cancelled => ChunkPathError::Cancelled,
         }
     }
