@@ -9,8 +9,8 @@ by the generator `test/Velopack.Tests/Chunks/DeltaV2Fixtures.cs`:
 
 - `FixturesAreUpToDate` (always runs) regenerates everything in memory and fails if a checked-in file differs;
 - `RegenerateFixtures` (`[Fact(Explicit = true)]`) rewrites the files:
-  `dotnet test --project test/Velopack.Tests -- --filter-method "*RegenerateFixtures*"`
-  (xunit v3 runs explicit tests when they are selected by a filter).
+  `dotnet test --project test/Velopack.Tests -- --filter-method "*RegenerateFixtures*" -explicit only`
+  (xunit v3 skips explicit tests unless `-explicit on|only` is passed).
 
 The generator is deterministic: all content comes from SplitMix64 streams (`TestIndexBuilder.DeterministicBytes`),
 hashes are real SHA-256 values of that content, and transport layouts are computed by `TestIndexBuilder.Layout`.
@@ -70,4 +70,14 @@ asset with a real pointer, and a third without the keys. Readers must accept all
 ## Packed packages
 
 `ChunkTestApp-1.0.0-win-full.nupkg`, `ChunkTestApp-1.1.0-win-full.nupkg` and `releases.win.json` are produced by
-the vpk chunk-aligned writer (see `test/Velopack.Packaging.Tests/Chunking`), not by this generator.
+the vpk chunk-aligned writer (`ChunkIndexBuilder` + `ChunkedZipWriter`), not by this generator. The generator is
+`test/Velopack.Packaging.Tests/Chunking/DeltaV2PackageFixtures.cs`: a synthetic tree whose 1.1.0 has a modified large
+file (1 KiB inserted), a renamed file, a deleted file and an added file, plus a stub and a `Squirrel.exe` placeholder
+(no empty directories, no symlinks). Compressed bytes depend on the runtime's zlib, so regenerate on net8 only:
+
+```
+dotnet test --project test/Velopack.Packaging.Tests -f net8.0 -- --filter-method "*RegenerateChunkTestAppFixtures*" -explicit only
+```
+
+`ChunkTestAppFixturesMatchGenerator` (always runs) checks the runtime-independent parts: Section A, every entry's
+content, the entry order, and the feed's pointer and checksums.

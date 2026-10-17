@@ -128,15 +128,38 @@ The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platfo
 2. **Code signing** (signtool `--signParams` on Windows only; `--signTemplate` and Azure Trusted Signing of Windows packages on all OSes; `codesign` on macOS): Signs all PE/Mach-O binaries. Supports `signtool.exe` (`--signParams`), custom sign templates, Azure Trusted Signing, and `codesign` with optional notarization (macOS).
    - **Azure Trusted Signing** (`--azureTrustedSignFile`, all OSes) does not use signtool: `Velopack.Packaging.Windows/Signing/` is a managed Authenticode signer (PE digest/embed + `SignedCms`, RFC3161 timestamp from `timestamp.acs.microsoft.com`) whose RSA key calls `Azure.CodeSigning.Sdk`. MSI files (Windows only) are signed via the `AzureSign.Core` package. Already-signed files are skipped: on Windows only if the signature is trusted (`CodeSign.ShouldSign`), on Linux/macOS if the PE has any certificate table. One `AzureTrustedSigner` is reused for the whole pack so the credential and certificate chain are fetched once; if the profile certificate rotates mid-pack (service reports another cert, or the signature does not verify with the cached one) the chain is refetched once and the file retried, for PE and MSI alike. Unlisted `ExcludeCredentials` are force-enabled only on Windows (Dlib parity); elsewhere SDK defaults apply, keeping SharedTokenCache/InteractiveBrowser off. After signing an MSI only signature integrity + signer certificate are checked, not trust (Private Trust profiles chain to roots Windows does not trust).
 
-3. **Package creation** (parallel): Builds multiple outputs simultaneously:
+3. **Content indexing** (Windows target only, `WindowsPackCommandRunner.BuildChunkIndex`, after signing): rewrites
+   `sq.version` so it is byte-identical to the `.nuspec`, then `Velopack.Packaging/Chunking/ChunkIndexBuilder` reads every
+   pack-dir file once (FastCDC-gear-v1 boundaries via `FastCdc`/`GearTable`, per-chunk + per-file SHA-256, CRC-32) and writes
+   the content map `packDir/sq.chunks` (Section A of the delta-v2 index, parsed by `Velopack.Chunks.ChunkIndex` in lib-csharp).
+   Pack-time rejections (`UserInfoException`): symlinks/junctions, any nested `*Squirrel.exe`, non-top-level
+   `*_ExecutionStub.exe`, paths that differ only by case, and the index path rules. macOS/Linux packs are unchanged (no index).
+
+4. **Package creation** (parallel): Builds multiple outputs simultaneously:
    - **Release package** (`.nupkg`): ZIP with `lib/app/` containing all app files + update binary + `sq.version` manifest, plus a `.nuspec` with metadata. This is the canonical package format.
+     With a content index it is written by `Chunking/ChunkedZipWriter` instead of `EasyZip`: each indexed file is deflated
+     chunk by chunk (fresh `DeflateStream` + sync flush per chunk, `03 00` final block; stored when that is not smaller), so
+     every chunk is a known byte range, and the index trailer (A ‖ B transport map) is the stored, **last** entry
+     `package/velopack/chunks.idx` (`idx` is added to `[Content_Types].xml`). Entry order is root metadata, then
+     `lib/app/Squirrel.exe`, then the rest of `lib/**` in ordinal UTF-8 order, so old readers' first-suffix matches
+     (`.nuspec`, `Squirrel.exe`) are unchanged; no data descriptors, Zip64 only when needed. `VelopackAsset.FromZipPackageNoChecksum`
+     locates the trailer and the feed gets `ChunkIndexOffset/Length/SHA256`. The `LegacyAppCanMigrate*` tests are the
+     acceptance criterion for old-reader compatibility of this writer.
    - **Portable package**: On Windows: ZIP with `Update.exe`, `current/` dir, execution stub, and `.portable` marker. On Linux: AppImage (squashfs appended to runtime binary). On macOS: ditto ZIP of `.app` bundle.
    - **Setup installer**: On Windows: `setup.exe` template with the `.nupkg` appended as a bundle (offset+length header + signature). Optional MSI via WiX 5 compilation from Handlebars templates. On macOS: `.pkg` via `pkgbuild`.
    - **No delta packages**: vpk no longer creates legacy `-delta.nupkg` files (no `--delta` option, no `vpk delta`
      commands, no vendored `zstd.exe`). Delta assets already in a `releases.{channel}.json`/`RELEASES` feed or a
      release dir are still parsed and kept when vpk rewrites a feed (upload/download merges), never generated.
 
-4. **Post-processing**: Writes `releases.<channel>.json` (asset feed for update clients) and legacy `RELEASES` file.
+5. **Post-processing**: Writes `releases.<channel>.json` (asset feed for update clients) and legacy `RELEASES` file.
+
+`test/Velopack.Packaging.Tests` multi-targets `net8.0;net10.0` so the chunk writer runs on both zlib (net8) and zlib-ng
+(net10); the net10.0 build compiles only `Chunking/**` tests, and `TestTfmsInParallel=false` runs the two test processes
+one after the other (they would otherwise collide on TempUtil's `temp.N` names and the TestApp publish output). Only
+`RepackIsByteIdenticalOnNet8` asserts byte-identical repacks. The packed golden fixtures
+`test/fixtures/delta-v2/ChunkTestApp-*.nupkg` + `releases.win.json` are produced by
+`dotnet test --project test/Velopack.Packaging.Tests -f net8.0 -- --filter-method "*RegenerateChunkTestAppFixtures*" -explicit only`
+(xunit v3 skips `Explicit` tests without `-explicit on|only`) and pinned (Section A, contents, feed pointers) by `ChunkTestAppFixturesMatchGenerator`.
 
 **`--signTemplate`** (`CodeSign.Sign`): the template is a shell command, run by `cmd.exe /C` on Windows and by
 `bash -c` on Linux/macOS (passed via `ArgumentList`, unescaped, so quotes/`$VAR`/backticks behave as in bash).

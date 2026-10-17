@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
+using Velopack.Packaging.Chunking;
 using Velopack.Packaging.Windows.Msi;
 using Velopack.Packaging.Windows.Signing;
 using Velopack.Util;
@@ -42,6 +43,21 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             .ToArray();
 
         return SignFilesImplAsync(progress, filesToSign);
+    }
+
+    protected override async Task<PackContentIndex> BuildChunkIndex(Action<int> progress, string packDir)
+    {
+        // The installed sq.version must equal the .nuspec byte-for-byte (the chunk index describes it, and the
+        // update binary compares installed files against the package). It was first written before architecture
+        // detection, so regenerate it now that the nuspec content is final.
+        File.WriteAllText(Path.Combine(packDir, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
+
+        var indexProgress = CoreUtil.CreateProgressDelegate(progress, 0, 95);
+        var index = await Task.Run(() => ChunkIndexBuilder.Build(packDir, indexProgress)).ConfigureAwait(false);
+        ChunkIndexBuilder.WriteSqChunks(index, packDir);
+        Log.Info($"Indexed {index.Files.Count} files ({index.Chunks.Count} chunks) for chunk-based updates.");
+        progress(100);
+        return index;
     }
 
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
