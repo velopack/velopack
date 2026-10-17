@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Win32;
 using Velopack.Core;
 using Velopack.Packaging.Windows.Commands;
@@ -174,6 +176,45 @@ public class MsiTests
     {
         var staged = Path.Combine(packagesDir, "staged");
         return Directory.Exists(staged) && Directory.EnumerateFiles(staged, "ready.json", SearchOption.AllDirectories).Any();
+    }
+
+    private static string Icacls(string path, ILogger logger)
+    {
+        var psi = new ProcessStartInfo("icacls", $"\"{path}\"") {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        using var p = Process.Start(psi)!;
+        var output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+        p.WaitForExit();
+        logger.Info($"TEST: icacls {path}{Environment.NewLine}{output.Trim()}");
+        return output;
+    }
+
+    /// <summary>
+    /// ACL problems of a tree in a protected location: any ACE which is not inherited from the parent, and any ACE (inherited
+    /// or not) granted to the interactive user. A tree created under the user's profile and then moved (not copied) into
+    /// Program Files would keep the profile's explicit user ACEs (§7.2 copy-under-root).
+    /// </summary>
+    private static List<string> FindAclProblems(string root)
+    {
+        var user = WindowsIdentity.GetCurrent().User;
+        var problems = new List<string>();
+        var rootDir = new DirectoryInfo(root);
+        var entries = new FileSystemInfo[] { rootDir }.Concat(rootDir.EnumerateFileSystemInfos("*", SearchOption.AllDirectories));
+        foreach (var entry in entries) {
+            FileSystemSecurity security = entry is DirectoryInfo dir ? dir.GetAccessControl() : ((FileInfo) entry).GetAccessControl();
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(true, true, typeof(SecurityIdentifier))) {
+                if (!rule.IsInherited) {
+                    problems.Add($"{entry.FullName}: explicit {rule.AccessControlType} {rule.FileSystemRights} for {rule.IdentityReference}");
+                } else if (user != null && rule.IdentityReference.Equals(user)) {
+                    problems.Add($"{entry.FullName}: {rule.AccessControlType} {rule.FileSystemRights} for the interactive user {user}");
+                }
+            }
+        }
+        return problems;
     }
 
     private static (bool found, string displayVersion) FindUninstallEntry(RegistryKey root, string appId)
@@ -1075,6 +1116,12 @@ public class MsiTests
             Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
             logger.Info("TEST: v1 installed and verified");
 
+            // ACL baseline: what msiexec laid down (everything inherited from the Program Files parent)
+            var currentDir = Path.Combine(installDir, "current");
+            Icacls(installDir, logger);
+            Icacls(currentDir, logger);
+            logger.Info("TEST: msi install ACL problems: " + string.Join(Environment.NewLine, FindAclProblems(currentDir)));
+
             // verify uninstall registry is in HKLM for per-machine install
             var (hklmFound, hklmVersion) = FindUninstallEntry(Registry.LocalMachine, id);
             Assert.True(hklmFound, "Uninstall entry should exist in HKLM for per-machine MSI install");
@@ -1129,6 +1176,35 @@ public class MsiTests
             Assert.True(hklmFound2, "Uninstall entry should still exist in HKLM after update");
             Assert.Equal("2.0.0", hklmVersion2);
             logger.Info("TEST: registry entry verified in HKLM with version 2.0.0");
+
+            // the chunk update staged its tree under %LocalAppData% (the user's profile) and apply-staged copied it under the
+            // root, so current\ must carry only ACEs inherited from Program Files and nothing granted to the interactive user
+            Icacls(currentDir, logger);
+            var chunkAclProblems = FindAclProblems(currentDir);
+            Assert.True(
+                chunkAclProblems.Count == 0,
+                @"current\ after the chunk update has ACEs not inherited from Program Files:" + Environment.NewLine +
+                string.Join(Environment.NewLine, chunkAclProblems));
+            logger.Info("TEST: chunk update ACLs verified (inherited only)");
+
+            // classic-apply baseline, recorded for comparison only: without current\sq.chunks the next update downloads and
+            // applies the full package
+            File.Delete(Path.Combine(currentDir, "sq.chunks"));
+            await PackTestAppWithMsi(id, "3.0.0", "version 3 test", releaseDir, logger, InstallLocation.Either);
+            RunCoveredDotnetDeelevated(appPath, ["download", releaseDir], installDir, logger);
+            Assert.True(
+                File.Exists(Path.Combine(fallbackPackagesPath, $"{id}-3.0.0-full.nupkg")),
+                "the classic baseline update did not download the full package");
+            RunCoveredDotnetDeelevated(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
+            TestHelper.WaitUntil(() => {
+                var chk3version = RunCoveredDotnetDeelevated(appPath, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
+            }, timeoutMs: 90_000, pollDelayMs: 2000);
+            Icacls(currentDir, logger);
+            var classicAclProblems = FindAclProblems(currentDir);
+            logger.Info(
+                $"TEST: classic apply baseline: {classicAclProblems.Count} ACL problems" + Environment.NewLine +
+                string.Join(Environment.NewLine, classicAclProblems));
 
             // uninstall: must remove the Program Files install dir, the HKLM ARP entry, AND the
             // per-user fallback dir in %LocalAppData% which holds packages + Update.exe (#989)

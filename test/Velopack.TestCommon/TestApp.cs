@@ -20,6 +20,12 @@ public static class TestApp
     /// </summary>
     public const string TestStringFileName = "test_string.txt";
 
+    /// <summary>
+    /// The .NET Framework build of TestApp (Windows only), published with <c>-p:TestAppFramework=net48</c>. It exercises the net472
+    /// Velopack client end-to-end. Pass as the <c>framework</c> argument; null selects the default (net8.0) build.
+    /// </summary>
+    public const string FrameworkNet48 = "net48";
+
     // The test string is injected as a file at pack time rather than compiled in, so a single
     // publish per (rid, options) can be shared by every test in the process — recompiling TestApp
     // for each test was one of the slowest parts of the suite.
@@ -68,9 +74,10 @@ public static class TestApp
     /// Copies a cached TestApp publish for the given RID into destDir (replacing destDir if it
     /// already exists) and writes testString to test_string.txt inside it.
     /// </summary>
-    public static void PreparePublishDir(RID targetRid, string testString, string destDir, ILogger logger, bool singleFile = false)
+    public static void PreparePublishDir(RID targetRid, string testString, string destDir, ILogger logger, bool singleFile = false,
+        string? framework = null)
     {
-        var cached = GetCachedPublishDir(targetRid, singleFile, logger);
+        var cached = GetCachedPublishDir(targetRid, singleFile, framework, logger);
         if (Directory.Exists(destDir)) {
             Directory.Delete(destDir, true);
         }
@@ -79,13 +86,13 @@ public static class TestApp
         File.WriteAllText(Path.Combine(destDir, TestStringFileName), testString);
     }
 
-    private static string GetCachedPublishDir(RID targetRid, bool singleFile, ILogger logger)
+    private static string GetCachedPublishDir(RID targetRid, bool singleFile, string? framework, ILogger logger)
     {
-        var key = targetRid + (singleFile ? "|singlefile" : "");
-        return PublishCache.GetOrAdd(key, _ => new Lazy<string>(() => PublishTestApp(targetRid, singleFile, logger))).Value;
+        var key = targetRid + (singleFile ? "|singlefile" : "") + (framework != null ? "|" + framework : "");
+        return PublishCache.GetOrAdd(key, _ => new Lazy<string>(() => PublishTestApp(targetRid, singleFile, framework, logger))).Value;
     }
 
-    private static string PublishTestApp(RID targetRid, bool singleFile, ILogger logger)
+    private static string PublishTestApp(RID targetRid, bool singleFile, string? framework, ILogger logger)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
 
@@ -102,6 +109,11 @@ public static class TestApp
 
         if (singleFile) {
             args.Add("-p:PublishSingleFile=true");
+        }
+
+        if (framework != null) {
+            // TestApp.csproj swaps its single TargetFramework for this one (see the comment there)
+            args.Add("-p:TestAppFramework=" + framework);
         }
 
         var psi = new ProcessStartInfo("dotnet");
@@ -165,9 +177,34 @@ public static class TestApp
         new WindowsPackCommandRunner(logger, console).Run(options).GetAwaiterResult();
     }
 
+    /// <summary>
+    /// Writes <paramref name="length"/> deterministic pseudo-random (incompressible) bytes derived from <paramref name="seed"/>
+    /// to <paramref name="path"/>. When <paramref name="insertLength"/> &gt; 0, <paramref name="insertLength"/> different
+    /// deterministic bytes are inserted at <paramref name="insertAt"/>, shifting the rest of the content: the "large modified
+    /// payload" variant used to check that a chunk update only fetches the bytes around an edit.
+    /// </summary>
+    public static void WriteLargePayload(string path, int length, int seed, int insertAt = 0, int insertLength = 0)
+    {
+        var data = new byte[length];
+        new Random(seed).NextBytes(data);
+        using var fs = File.Create(path);
+        if (insertLength <= 0) {
+            fs.Write(data, 0, data.Length);
+            return;
+        }
+
+        var inserted = new byte[insertLength];
+        new Random(seed ^ 0x5EED).NextBytes(inserted);
+        fs.Write(data, 0, insertAt);
+        fs.Write(inserted, 0, inserted.Length);
+        fs.Write(data, insertAt, data.Length - insertAt);
+    }
+
+    /// <param name="framework">Null for the default net8.0 TestApp, or <see cref="FrameworkNet48"/> (Windows targets only).</param>
+    /// <param name="preparePublishDir">Called with the publish dir before packing, eg. to add extra payload files.</param>
     public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
         string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null,
-        bool buildMsi = false)
+        bool buildMsi = false, string? framework = null, Action<string>? preparePublishDir = null)
     {
         targetRid ??= RID.Parse(VelopackRuntimeInfo.SystemRid);
 
@@ -175,7 +212,8 @@ public static class TestApp
         var publishDir = Path.Combine(workDir, "publish");
 
         try {
-            PreparePublishDir(targetRid, testString, publishDir, logger);
+            PreparePublishDir(targetRid, testString, publishDir, logger, framework: framework);
+            preparePublishDir?.Invoke(publishDir);
 
             var console = new BasicConsole(logger, new VelopackDefaults(false));
 

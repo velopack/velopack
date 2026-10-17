@@ -4,6 +4,16 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!--
+    The .NET Framework build (Windows only) covers the net472 Velopack client (HttpClientHandler, ranged reads,
+    DeflateStream) end-to-end. It is selected with -p:TestAppFramework=net48 rather than multi-targeting, so every
+    existing `dotnet publish` of this project keeps working without a -f argument.
+  -->
+  <PropertyGroup Condition=" '$(TestAppFramework)' != '' ">
+    <TargetFramework>$(TestAppFramework)</TargetFramework>
   </PropertyGroup>
 
   <PropertyGroup Condition=" $(NoVelopackApp) != '' ">
@@ -26,7 +36,8 @@
     <PackageReference Include="Velopack" Version="$(UseVelopackPkg)" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!-- assembly-level ExcludeFromCodeCoverage only exists on .NET 5+ -->
+  <ItemGroup Condition=" !$(TargetFramework.StartsWith('net4')) ">
     <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage" />
   </ItemGroup>
 
