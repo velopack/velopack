@@ -169,6 +169,13 @@ public class MsiTests
         }
     }
 
+    /// <summary>A download through the chunk path leaves a ready staged tree (packages/staged/&lt;id&gt;/ready.json).</summary>
+    private static bool HasReadyStagedUpdate(string packagesDir)
+    {
+        var staged = Path.Combine(packagesDir, "staged");
+        return Directory.Exists(staged) && Directory.EnumerateFiles(staged, "ready.json", SearchOption.AllDirectories).Any();
+    }
+
     private static (bool found, string displayVersion) FindUninstallEntry(RegistryKey root, string appId)
     {
         using var key = root.OpenSubKey($@"Software\Microsoft\Windows\CurrentVersion\Uninstall\MSI:{appId}");
@@ -761,14 +768,12 @@ public class MsiTests
             Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
             logger.Info("TEST: found v2 update");
 
-            // download update (this puts the nupkg in the locator's packages dir)
+            // download update (v1 carries sq.chunks, so this stages a chunk-assembled tree in the locator's packages dir)
             WindowsTestHelper.RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
 
-            // verify nupkg ended up in the correct packages dir
-            var nupkgFileName = $"{id}-2.0.0-full.nupkg";
-            Assert.True(File.Exists(Path.Combine(packagesPath, nupkgFileName)),
-                $"Downloaded nupkg not found in expected packages dir: {packagesPath}");
-            logger.Info("TEST: nupkg downloaded to correct packages dir");
+            // verify the staged update ended up in the correct packages dir
+            Assert.True(HasReadyStagedUpdate(packagesPath), $"Ready staged update not found in expected packages dir: {packagesPath}");
+            logger.Info("TEST: update staged in correct packages dir");
 
             // apply update; update.exe swaps the app in a separate process, so poll for the new version
             WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
@@ -1092,17 +1097,16 @@ public class MsiTests
             Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
             logger.Info("TEST: found v2 update (de-elevated)");
 
-            // download update as de-elevated user (nupkg should go to fallback packages dir,
-            // and Update.exe should be extracted to the fallback dir)
+            // download update as de-elevated user (the staged tree should go to the fallback packages dir,
+            // and Update.exe should be refreshed in the fallback dir)
             RunCoveredDotnetDeelevated(appPath, ["download", releaseDir], installDir, logger);
 
-            // verify nupkg ended up in the fallback packages dir (NOT Program Files)
-            var nupkgFileName = $"{id}-2.0.0-full.nupkg";
-            Assert.True(File.Exists(Path.Combine(fallbackPackagesPath, nupkgFileName)),
-                $"Downloaded nupkg not found in fallback packages dir: {fallbackPackagesPath}");
-            Assert.False(File.Exists(Path.Combine(installDir, "packages", nupkgFileName)),
-                "Nupkg should NOT be in Program Files packages dir when running as standard user");
-            logger.Info("TEST: nupkg downloaded to correct fallback packages dir");
+            // verify the staged update ended up in the fallback packages dir (NOT Program Files)
+            Assert.True(HasReadyStagedUpdate(fallbackPackagesPath),
+                $"Ready staged update not found in fallback packages dir: {fallbackPackagesPath}");
+            Assert.False(Directory.Exists(Path.Combine(installDir, "packages", "staged")),
+                "Nothing should be staged in the Program Files packages dir when running as standard user");
+            logger.Info("TEST: update staged in correct fallback packages dir");
 
             // verify Update.exe was extracted to the fallback dir (not Program Files)
             var fallbackUpdateExe = Path.Combine(fallbackDir, "Update.exe");
