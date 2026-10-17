@@ -516,6 +516,9 @@ impl ChunkIndex {
 
             match r.kind {
                 FileKind::File => {
+                    if r.target_len != 0 {
+                        return err(format!("record '{}' is a file with a symlink target", path));
+                    }
                     if r.chunk_count == 0 {
                         if r.length != 0 || r.first_chunk != 0 {
                             return err(format!("record '{}' has a length but no chunks", path));
@@ -550,7 +553,7 @@ impl ChunkIndex {
                     validate_symlink_target(path, target)?;
                 }
                 FileKind::EmptyDir => {
-                    if r.chunk_count != 0 || r.first_chunk != 0 || r.length != 0 {
+                    if r.chunk_count != 0 || r.first_chunk != 0 || r.length != 0 || r.target_len != 0 {
                         return err(format!("empty directory '{}' has content", path));
                     }
                 }
@@ -606,13 +609,19 @@ impl ChunkIndex {
     fn validate_transport(&self) -> Result<(), IndexError> {
         for i in 0..self.file_count {
             let r = self.file_raw(i);
-            if r.kind != FileKind::File || r.chunk_count == 0 {
-                continue;
-            }
             let bf = self.b_file(i).expect("transport present");
             let path = self.path(i);
+            if r.kind != FileKind::File || r.chunk_count == 0 {
+                if bf.method != 0 || bf.data_offset != 0 || bf.compressed_size != 0 {
+                    return err(format!("transport record of '{}' must be all zero", path));
+                }
+                continue;
+            }
             match bf.method {
                 0 => {
+                    if bf.compressed_size != r.length {
+                        return err(format!("stored entry '{}' size does not match the file length", path));
+                    }
                     let mut plain_off = 0u64;
                     for (c, chunk) in self.file_chunks(&r) {
                         let bc = self.b_range(c).expect("transport present");
@@ -623,6 +632,10 @@ impl ChunkIndex {
                     }
                 }
                 8 => {
+                    // must at least hold the terminator; "smaller than length" is a writer rule, not a reader rule
+                    if bf.compressed_size < ENTRY_TERMINATOR.len() as u64 {
+                        return err(format!("deflate entry '{}' size {} is too small", path, bf.compressed_size));
+                    }
                     let mut expect = bf.data_offset;
                     for (c, _) in self.file_chunks(&r) {
                         let bc = self.b_range(c).expect("transport present");

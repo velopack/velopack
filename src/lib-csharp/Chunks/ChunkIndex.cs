@@ -598,9 +598,8 @@ namespace Velopack.Chunks
                         plainOffset += chunkLength;
                     }
                 } else {
-                    if (compressedSize < 2 || compressedSize >= length) {
-                        throw Invalid($"transport record {i}: deflate entry size {compressedSize} vs length {length}");
-                    }
+                    // must at least hold the 03 00 terminator; "smaller than length" is a writer rule (store decision), not a reader rule
+                    if (compressedSize < 2) throw Invalid($"transport record {i}: deflate entry size {compressedSize} is too small");
                     ulong expected = dataOffset;
                     for (int c = 0; c < chunkCount; c++) {
                         int b = _bChunksOffset + ((nextChunk + c) * BChunkRecordSize);
