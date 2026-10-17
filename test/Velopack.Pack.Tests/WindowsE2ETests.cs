@@ -632,24 +632,9 @@ internal static class ChunkE2E
             pollDelayMs: 1000);
     }
 
-    /// <summary>
-    /// Replaces the SHA1/SHA256 of every Full asset in <c>releases.{channel}.json</c> with zeros: a classic full download then fails
-    /// its checksum, so a successful download proves the chunk path (verified by the index digest and per-chunk hashes) ran.
-    /// </summary>
+    /// <inheritdoc cref="ReleaseFeedHelper.CorruptFullAssetChecksums"/>
     public static void CorruptFullAssetChecksums(string releaseDir, string channel = "win")
-    {
-        var path = Path.Combine(releaseDir, $"releases.{channel}.json");
-        var root = JsonNode.Parse(File.ReadAllText(path))!;
-        int corrupted = 0;
-        foreach (var asset in root["Assets"]!.AsArray()) {
-            if (asset!["Type"]!.ToString() != "Full") continue;
-            asset["SHA1"] = new string('0', 40);
-            asset["SHA256"] = new string('0', 64);
-            corrupted++;
-        }
-        Assert.True(corrupted > 0, "no Full assets found in " + path);
-        File.WriteAllText(path, root.ToJsonString());
-    }
+        => ReleaseFeedHelper.CorruptFullAssetChecksums(releaseDir, channel);
 
     public static VelopackAsset GetFeedAsset(string releaseDir, string version, string channel = "win")
     {

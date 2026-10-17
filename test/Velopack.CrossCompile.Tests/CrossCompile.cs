@@ -180,9 +180,15 @@ public class CrossCompile
         host.Delete(appRoot);
         Assert.False(host.Exists(appExe));
 
+        // a feed whose Full assets fail their checksum: the classic full download can not succeed, so a successful
+        // `download` proves the chunk path (§12.5) ran on this host for a package packed on another OS
+        using var _ = TempUtil.GetTempDirectory(out var chunkOnlyFeed);
+        FileUtil.CopyDirectoryContents(feedPath, chunkOnlyFeed);
+        ReleaseFeedHelper.CorruptFullAssetChecksums(chunkOnlyFeed, requireChunkIndex: true);
+
         // install v1
         var setup = host.Stage(artifactPath);
-        var feed = host.Stage(feedPath);
+        var feed = host.Stage(chunkOnlyFeed);
         host.RunAndThrowIfNonZero(setup, "--silent");
         Assert.True(host.Exists(appExe), $"Expected {appExe} to exist after install");
         Assert.EndsWith(artifactId, host.RunAndThrowIfNonZero(appExe, "test").Trim());
