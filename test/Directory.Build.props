@@ -44,7 +44,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="Microsoft.Testing.Platform" Version="2.4.1" />
     <PackageReference Include="Neovolve.Logging.Xunit.Signed.v3" Version="7.2.0" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="xunit.v3.mtp-v2" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
     <PackageReference Include="coverlet.msbuild" Version="10.1.0">
@@ -59,6 +58,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <!-- Microsoft.CSharp (the dynamic binder) is part of the shared framework on net5+, where the package is unnecessary
+       and NuGet prunes it (NU1510): reference it for net4x targets only. -->
+  <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) and $(TargetFramework.StartsWith('net4')) ">
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
   </ItemGroup>
 
   <!-- StrongNamer re-signs unsigned third-party deps; only needed for net4x targets.
