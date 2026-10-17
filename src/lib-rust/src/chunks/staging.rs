@@ -154,10 +154,44 @@ pub fn read_ready_marker(dir: &Path) -> Option<StagedReadyMarker> {
     Some(marker)
 }
 
+/// Whether `name` is a staged id: 32 lowercase hex characters.
+fn is_staged_id(name: &str) -> bool {
+    name.len() == 32 && name.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// Whether `path` is a real directory: not a symlink, junction, mount point or other reparse point (which a
+/// directory listing must never follow into, let alone delete through).
+fn is_plain_dir(path: &Path) -> bool {
+    match fs::symlink_metadata(path) {
+        Ok(md) => {
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::MetadataExt;
+                const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+                if md.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+                    return false;
+                }
+            }
+            md.is_dir() && !md.file_type().is_symlink()
+        }
+        Err(_) => false,
+    }
+}
+
+/// The directories under `{PackagesDir}/staged` named like a staged id. Anything else (other names,
+/// symlinks, junctions, or a `staged` dir that is itself a reparse point) is ignored and never deleted.
 fn staged_dirs(packages_dir: &Path) -> Vec<PathBuf> {
     let root = StagedLayout::root(packages_dir);
+    if !is_plain_dir(&root) {
+        return Vec::new();
+    }
     match fs::read_dir(&root) {
-        Ok(entries) => entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.is_dir()).collect(),
+        Ok(entries) => entries
+            .filter_map(|e| e.ok())
+            .filter(|e| is_staged_id(&e.file_name().to_string_lossy()))
+            .map(|e| e.path())
+            .filter(|p| is_plain_dir(p))
+            .collect(),
         Err(_) => Vec::new(),
     }
 }
@@ -285,4 +319,49 @@ pub fn utc_now_rfc3339() -> String {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, rem / 3600, (rem % 3600) / 60, rem % 60)
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    fn junction(link: &Path, target: &Path) {
+        let status = std::process::Command::new("cmd")
+            .arg("/c")
+            .arg("mklink")
+            .arg("/J")
+            .arg(link)
+            .arg(target)
+            .stdout(std::process::Stdio::null())
+            .status()
+            .unwrap();
+        assert!(status.success(), "mklink /J failed");
+    }
+
+    #[test]
+    fn gc_never_follows_or_deletes_foreign_entries() {
+        let tmp = tempfile::tempdir().unwrap();
+        let id = "0123456789abcdef0123456789abcdef";
+        let victim = tmp.path().join("victim");
+        fs::create_dir_all(victim.join(id)).unwrap();
+        fs::write(victim.join(id).join("keep.txt"), b"keep").unwrap();
+
+        // `packages\staged` itself is a junction to a directory the caller does not own
+        let packages = tmp.path().join("packages");
+        fs::create_dir_all(&packages).unwrap();
+        junction(&StagedLayout::root(&packages), &victim);
+        gc_staged(&packages, None);
+        assert!(victim.join(id).join("keep.txt").exists(), "gc listed and deleted through a junction");
+
+        // inside a real `staged` dir: only plain dirs named like a staged id are collected
+        let packages = tmp.path().join("packages2");
+        let staged = StagedLayout::root(&packages);
+        fs::create_dir_all(staged.join("not-a-staged-id")).unwrap();
+        fs::create_dir_all(staged.join("fedcba9876543210fedcba9876543210")).unwrap();
+        junction(&staged.join("00000000000000000000000000000000"), &victim);
+        gc_staged(&packages, None);
+        assert!(staged.join("not-a-staged-id").exists());
+        assert!(!staged.join("fedcba9876543210fedcba9876543210").exists());
+        assert!(victim.join(id).join("keep.txt").exists());
+    }
 }

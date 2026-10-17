@@ -50,6 +50,7 @@ fn root_command() -> Command {
         .arg(arg!(--norestart "Do not restart the application after the update"))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update").hide(true))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
+        .arg(arg!(--elevatedChild "Internal: this process is the elevated child of apply-staged").hide(true))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..).value_parser(value_parser!(OsString)))
     )
     .subcommand(Command::new("patch")
@@ -225,6 +226,7 @@ fn main_inner() -> Result<()> {
         silent,
         verbose,
         log: log_file.cloned(),
+        elevated_child: false,
     };
 
     let result = match subcommand {
@@ -346,9 +348,14 @@ fn apply_staged(context: LocationContext, matches: &ArgMatches, flags: &commands
     info!("    Exe Args: {:?}", exe_args);
 
     let staged = staged.ok_or_else(|| anyhow!("Missing required argument --staged."))?;
+    let flags = commands::ElevationFlags {
+        elevated_child: get_flag_or_false(matches, "elevatedChild"),
+        ..flags.clone()
+    };
+    info!("    Elevated child: {:?}", flags.elevated_child);
     let locator = auto_locate_app_manifest(context)?;
     // The lock is acquired inside apply_staged_impl, after the self-elevation check (see `apply`).
-    let _ = commands::apply_staged(&locator, staged, restart, wait, exe_args, commands::HookRunMode::All, flags)?;
+    let _ = commands::apply_staged(&locator, staged, restart, wait, exe_args, commands::HookRunMode::All, &flags)?;
     Ok(())
 }
 
@@ -642,9 +649,15 @@ fn test_cli_parse_apply_staged_with_forwarded_flags() {
         silent: true,
         verbose: true,
         log: Some(PathBuf::from("C:\\logs\\update.log")),
+        elevated_child: false,
     };
     let forwarded: Vec<OsString> = vec!["--silent".into(), "--verbose".into(), "--log".into(), "C:\\logs\\update.log".into()];
     assert_eq!(flags.to_args(), forwarded);
+    assert!(!get_flag_or_false(matches.subcommand_matches("apply-staged").unwrap(), "elevatedChild"));
+
+    let command = vec!["Update.exe", "apply-staged", "--staged", "C:\\x", "--elevatedChild", "--norestart"];
+    let matches = root_command().try_get_matches_from(command).unwrap();
+    assert!(get_flag_or_false(matches.subcommand_matches("apply-staged").unwrap(), "elevatedChild"));
 
     let command = vec!["Update.exe", "apply-staged", "--staged", "C:\\x", "--wait"];
     let matches = root_command().try_get_matches_from(command).unwrap();

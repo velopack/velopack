@@ -206,20 +206,27 @@ fn swap_current_dir(current: &Path, backup: &Path, new: &Path, retry_delay_ms: i
     )
 }
 
-fn relaunch_elevated(old_locator: &VelopackLocator, staged_dir: &Path, flags: &ElevationFlags) -> Result<()> {
-    let root_path = old_locator.get_root_dir();
-    info!("Re-launching as administrator to update in {:?}", root_path);
+/// The command line of the elevated `apply-staged` child.
+fn elevated_child_args(root_path: &Path, packages_dir: &Path, staged_dir: &Path, flags: &ElevationFlags) -> Vec<OsString> {
     let mut args: Vec<OsString> = vec![
         "apply-staged".into(),
         "--staged".into(),
         staged_dir.into(),
         "--norestart".into(),
+        "--elevatedChild".into(),
         "--rootDir".into(),
         root_path.into(),
         "--packageDir".into(),
-        old_locator.get_packages_dir().into(),
+        packages_dir.into(),
     ];
     args.extend(flags.to_args());
+    args
+}
+
+fn relaunch_elevated(old_locator: &VelopackLocator, staged_dir: &Path, flags: &ElevationFlags) -> Result<()> {
+    let root_path = old_locator.get_root_dir();
+    info!("Re-launching as administrator to update in {:?}", root_path);
+    let args = elevated_child_args(&root_path, &old_locator.get_packages_dir(), staged_dir, flags);
     let exe_path = std::env::current_exe()?;
     let work_dir: Option<String> = None;
     // NB: show_window must be true for dialogs to be shown
@@ -247,6 +254,11 @@ pub fn apply_staged_impl(
 
     let tree = match validate_staged(staged_dir) {
         Ok(t) => t,
+        Err(e) if flags.elevated_child => {
+            // the unelevated parent validated it before; it deletes it on its next attempt if it is invalid
+            warn!("Staged directory {:?} is invalid, leaving it to the unelevated caller: {}", staged_dir, e);
+            return Err(e);
+        }
         Err(e) => {
             warn!("Deleting staged directory {:?} to prevent update loop: {}", staged_dir, e);
             remove_dir_timed(staged_dir);
@@ -259,13 +271,20 @@ pub fn apply_staged_impl(
         if process::is_current_process_elevated() {
             bail!("The root directory is not writable & process is already admin. The update cannot continue.");
         }
+        // The packages lock and the packages directory cleanup stay with this (unelevated) process: the
+        // elevated child never touches the packages directory, which the unelevated user controls.
+        let _mutex = old_locator.try_get_exclusive_lock()?;
         relaunch_elevated(old_locator, staged_dir, flags)?;
+        cleanup_packages_dir(old_locator, staged_dir);
         return Ok(new_locator);
     }
 
-    // Acquire the locks AFTER the self-elevation check (the unelevated parent would otherwise hold them
-    // while waiting for the elevated child).
-    let _mutex = old_locator.try_get_exclusive_lock()?;
+    // Acquire the locks AFTER the self-elevation check (the elevated child's parent holds the packages lock).
+    let _mutex = if flags.elevated_child {
+        None
+    } else {
+        Some(old_locator.try_get_exclusive_lock()?)
+    };
     let swap_lock =
         LockFile::try_acquire_lock(root_path.join(chunks::SWAP_LOCK_NAME)).context("Another update is swapping the application directory")?;
 
@@ -348,12 +367,11 @@ pub fn apply_staged_impl(
         sync_update_exe(&root_path);
         sync_stubs(&tree.layout.stubs_dir(), &root_path);
 
-        // Cleanup: the consumed staged dir, every other staged dir, every package, temp dirs.
-        let packages_dir = old_locator.get_packages_dir();
-        remove_dir_timed(staged_dir);
-        staging::gc_staged(&packages_dir, None);
-        remove_packages(&packages_dir);
-        remove_dir_timed(&old_locator.get_temp_dir_root());
+        if flags.elevated_child {
+            info!("Leaving the packages directory cleanup to the unelevated caller.");
+        } else {
+            cleanup_packages_dir(old_locator, staged_dir);
+        }
 
         info!("Staged update applied successfully.");
         Ok(())
@@ -362,6 +380,15 @@ pub fn apply_staged_impl(
     reporter.close();
     action?;
     Ok(new_locator)
+}
+
+/// Cleanup after a successful swap: the consumed staged dir, every other staged dir, every package, temp dirs.
+fn cleanup_packages_dir(old_locator: &VelopackLocator, staged_dir: &Path) {
+    let packages_dir = old_locator.get_packages_dir();
+    remove_dir_timed(staged_dir);
+    staging::gc_staged(&packages_dir, None);
+    remove_packages(&packages_dir);
+    remove_dir_timed(&old_locator.get_temp_dir_root());
 }
 
 fn sync_update_exe(root_path: &Path) {
@@ -420,5 +447,33 @@ fn remove_packages(packages_dir: &Path) {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn elevated_child_is_marked_and_gets_the_forwarded_flags() {
+        let flags = ElevationFlags {
+            silent: true,
+            log: Some(PathBuf::from("C:\\log.txt")),
+            ..Default::default()
+        };
+        let args = elevated_child_args(
+            Path::new("C:\\App"),
+            Path::new("C:\\Users\\u\\AppData\\Local\\App\\packages"),
+            Path::new("C:\\s"),
+            &flags,
+        );
+        let args: Vec<String> = args.iter().map(|a| a.to_string_lossy().to_string()).collect();
+        assert_eq!(args[0], "apply-staged");
+        assert!(args.contains(&"--elevatedChild".to_string()));
+        assert!(args.contains(&"--norestart".to_string()));
+        assert!(args.contains(&"--silent".to_string()));
+        assert!(args
+            .windows(2)
+            .any(|w| w[0] == "--packageDir" && w[1] == "C:\\Users\\u\\AppData\\Local\\App\\packages"));
     }
 }

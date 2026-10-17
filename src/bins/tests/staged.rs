@@ -149,6 +149,22 @@ fn apply_in_process(locator: &VelopackLocator, staged: &Path) -> anyhow::Result<
     )
 }
 
+fn apply_as_elevated_child(locator: &VelopackLocator, staged: &Path) -> anyhow::Result<VelopackLocator> {
+    let flags = commands::ElevationFlags {
+        elevated_child: true,
+        ..Default::default()
+    };
+    commands::apply_staged(
+        locator,
+        staged,
+        false,
+        shared::OperationWait::NoWait,
+        None,
+        commands::HookRunMode::None,
+        &flags,
+    )
+}
+
 fn assert_current_is(root: &Path, files: &[TestFile]) {
     for f in files.iter().filter(|f| f.disposition == 0) {
         assert_eq!(fs::read(root.join("current").join(&f.path)).unwrap(), f.data, "{}", f.path);
@@ -470,6 +486,42 @@ fn apply_staged_rejects_id_mismatch() {
     assert!(apply_in_process(&locator, &layout.dir).is_err());
     assert!(!layout.dir.exists());
     assert_current_is(&root, &v1_files());
+}
+
+/// The elevated child of `apply-staged` runs as admin while the packages directory belongs to the
+/// unelevated user: it must never delete anything there (nor take the packages lock, which the parent holds).
+#[cfg(target_os = "windows")]
+#[test]
+fn elevated_child_never_touches_the_packages_dir() {
+    dialogs::set_silent(true);
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().join("app");
+    install_v1(&root);
+    let packages = root.join("packages");
+    let (layout, _) = stage_v2(&root, &packages, random_bytes(7, 60_000));
+    let other_staged = packages.join("staged").join("0".repeat(32));
+    fs::create_dir_all(&other_staged).unwrap();
+    let package = packages.join("StagedTestApp-9.0.0-full.nupkg");
+    fs::write(&package, b"package").unwrap();
+    let locator = locator_for(&root, None);
+
+    // the parent holds the packages lock while the child runs
+    let parent_lock = locator.try_get_exclusive_lock().unwrap();
+
+    // a tree that fails validation in the child is left for the unelevated parent
+    fs::rename(layout.ready_json(), layout.dir.join("ready.json.bak")).unwrap();
+    assert!(apply_as_elevated_child(&locator, &layout.dir).is_err());
+    assert!(layout.dir.exists(), "the elevated child never deletes a staged directory");
+    fs::rename(layout.dir.join("ready.json.bak"), layout.ready_json()).unwrap();
+
+    // a successful swap leaves every staged dir, package and temp dir to the parent
+    apply_as_elevated_child(&locator, &layout.dir).unwrap();
+    assert_current_is(&root, &v2_files(random_bytes(7, 60_000)));
+    assert!(leftovers(&root).is_empty(), "{:?}", leftovers(&root));
+    assert!(layout.dir.exists());
+    assert!(other_staged.exists());
+    assert!(package.exists());
+    drop(parent_lock);
 }
 
 fn make_backup(root: &Path, name: &str, version: &str) {

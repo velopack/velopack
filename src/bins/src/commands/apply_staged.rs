@@ -9,12 +9,16 @@ use velopack::{constants, locator::VelopackLocator};
 #[cfg(target_os = "windows")]
 use super::apply_staged_windows_impl::apply_staged_impl;
 
-/// Global flags forwarded to an elevated `apply-staged` child.
+/// Global flags forwarded to an elevated `apply-staged` child, and whether this process is that child.
 #[derive(Debug, Clone, Default)]
 pub struct ElevationFlags {
     pub silent: bool,
     pub verbose: bool,
     pub log: Option<PathBuf>,
+    /// This process was started by `apply-staged` as its elevated child (`--elevatedChild`). The packages
+    /// directory then belongs to the unelevated user, so the child never locks, deletes or cleans anything
+    /// in it: the unelevated parent holds the packages lock and cleans up after the child succeeded.
+    pub elevated_child: bool,
 }
 
 impl ElevationFlags {
