@@ -60,7 +60,7 @@ def run(config):
         loc["CurrentBinaryDir"],
         bool(loc["IsPortable"]),
     )
-    options = velopack.UpdateOptions(False, config["channel"])
+    options = velopack.UpdateOptions(AllowVersionDowngrade=False, DisableChunkedUpdates=False, ExplicitChannel=config["channel"])
     source = build_source(config["source"])
 
     um = velopack.UpdateManager(source, options, locator)

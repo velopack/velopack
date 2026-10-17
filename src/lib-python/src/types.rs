@@ -201,13 +201,22 @@ pub struct PyVelopackAsset {
     /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
     #[pyo3(get, set)]
     pub NotesHtml: String,
+    /// The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+    #[pyo3(get, set)]
+    pub ChunkIndexOffset: u64,
+    /// The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+    #[pyo3(get, set)]
+    pub ChunkIndexLength: u64,
+    /// The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+    #[pyo3(get, set)]
+    pub ChunkIndexSHA256: String,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyVelopackAsset {
     #[new]
-    #[pyo3(signature = (PackageId, Version, Type, FileName, SHA1, SHA256, Size, NotesMarkdown, NotesHtml))]
+    #[pyo3(signature = (PackageId, Version, Type, FileName, SHA1, SHA256, Size, NotesMarkdown, NotesHtml, ChunkIndexOffset, ChunkIndexLength, ChunkIndexSHA256))]
     fn new(
         PackageId: String,
         Version: String,
@@ -218,6 +227,9 @@ impl PyVelopackAsset {
         Size: u64,
         NotesMarkdown: String,
         NotesHtml: String,
+        ChunkIndexOffset: u64,
+        ChunkIndexLength: u64,
+        ChunkIndexSHA256: String,
     ) -> Self {
         Self {
             PackageId: PackageId.into(),
@@ -229,6 +241,9 @@ impl PyVelopackAsset {
             Size: Size,
             NotesMarkdown: NotesMarkdown.into(),
             NotesHtml: NotesHtml.into(),
+            ChunkIndexOffset: ChunkIndexOffset,
+            ChunkIndexLength: ChunkIndexLength,
+            ChunkIndexSHA256: ChunkIndexSHA256.into(),
         }
     }
 }
@@ -245,6 +260,9 @@ impl From<VelopackAsset> for PyVelopackAsset {
             Size: value.Size,
             NotesMarkdown: value.NotesMarkdown.into(),
             NotesHtml: value.NotesHtml.into(),
+            ChunkIndexOffset: value.ChunkIndexOffset,
+            ChunkIndexLength: value.ChunkIndexLength,
+            ChunkIndexSHA256: value.ChunkIndexSHA256.into(),
         }
     }
 }
@@ -261,7 +279,9 @@ impl Into<VelopackAsset> for PyVelopackAsset {
             Size: self.Size,
             NotesMarkdown: self.NotesMarkdown.into(),
             NotesHtml: self.NotesHtml.into(),
-            ..Default::default()
+            ChunkIndexOffset: self.ChunkIndexOffset,
+            ChunkIndexLength: self.ChunkIndexLength,
+            ChunkIndexSHA256: self.ChunkIndexSHA256.into(),
         }
     }
 }
@@ -331,17 +351,21 @@ pub struct PyUpdateOptions {
     /// without having to reinstall the application.
     #[pyo3(get, set)]
     pub ExplicitChannel: Option<String>,
+    /// Disables chunk-based updates, so the full update package is always downloaded.
+    #[pyo3(get, set)]
+    pub DisableChunkedUpdates: bool,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyUpdateOptions {
     #[new]
-    #[pyo3(signature = (AllowVersionDowngrade, ExplicitChannel = None))]
-    fn new(AllowVersionDowngrade: bool, ExplicitChannel: Option<String>) -> Self {
+    #[pyo3(signature = (AllowVersionDowngrade, DisableChunkedUpdates, ExplicitChannel = None))]
+    fn new(AllowVersionDowngrade: bool, DisableChunkedUpdates: bool, ExplicitChannel: Option<String>) -> Self {
         Self {
             AllowVersionDowngrade: AllowVersionDowngrade,
             ExplicitChannel: ExplicitChannel.map(Into::into),
+            DisableChunkedUpdates: DisableChunkedUpdates,
         }
     }
 }
@@ -351,6 +375,7 @@ impl From<UpdateOptions> for PyUpdateOptions {
         PyUpdateOptions {
             AllowVersionDowngrade: value.AllowVersionDowngrade,
             ExplicitChannel: value.ExplicitChannel.map(Into::into),
+            DisableChunkedUpdates: value.DisableChunkedUpdates,
         }
     }
 }
@@ -360,7 +385,7 @@ impl Into<UpdateOptions> for PyUpdateOptions {
         UpdateOptions {
             AllowVersionDowngrade: self.AllowVersionDowngrade,
             ExplicitChannel: self.ExplicitChannel.map(Into::into),
-            ..Default::default()
+            DisableChunkedUpdates: self.DisableChunkedUpdates,
         }
     }
 }

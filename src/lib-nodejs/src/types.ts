@@ -55,6 +55,12 @@ export type VelopackAsset = {
     NotesMarkdown: string,
     /** The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string. */
     NotesHtml: string,
+    /** The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index. */
+    ChunkIndexOffset: number,
+    /** The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index. */
+    ChunkIndexLength: number,
+    /** The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index. */
+    ChunkIndexSHA256: string,
 }
 
 /** Holds information about the current version and pending updates, such as how many there are, and access to release notes. */
@@ -87,5 +93,7 @@ export type UpdateOptions = {
      * without having to reinstall the application.
      */
     ExplicitChannel?: string,
+    /** Disables chunk-based updates, so the full update package is always downloaded. */
+    DisableChunkedUpdates: boolean,
 }
 

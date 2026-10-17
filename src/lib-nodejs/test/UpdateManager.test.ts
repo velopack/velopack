@@ -19,6 +19,7 @@ test("UpdateManager detects local update", async () => {
     const options: UpdateOptions = {
       ExplicitChannel: "beta",
       AllowVersionDowngrade: false,
+      DisableChunkedUpdates: false,
     };
 
     const um = new UpdateManager(tmpDir, options, locator);
@@ -46,6 +47,7 @@ test("UpdateManager detects update from explicit FileSource", async () => {
     const options: UpdateOptions = {
       ExplicitChannel: "beta",
       AllowVersionDowngrade: false,
+      DisableChunkedUpdates: false,
     };
 
     const um = new UpdateManager(new FileSource(tmpDir), options, locator);
@@ -70,6 +72,7 @@ test("UpdateManager detects update from HttpSource with custom headers", async (
     const options: UpdateOptions = {
       ExplicitChannel: "beta",
       AllowVersionDowngrade: false,
+      DisableChunkedUpdates: false,
     };
 
     const feedJson = readFileSync(fixture("testfeed.json"), "utf-8");
@@ -117,6 +120,7 @@ test("UpdateManager downloads full update", async () => {
     const options: UpdateOptions = {
       ExplicitChannel: "beta",
       AllowVersionDowngrade: false,
+      DisableChunkedUpdates: false,
     };
 
     const um = new UpdateManager(feedDir, options, locator);
@@ -146,6 +150,7 @@ test("UpdateManager defaults to Velopack Flow when no source is given", async ()
 
     const options: UpdateOptions = {
       AllowVersionDowngrade: false,
+      DisableChunkedUpdates: false,
     };
 
     const um = new UpdateManager(options, locator);
@@ -170,6 +175,7 @@ test("UpdateManager accepts an explicit VelopackFlowSource", async () => {
 
     const options: UpdateOptions = {
       AllowVersionDowngrade: false,
+      DisableChunkedUpdates: false,
     };
 
     const um = new UpdateManager(new VelopackFlowSource(), options, locator);

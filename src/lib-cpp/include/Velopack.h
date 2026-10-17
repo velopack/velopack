@@ -119,6 +119,18 @@ typedef struct vpkc_asset_t {
    * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
    */
   char *NotesHtml;
+  /**
+   * The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+   */
+  uint64_t ChunkIndexOffset;
+  /**
+   * The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+   */
+  uint64_t ChunkIndexLength;
+  /**
+   * The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+   */
+  char *ChunkIndexSHA256;
 } vpkc_asset_t;
 
 /**
@@ -153,6 +165,10 @@ typedef struct vpkc_update_options_t {
    * without having to reinstall the application.
    */
   char *ExplicitChannel;
+  /**
+   * Disables chunk-based updates, so the full update package is always downloaded.
+   */
+  bool DisableChunkedUpdates;
 } vpkc_update_options_t;
 
 /**

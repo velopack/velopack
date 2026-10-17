@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::bundle::Manifest;
+use crate::chunks::RangeReader;
 use crate::*;
 
 mod file;
@@ -29,6 +30,12 @@ pub trait UpdateSource: Send + Sync {
     fn get_release_feed(&self, channel: &str, app: &bundle::Manifest, staged_user_id: &str) -> Result<VelopackAssetFeed, Error>;
     /// Download the specified VelopackAsset to the provided local file path.
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
+    /// Opens byte-range access to the specified VelopackAsset, used by chunk-based updates to fetch only
+    /// the parts of a package that are not already installed. Returns `None` when ranged access is not
+    /// available for this asset, in which case the full package is downloaded instead.
+    fn open_range_reader(&self, _asset: &VelopackAsset) -> Result<Option<Box<dyn RangeReader>>, Error> {
+        Ok(None)
+    }
 }
 
 /// A source that does not provide any update capability.
@@ -102,6 +109,10 @@ impl UpdateSource for AutoSource {
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         self.source.download_release_entry(asset, local_file, progress_sender)
     }
+
+    fn open_range_reader(&self, asset: &VelopackAsset) -> Result<Option<Box<dyn RangeReader>>, Error> {
+        self.source.open_range_reader(asset)
+    }
 }
 
 // --- Shared helpers for git-based sources ---
@@ -141,6 +152,14 @@ where
     }
 
     Ok(VelopackAssetFeed { Assets: all_assets })
+}
+
+/// Opens ranged access to an asset of a git release through the pooled range agent.
+fn open_git_range_reader(asset_url: &str, options: &download::HttpOptions) -> Result<Option<Box<dyn RangeReader>>, Error> {
+    info!("Opening ranged access to URL '{}'", asset_url);
+    let reader =
+        download::HttpRangeReader::open(download::create_range_agent(), asset_url, &options.Headers).map_err(|e| Error::Other(e.to_string()))?;
+    Ok(Some(Box::new(reader)))
 }
 
 /// Downloads an asset file from a git release.

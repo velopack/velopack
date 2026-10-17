@@ -2,11 +2,12 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{fs, process::exit, sync::mpsc::Sender};
 
 use crate::{
     bundle::Manifest,
+    chunks::{self, staging, ChunkIndex, RangeReader, StagedLayout, StagedReadyMarker},
     constants,
     locator::{self, LocationContext, VelopackLocator, VelopackLocatorConfig},
     misc,
@@ -269,12 +270,7 @@ impl UpdateManager {
     /// VelopackAsset can be applied by calling apply_updates_and_restart or wait_exit_then_apply_updates.
     pub fn get_update_pending_restart(&self) -> Option<VelopackAsset> {
         let packages_dir = self.inner.locator.get_packages_dir();
-        if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
-            if manifest.version > self.inner.locator.get_manifest_version() {
-                return Some(local_path_to_asset(&manifest, &path));
-            }
-        }
-        None
+        find_pending_update(&packages_dir, &self.inner.locator.get_manifest_version()).map(|(_, asset)| asset)
     }
 
     /// Get a list of available remote releases from the package source.
@@ -347,51 +343,88 @@ impl UpdateManager {
 
     /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
     /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
+    ///
+    /// On Windows, when the installed app and the target package both carry a chunk index, only the parts of the
+    /// package that are not already installed are fetched (by HTTP range requests) and the new version is assembled
+    /// into a staged directory, ready to be swapped in by `apply_updates_and_restart`. Any failure of that path falls
+    /// back to downloading the full package. Reported progress never decreases within one call.
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let _mutex = &self.inner.locator.try_get_exclusive_lock()?;
         let packages_dir = &self.inner.locator.get_packages_dir();
-
         fs::create_dir_all(packages_dir)?;
-        let final_target_file = local_package_path(packages_dir, &update.TargetFullRelease);
-        let partial_file = final_target_file.with_extension("partial");
+        let target = &update.TargetFullRelease;
+        let report = MonotonicProgress::new(progress);
 
-        if final_target_file.exists() {
-            info!("Package already exists on disk, skipping download: '{:?}'", final_target_file);
+        if let Some((dir, _)) = chunks::find_ready_staged_for(packages_dir, target) {
+            info!("Staged update is already assembled, skipping download: '{:?}'", dir);
+            report.send(100);
             return Ok(());
         }
 
-        let old_nupkg_pattern = format!("{}/*.nupkg", packages_dir.to_string_lossy());
-        let old_partial_pattern = format!("{}/*.partial", packages_dir.to_string_lossy());
-        let mut to_delete = Vec::new();
+        let final_target_file = local_package_path(packages_dir, target);
+        if final_target_file.exists() {
+            info!("Package already exists on disk, skipping download: '{:?}'", final_target_file);
+            report.send(100);
+            return Ok(());
+        }
 
-        fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<PathBuf>) {
-            match glob::glob(pattern) {
-                Ok(paths) => {
-                    for path in paths.into_iter().flatten() {
-                        to_delete.push(path);
-                    }
-                }
+        if let Some((local, reader)) = self.chunk_path_eligibility(target) {
+            match self.download_chunked(target, local, reader.as_ref(), &report) {
+                Ok(()) => return Ok(()),
+                Err(ChunkPathError::Cancelled) => return Err(Error::Other("The update was cancelled".to_string())),
                 Err(e) => {
-                    error!("Error while searching for packages to clean: {}", e);
+                    warn!("Chunk update failed, falling back to a full download: {}", e);
+                    if e.deletes_staged_dir() {
+                        let dir = StagedLayout::new(packages_dir, &chunks::staged_id(&target.ChunkIndexSHA256)).dir;
+                        if dir.exists() {
+                            if let Err(e) = misc::retry_io(|| fs::remove_dir_all(&dir)) {
+                                warn!("Failed to delete staged directory {:?}: {}", dir, e);
+                            }
+                        }
+                    }
                 }
             }
         }
 
+        self.download_full(target, &final_target_file, &report)?;
+        chunks::gc_staged(packages_dir, None);
+        Ok(())
+    }
+
+    /// The classic path: download the whole package, verify it, extract the new updater (Windows) and delete
+    /// older packages. Progress is mapped onto whatever is left of the 0–100 band.
+    fn download_full(&self, target: &VelopackAsset, final_target_file: &Path, report: &MonotonicProgress) -> Result<(), Error> {
+        let packages_dir = &self.inner.locator.get_packages_dir();
+        let partial_file = final_target_file.with_extension("partial");
+
+        let old_nupkg_pattern = format!("{}/*.nupkg", packages_dir.to_string_lossy());
+        let old_partial_pattern = format!("{}/*.partial", packages_dir.to_string_lossy());
+        let mut to_delete = Vec::new();
         find_files_to_delete(&old_nupkg_pattern, &mut to_delete);
         find_files_to_delete(&old_partial_pattern, &mut to_delete);
 
-        self.inner
-            .source
-            .download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
-        self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
+        let band_start = report.last().max(0);
+        let (sender, receiver) = std::sync::mpsc::channel::<i16>();
+        let forwarder = std::thread::spawn({
+            let report = report.clone();
+            move || {
+                for p in receiver {
+                    report.send_band(band_start, 100, p);
+                }
+            }
+        });
+        let result = self.inner.source.download_release_entry(target, &partial_file, Some(sender));
+        let _ = forwarder.join();
+        result?;
+        self.verify_package_checksum(&partial_file, target)?;
         info!("Successfully downloaded file: '{:?}'", partial_file);
 
         info!("Renaming partial file to final target: '{:?}'", final_target_file);
-        fs::rename(&partial_file, &final_target_file)?;
+        fs::rename(&partial_file, final_target_file)?;
 
         // extract new Update.exe on Windows only
         #[cfg(target_os = "windows")]
-        match crate::bundle::load_bundle_from_file(&final_target_file) {
+        match crate::bundle::load_bundle_from_file(final_target_file) {
             Ok(bundle) => {
                 info!("Bundle loaded successfully.");
                 let update_exe_path = self.inner.locator.get_update_path();
@@ -408,7 +441,193 @@ impl UpdateManager {
             info!("Deleting up old package: '{:?}'", path);
             let _ = fs::remove_file(&path);
         }
+        report.send(100);
+        Ok(())
+    }
 
+    /// Evaluates the chunk path eligibility rules (§5.1). Returns the parsed local content map and the range
+    /// reader when every rule holds, or None (with the reason logged) when the full package must be downloaded.
+    fn chunk_path_eligibility(&self, target: &VelopackAsset) -> Option<(ChunkIndex, Box<dyn RangeReader>)> {
+        if !cfg!(windows) {
+            debug!("Chunk updates are only supported on Windows, downloading the full package.");
+            return None;
+        }
+        if self.inner.options.DisableChunkedUpdates {
+            info!("Chunk updates are disabled by UpdateOptions, downloading the full package.");
+            return None;
+        }
+        if !asset_has_chunk_index(target) {
+            info!("The target package has no chunk index, downloading the full package.");
+            return None;
+        }
+        let local_path = self.inner.locator.get_current_bin_dir().join(chunks::LOCAL_INDEX_NAME);
+        let local = match fs::read(&local_path) {
+            Ok(bytes) => match ChunkIndex::parse_local(&bytes) {
+                Ok(index) => index,
+                Err(e) => {
+                    info!(
+                        "The installed content map {:?} is invalid ({}), downloading the full package.",
+                        local_path, e
+                    );
+                    return None;
+                }
+            },
+            Err(e) => {
+                info!("No installed content map at {:?} ({}), downloading the full package.", local_path, e);
+                return None;
+            }
+        };
+        match self.inner.source.open_range_reader(target) {
+            Ok(Some(reader)) => Some((local, reader)),
+            Ok(None) => {
+                info!("The update source does not support ranged downloads, downloading the full package.");
+                None
+            }
+            Err(e) => {
+                warn!("Failed to open ranged access to the package ({}), downloading the full package.", e);
+                None
+            }
+        }
+    }
+
+    /// The chunk path (§8.4): fetch the index, plan, fetch the needed ranges, assemble in-process (with up to two
+    /// extra rounds for chunks the local files turned out not to provide) and copy the new updater sidecar.
+    fn download_chunked(
+        &self,
+        target: &VelopackAsset,
+        local: ChunkIndex,
+        reader: &dyn RangeReader,
+        report: &MonotonicProgress,
+    ) -> Result<(), ChunkPathError> {
+        let locator = &self.inner.locator;
+        let packages_dir = locator.get_packages_dir();
+        let id = chunks::staged_id(&target.ChunkIndexSHA256);
+        info!("Starting chunk update of {} to staged id {}", target.FileName, id);
+
+        chunks::gc_staged(&packages_dir, Some(&id));
+        let layout = StagedLayout::new(&packages_dir, &id);
+        fs::create_dir_all(&layout.dir)?;
+        staging::write_asset_json(&layout, target).map_err(|e| ChunkPathError::Fatal(format!("failed to write asset.json: {}", e)))?;
+
+        let policy = chunks::RetryPolicy::new();
+        let index_bytes = match fs::read(layout.index_bin()) {
+            Ok(bytes) if chunks::sha256_hex(&chunks::sha256(&bytes)).eq_ignore_ascii_case(&target.ChunkIndexSHA256) => {
+                info!("Reusing the previously fetched chunk index.");
+                bytes
+            }
+            _ => {
+                let bytes = chunks::fetch_index(reader, target, &policy, &|done, total| {
+                    report.send_band(0, chunks::PROGRESS_INDEX_END, percent(done, total));
+                })?;
+                staging::write_file_atomic(&layout.index_bin(), &bytes, true)?;
+                bytes
+            }
+        };
+        report.send(chunks::PROGRESS_INDEX_END);
+        let remote = ChunkIndex::parse_trailer(&index_bytes).map_err(|e| ChunkPathError::Invalid(e.to_string()))?;
+        remote
+            .validate_asset_size(target.Size)
+            .map_err(|e| ChunkPathError::Invalid(e.to_string()))?;
+
+        let roots = chunks::LocalRoots {
+            current_dir: locator.get_current_bin_dir(),
+            updater_path: locator.get_update_path(),
+            root_dir: root_dir_of(locator),
+        };
+        let blob = chunks::ChunkBlob::open(layout.chunks_bin())?;
+        let plan = chunks::plan(&remote, Some(&local), &roots, &|h| blob.contains(h));
+        info!(
+            "Chunk plan: {} chunks ({} bytes compressed, {} bytes plaintext) of a {} byte package; {} chunks already staged",
+            plan.needed.len(),
+            plan.bytes_needed,
+            plan.plaintext_needed,
+            target.Size,
+            blob.len()
+        );
+        if chunks::exceeds_transport_ceiling(&plan, target.Size) {
+            return Err(ChunkPathError::Fatal(format!(
+                "the plan needs {} of {} bytes, a full download is cheaper",
+                plan.bytes_needed, target.Size
+            )));
+        }
+        let required = (plan.bytes_total + plan.plaintext_needed) as f64 * chunks::FREE_SPACE_FACTOR + chunks::FREE_SPACE_MARGIN as f64;
+        if let Some(free) = free_space_bytes(&packages_dir) {
+            if (free as f64) < required {
+                return Err(ChunkPathError::Fatal(format!(
+                    "not enough free space for a staged update ({} bytes free, {} required)",
+                    free, required as u64
+                )));
+            }
+        }
+
+        let requests = chunks::coalesce(&plan);
+        let blob = Mutex::new(blob);
+        let fetch_progress = |done: u64, total: u64| {
+            report.send_band(chunks::PROGRESS_INDEX_END, chunks::PROGRESS_FETCH_END, percent(done, total));
+        };
+        chunks::fetch_ranges(reader, &requests, target.Size, &blob, &policy, &fetch_progress, false)?;
+        report.send(chunks::PROGRESS_FETCH_END);
+
+        let ctx = chunks::AssembleContext {
+            staged_dir: layout.dir.clone(),
+            current_dir: roots.current_dir.clone(),
+            updater_local_source: roots.updater_path.clone(),
+            root_dir: roots.root_dir.clone(),
+        };
+        let assemble_progress = |p: i16| report.send_band(chunks::PROGRESS_FETCH_END, chunks::PROGRESS_ASSEMBLE_END, p);
+        let mut rounds = 0u32;
+        loop {
+            match chunks::assemble(&ctx, &assemble_progress) {
+                Ok(()) => break,
+                Err(chunks::AssembleError::Missing(n)) => {
+                    rounds += 1;
+                    if rounds > chunks::MAX_MISSING_ROUNDS {
+                        return Err(ChunkPathError::Fatal(format!(
+                            "assembly still needs {} chunks after {} extra rounds",
+                            n,
+                            rounds - 1
+                        )));
+                    }
+                    let hashes = staging::read_missing_bin(&layout.missing_bin())?;
+                    let missing_plan = chunks::plan_for_hashes(&remote, &hashes);
+                    if missing_plan.needed.len() != hashes.len() {
+                        return Err(ChunkPathError::Invalid("assembly reported chunks the index does not contain".to_string()));
+                    }
+                    info!("Assembly needs {} more chunks, fetching them (round {})", hashes.len(), rounds);
+                    let requests = chunks::coalesce(&missing_plan);
+                    chunks::fetch_ranges(reader, &requests, target.Size, &blob, &policy, &|_, _| {}, true)?;
+                    let _ = fs::remove_file(layout.missing_bin());
+                }
+                Err(chunks::AssembleError::Invalid(m)) => return Err(ChunkPathError::Invalid(m)),
+                Err(chunks::AssembleError::Io(e)) => return Err(ChunkPathError::Io(e)),
+                Err(chunks::AssembleError::Other(e)) => return Err(ChunkPathError::Fatal(e.to_string())),
+            }
+        }
+        report.send(chunks::PROGRESS_ASSEMBLE_END);
+
+        // Best-effort: the mandatory copy happens right before apply-staged is launched.
+        let sidecar = layout.updater();
+        let update_exe = locator.get_update_path();
+        let same = match (chunks::sha256_file(&sidecar), chunks::sha256_file(&update_exe)) {
+            (Ok(a), Ok(b)) => a == b,
+            _ => false,
+        };
+        if !same {
+            match misc::retry_io(|| fs::copy(&sidecar, &update_exe)) {
+                Ok(_) => info!("Copied the new updater to {:?}", update_exe),
+                Err(e) => warn!("Failed to copy the new updater to {:?}: {}", update_exe, e),
+            }
+        }
+
+        let mut to_delete = Vec::new();
+        find_files_to_delete(&format!("{}/*.nupkg", packages_dir.to_string_lossy()), &mut to_delete);
+        find_files_to_delete(&format!("{}/*.partial", packages_dir.to_string_lossy()), &mut to_delete);
+        for path in to_delete {
+            info!("Deleting old package: '{:?}'", path);
+            let _ = fs::remove_file(&path);
+        }
+        info!("Chunk update staged successfully in {:?}", layout.dir);
+        report.send(100);
         Ok(())
     }
 
@@ -504,18 +723,25 @@ impl UpdateManager {
         C: IntoIterator<Item = S>,
     {
         let to_apply = to_apply.as_ref();
-        let pkg_path = local_package_path(&self.inner.locator.get_packages_dir(), to_apply);
-
-        if !pkg_path.exists() {
-            error!("Package does not exist on disk: '{:?}'", pkg_path);
-            return Err(Error::FileNotFound(pkg_path));
-        }
+        let packages_dir = self.inner.locator.get_packages_dir();
 
         let mut args: Vec<OsString> = Vec::new();
-        args.push("apply".into());
-
-        args.push("--package".into());
-        args.push(pkg_path.into());
+        if let Some((staged_dir, marker)) = chunks::find_ready_staged_for(&packages_dir, to_apply) {
+            info!("Applying staged update from '{:?}'", staged_dir);
+            self.prepare_staged_updater(&staged_dir, &marker)?;
+            args.push("apply-staged".into());
+            args.push("--staged".into());
+            args.push(staged_dir.into());
+        } else {
+            let pkg_path = local_package_path(&packages_dir, to_apply);
+            if !pkg_path.exists() {
+                error!("Package does not exist on disk: '{:?}'", pkg_path);
+                return Err(Error::FileNotFound(pkg_path));
+            }
+            args.push("apply".into());
+            args.push("--package".into());
+            args.push(pkg_path.into());
+        }
 
         match wait_mode {
             ApplyWaitMode::NoWait => {}
@@ -556,6 +782,187 @@ impl UpdateManager {
         let update_path = self.inner.locator.get_update_path();
         crate::process::run_process(&update_path, args, update_path.parent(), false, None)?;
         Ok(())
+    }
+
+    /// `apply-staged` only ever runs through the target's own updater: verifies the staged sidecar against the
+    /// marker and copies it over the current updater when they differ (mandatory, a failure is an error).
+    fn prepare_staged_updater(&self, staged_dir: &Path, marker: &StagedReadyMarker) -> Result<(), Error> {
+        let sidecar = StagedLayout::from_dir(staged_dir).updater();
+        let sidecar_sha = chunks::sha256_hex(&chunks::sha256_file(&sidecar)?);
+        if !sidecar_sha.eq_ignore_ascii_case(&marker.UpdaterSHA256) {
+            error!("The staged updater {:?} does not match ready.json, deleting the staged update.", sidecar);
+            let _ = fs::remove_dir_all(staged_dir);
+            return Err(Error::InvalidPackage("the staged updater does not match its ready marker".to_string()));
+        }
+        let update_exe = self.inner.locator.get_update_path();
+        let current_sha = chunks::sha256_file(&update_exe).map(|h| chunks::sha256_hex(&h)).unwrap_or_default();
+        if !current_sha.eq_ignore_ascii_case(&sidecar_sha) {
+            info!("Copying the staged updater over {:?}", update_exe);
+            misc::retry_io(|| fs::copy(&sidecar, &update_exe))?;
+        }
+        Ok(())
+    }
+}
+
+/// Why the chunk path gave up; decides whether the staged directory survives for a later resume.
+#[derive(Debug, thiserror::Error)]
+enum ChunkPathError {
+    /// The index or the staged tree is invalid: the staged directory is deleted.
+    #[error("invalid chunk update: {0}")]
+    Invalid(String),
+    /// Disk full, access denied, readback mismatch: the staged directory is deleted to free the space.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    /// A network budget, an unsupported range response or a cost ceiling: the staged directory is kept.
+    #[error("{0}")]
+    Fatal(String),
+    /// The caller cancelled the update: the staged directory is kept.
+    #[error("cancelled")]
+    Cancelled,
+}
+
+impl ChunkPathError {
+    fn deletes_staged_dir(&self) -> bool {
+        matches!(self, ChunkPathError::Invalid(_) | ChunkPathError::Io(_))
+    }
+}
+
+impl From<chunks::FetchError> for ChunkPathError {
+    fn from(e: chunks::FetchError) -> Self {
+        match e {
+            chunks::FetchError::Fatal(m) => ChunkPathError::Fatal(m),
+            chunks::FetchError::Cancelled => ChunkPathError::Cancelled,
+        }
+    }
+}
+
+/// Forwards progress to the caller's sender, reporting only integer increases so values never go backwards.
+#[derive(Clone)]
+struct MonotonicProgress {
+    sender: Option<Sender<i16>>,
+    last: Arc<Mutex<i16>>,
+}
+
+impl MonotonicProgress {
+    fn new(sender: Option<Sender<i16>>) -> MonotonicProgress {
+        MonotonicProgress {
+            sender,
+            last: Arc::new(Mutex::new(-1)),
+        }
+    }
+
+    fn last(&self) -> i16 {
+        *self.last.lock().unwrap()
+    }
+
+    fn send(&self, value: i16) {
+        let value = value.clamp(0, 100);
+        let mut last = self.last.lock().unwrap();
+        if value > *last {
+            *last = value;
+            if let Some(sender) = &self.sender {
+                let _ = sender.send(value);
+            }
+        }
+    }
+
+    /// Maps a 0–100 value onto `[start, end]`.
+    fn send_band(&self, start: i16, end: i16, value: i16) {
+        let value = value.clamp(0, 100) as i32;
+        self.send(start + ((end - start) as i32 * value / 100) as i16);
+    }
+}
+
+fn percent(done: u64, total: u64) -> i16 {
+    if total == 0 {
+        100
+    } else {
+        ((done.min(total) as u128 * 100) / total as u128) as i16
+    }
+}
+
+fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<PathBuf>) {
+    match glob::glob(pattern) {
+        Ok(paths) => {
+            for path in paths.into_iter().flatten() {
+                to_delete.push(path);
+            }
+        }
+        Err(e) => {
+            error!("Error while searching for packages to clean: {}", e);
+        }
+    }
+}
+
+/// Whether a feed asset points at a chunk index trailer inside bounds (§5.1 rule 3).
+fn asset_has_chunk_index(asset: &VelopackAsset) -> bool {
+    asset.ChunkIndexLength > 0
+        && asset.ChunkIndexLength <= chunks::MAX_TRAILER_LEN
+        && !asset.ChunkIndexSHA256.is_empty()
+        && asset
+            .ChunkIndexOffset
+            .checked_add(asset.ChunkIndexLength)
+            .map(|end| end <= asset.Size)
+            .unwrap_or(false)
+}
+
+/// The root directory for chunk purposes (stub records live there).
+fn root_dir_of(locator: &VelopackLocator) -> PathBuf {
+    #[cfg(target_os = "linux")]
+    {
+        locator.get_appimage_path()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        locator.get_root_dir()
+    }
+}
+
+/// The highest pending update above `current`: the ready staged tree (its asset carries the chunk index
+/// pointer, so a later apply matches it by id) or the latest local full package. Returns the version and asset.
+pub(crate) fn find_pending_update(packages_dir: &Path, current: &Version) -> Option<(Version, VelopackAsset)> {
+    let mut best: Option<(Version, VelopackAsset)> = None;
+    if let Some((_, marker)) = chunks::find_ready_staged(packages_dir) {
+        if let Some(version) = marker.version() {
+            if version > *current {
+                best = Some((version, marker.Asset));
+            }
+        }
+    }
+    if let Some((path, manifest)) = locator::find_latest_full_package(packages_dir) {
+        let newer = best.as_ref().map(|(v, _)| manifest.version > *v).unwrap_or(true);
+        if manifest.version > *current && newer {
+            best = Some((manifest.version.clone(), local_path_to_asset(&manifest, &path)));
+        }
+    }
+    best
+}
+
+/// Free bytes available to the caller on the volume holding `path`; None when the query fails (treated as "enough").
+fn free_space_bytes(path: &Path) -> Option<u64> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+        let wide = crate::wide_strings::string_to_wide(path.to_string_lossy().as_ref());
+        let mut free: u64 = 0;
+        match unsafe { GetDiskFreeSpaceExW(wide.as_pcwstr(), Some(&mut free), None, None) } {
+            Ok(()) => Some(free),
+            Err(e) => {
+                debug!("Free space query failed for {:?}: {}", path, e);
+                None
+            }
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        let c_path = std::ffi::CString::new(path.as_os_str().as_bytes()).ok()?;
+        let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+        if unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) } != 0 {
+            debug!("Free space query failed for {:?}: {}", path, std::io::Error::last_os_error());
+            return None;
+        }
+        Some(stat.f_bavail as u64 * stat.f_frsize as u64)
     }
 }
 

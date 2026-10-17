@@ -1,10 +1,14 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+use crate::chunks::fetcher::transient_with_retry_after;
+use crate::chunks::{RangeError, RangeReader, MAX_CONSECUTIVE_REFRESHES, REQUEST_TIMEOUT_SECS};
 use crate::{misc, Error};
 
 /// A single HTTP header (name and value pair) to be sent with a web request.
@@ -102,6 +106,319 @@ fn get_download_agent(options: Option<&HttpOptions>) -> Result<ureq::Agent, Erro
         config = config.timeout_global(Some(Duration::from_millis(timeout_ms)));
     }
     Ok(config.build().into())
+}
+
+/// Builds the pooled agent for ranged chunk requests (§5.5, pinned literally). Statuses and redirects are
+/// returned as responses so the reader can classify them itself.
+pub fn create_range_agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .http_status_as_error(false)
+        .max_redirects(0)
+        .max_redirects_will_error(false)
+        .max_idle_connections_per_host(8)
+        .timeout_connect(Some(Duration::from_secs(30)))
+        .timeout_recv_response(Some(Duration::from_secs(30)))
+        .timeout_recv_body(Some(Duration::from_secs(REQUEST_TIMEOUT_SECS)))
+        .timeout_global(Some(Duration::from_secs(REQUEST_TIMEOUT_SECS)))
+        .accept_encoding("identity")
+        .build()
+        .into()
+}
+
+const MAX_REDIRECT_HOPS: u32 = 10;
+
+struct CachedUrl {
+    url: String,
+    /// Bumped whenever the cached URL is replaced, so concurrent workers can tell a refresh they
+    /// observed the failure of from one that already happened.
+    generation: u64,
+    /// False until the first resolution from the original URL completed.
+    resolved: bool,
+}
+
+/// Byte-range access to one HTTP asset (§8.2): a pooled agent, manual redirects with the final URL cached,
+/// single-flight re-resolution when a cached (signed) URL stops working, and strict 206 validation.
+pub struct HttpRangeReader {
+    agent: ureq::Agent,
+    original_url: String,
+    headers: Vec<HttpHeader>,
+    cached: Mutex<CachedUrl>,
+    refresh_lock: Mutex<()>,
+    len: Mutex<Option<u64>>,
+    consecutive_refreshes: AtomicU32,
+}
+
+fn host_of(url: &str) -> Option<String> {
+    url::Url::parse(url).ok().and_then(|u| u.host_str().map(|h| h.to_ascii_lowercase()))
+}
+
+fn map_ureq_error(e: ureq::Error) -> RangeError {
+    match e {
+        ureq::Error::BadUri(_) | ureq::Error::Http(_) | ureq::Error::InvalidProxyUrl => RangeError::Unavailable(e.to_string()),
+        other => RangeError::Transient(other.to_string()),
+    }
+}
+
+/// Parses `bytes start-end/total` (the total must be a number: `*` is not acceptable for a package).
+fn parse_content_range(value: &str) -> Option<(u64, u64, u64)> {
+    let rest = value.trim().strip_prefix("bytes")?.trim_start();
+    let (range, total) = rest.split_once('/')?;
+    let (start, end) = range.split_once('-')?;
+    Some((start.trim().parse().ok()?, end.trim().parse().ok()?, total.trim().parse().ok()?))
+}
+
+fn header_str<'a>(headers: &'a ureq::http::HeaderMap, name: &str) -> Option<&'a str> {
+    headers.get(name).and_then(|v| v.to_str().ok())
+}
+
+impl HttpRangeReader {
+    /// Creates a reader for `url`; no request is made until the first read. `headers` are sent with
+    /// every request (`Authorization` is dropped when a redirect leaves the original host).
+    pub fn open(agent: ureq::Agent, url: &str, headers: &[HttpHeader]) -> Result<HttpRangeReader, RangeError> {
+        url::Url::parse(url).map_err(|e| RangeError::Unavailable(format!("invalid url '{}': {}", url, e)))?;
+        Ok(HttpRangeReader {
+            agent,
+            original_url: url.to_string(),
+            headers: headers.to_vec(),
+            cached: Mutex::new(CachedUrl {
+                url: url.to_string(),
+                generation: 0,
+                resolved: false,
+            }),
+            refresh_lock: Mutex::new(()),
+            len: Mutex::new(None),
+            consecutive_refreshes: AtomicU32::new(0),
+        })
+    }
+
+    fn snapshot(&self) -> (String, u64, bool) {
+        let c = self.cached.lock().unwrap();
+        (c.url.clone(), c.generation, c.resolved)
+    }
+
+    /// Caches the final URL of a resolution. The generation is bumped when the URL changed or when
+    /// `force` (a resolution from the original URL, whose waiters must retry rather than resolve again).
+    fn cache(&self, final_url: &str, force: bool) {
+        let mut c = self.cached.lock().unwrap();
+        if force || c.url != final_url {
+            c.url = final_url.to_string();
+            c.generation += 1;
+        }
+        c.resolved = true;
+    }
+
+    /// One GET with a Range header, following up to 10 redirects by hand. Returns the final URL and the
+    /// first non-redirect response (its body unread).
+    fn request(&self, start_url: &str, offset: u64, len: usize) -> Result<(String, ureq::http::Response<ureq::Body>), RangeError> {
+        let original_host = host_of(&self.original_url);
+        let mut url = start_url.to_string();
+        let mut hops = 0u32;
+        loop {
+            let same_host = host_of(&url) == original_host;
+            let mut req = self
+                .agent
+                .get(&url)
+                .header("Range", format!("bytes={}-{}", offset, offset + len as u64 - 1))
+                .header("Accept-Encoding", "identity");
+            for h in &self.headers {
+                if !same_host && h.Name.eq_ignore_ascii_case("authorization") {
+                    continue;
+                }
+                req = req.header(&h.Name, &h.Value);
+            }
+            let response = req.call().map_err(map_ureq_error)?;
+            let status = response.status().as_u16();
+            if !matches!(status, 301 | 302 | 303 | 307 | 308) {
+                return Ok((url, response));
+            }
+            hops += 1;
+            if hops > MAX_REDIRECT_HOPS {
+                return Err(RangeError::Unavailable(format!(
+                    "more than {} redirects from '{}'",
+                    MAX_REDIRECT_HOPS, start_url
+                )));
+            }
+            let location = match header_str(response.headers(), "Location") {
+                Some(l) => l.to_string(),
+                None => return Err(RangeError::Unavailable(format!("redirect {} without a Location header", status))),
+            };
+            let base = url::Url::parse(&url).map_err(|e| RangeError::Unavailable(e.to_string()))?;
+            url = base
+                .join(&location)
+                .map_err(|e| RangeError::Unavailable(format!("invalid redirect target '{}': {}", location, e)))?
+                .to_string();
+            debug!("Following redirect {} to '{}'", status, url);
+        }
+    }
+
+    /// Validates a non-redirect response and reads its body into `buf`.
+    fn consume(&self, response: ureq::http::Response<ureq::Body>, offset: u64, buf: &mut [u8]) -> Result<(), RangeError> {
+        let status = response.status().as_u16();
+        let expected = buf.len() as u64;
+        let retry_after = header_str(response.headers(), "Retry-After").and_then(|v| v.trim().parse::<u64>().ok());
+        match status {
+            206 => {}
+            200 => return Err(RangeError::Unavailable("the server ignored the Range header (200)".into())),
+            416 => return Err(RangeError::Unavailable("the server rejected the range (416)".into())),
+            408 | 425 | 429 | 500 | 502 | 503 | 504 => {
+                let msg = format!("status {}", status);
+                return Err(match retry_after {
+                    Some(secs) => transient_with_retry_after(secs, &msg),
+                    None => RangeError::Transient(msg),
+                });
+            }
+            400..=499 => return Err(RangeError::Unavailable(format!("status {}", status))),
+            _ => return Err(RangeError::Transient(format!("status {}", status))),
+        }
+
+        let headers = response.headers();
+        if let Some(enc) = header_str(headers, "Content-Encoding") {
+            if !enc.trim().eq_ignore_ascii_case("identity") {
+                return Err(RangeError::Unavailable(format!("unexpected Content-Encoding '{}'", enc)));
+            }
+        }
+        let (start, end, total) = match header_str(headers, "Content-Range").and_then(parse_content_range) {
+            Some(r) => r,
+            None => return Err(RangeError::Unavailable("missing or malformed Content-Range".into())),
+        };
+        if start != offset || end != offset + expected - 1 {
+            return Err(RangeError::Unavailable(format!(
+                "Content-Range {}-{} does not match the requested {}-{}",
+                start,
+                end,
+                offset,
+                offset + expected - 1
+            )));
+        }
+        // ureq strips Content-Length together with Content-Encoding when it transparently decodes a compressed
+        // body, so a length-delimited response without Content-Length means the range was compressed. A chunked
+        // body has no Content-Length either; its length is enforced while reading (and every byte is hash-verified).
+        match header_str(headers, "Content-Length").and_then(|v| v.trim().parse::<u64>().ok()) {
+            Some(cl) if cl == expected => {}
+            Some(cl) => {
+                return Err(RangeError::Unavailable(format!(
+                    "Content-Length {} does not match the range length {}",
+                    cl, expected
+                )))
+            }
+            None if headers.contains_key("Transfer-Encoding") => {}
+            None => return Err(RangeError::Unavailable("missing Content-Length (or a content-encoded body)".into())),
+        }
+        {
+            let mut len = self.len.lock().unwrap();
+            match *len {
+                Some(known) if known != total => return Err(RangeError::Unavailable(format!("the origin size changed from {} to {}", known, total))),
+                _ => *len = Some(total),
+            }
+        }
+
+        let mut reader = response.into_body().into_reader();
+        reader.read_exact(buf).map_err(|e| RangeError::Transient(format!("short body: {}", e)))?;
+        let mut probe = [0u8; 1];
+        if let Ok(n) = reader.read(&mut probe) {
+            if n > 0 {
+                return Err(RangeError::Unavailable("the body is longer than the requested range".into()));
+            }
+        }
+        self.consecutive_refreshes.store(0, Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Resolves from the original URL (following redirects) and reads through the resulting response. The
+    /// caller holds the refresh lock, so this is the single resolution every other worker waits for. A
+    /// 401/403/404 from a freshly resolved redirect target counts as one failed refresh: the 3rd in a row
+    /// without a successful read is fatal, otherwise the caller retries (and refreshes again).
+    fn resolve_and_read(&self, offset: u64, buf: &mut [u8]) -> Result<(), RangeError> {
+        let (final_url, response) = self.request(&self.original_url, offset, buf.len())?;
+        self.cache(&final_url, true);
+        let status = response.status().as_u16();
+        if matches!(status, 401 | 403 | 404) && final_url != self.original_url {
+            drop(response);
+            let refreshes = self.consecutive_refreshes.fetch_add(1, Ordering::Relaxed) + 1;
+            if refreshes >= MAX_CONSECUTIVE_REFRESHES {
+                return Err(RangeError::Unavailable(format!(
+                    "{} consecutive download URL refreshes without progress (status {})",
+                    refreshes, status
+                )));
+            }
+            return Err(RangeError::Transient(format!("status {} from the freshly resolved download URL", status)));
+        }
+        self.consume(response, offset, buf)
+    }
+}
+
+/// How often one read may find that another worker replaced the cached URL under it before giving up
+/// with a transient error (the retry policy then takes over).
+const MAX_STALE_URL_RETRIES: u32 = 4;
+
+impl RangeReader for HttpRangeReader {
+    fn len(&self) -> Option<u64> {
+        *self.len.lock().unwrap()
+    }
+
+    fn read_exact_at(&self, offset: u64, buf: &mut [u8]) -> Result<(), RangeError> {
+        if buf.is_empty() {
+            return Ok(());
+        }
+        for _ in 0..=MAX_STALE_URL_RETRIES {
+            let (url, generation, resolved) = self.snapshot();
+            if !resolved {
+                // The first resolution is single-flight too: one API/redirect resolution per update.
+                let _guard = self.refresh_lock.lock().unwrap();
+                if !self.snapshot().2 {
+                    return self.resolve_and_read(offset, buf);
+                }
+                continue;
+            }
+            let (final_url, response) = self.request(&url, offset, buf.len())?;
+            if final_url != url {
+                // Only a request that actually redirected may update the cache: a request made with a URL that
+                // another worker has meanwhile refreshed must not write the stale one back.
+                self.cache(&final_url, false);
+            }
+            let status = response.status().as_u16();
+            if matches!(status, 401 | 403 | 404) && url != self.original_url {
+                drop(response);
+                // Single-flight re-resolution: the resolving request doubles as the retry. A worker that finds
+                // the URL already refreshed by another one retries with the new URL at once, at no budget cost.
+                let _guard = self.refresh_lock.lock().unwrap();
+                if self.snapshot().1 != generation {
+                    continue;
+                }
+                info!("Re-resolving the download URL after status {} from the cached redirect target", status);
+                return self.resolve_and_read(offset, buf);
+            }
+            return self.consume(response, offset, buf);
+        }
+        Err(RangeError::Transient(
+            "the download URL kept changing while it was being read".to_string(),
+        ))
+    }
+}
+
+#[cfg(test)]
+mod range_tests {
+    use super::*;
+    use crate::chunks::fetcher::retry_after_of;
+
+    #[test]
+    fn content_range_parses_strictly() {
+        assert_eq!(parse_content_range("bytes 0-99/1000"), Some((0, 99, 1000)));
+        assert_eq!(parse_content_range(" bytes 5-9/10 "), Some((5, 9, 10)));
+        assert_eq!(parse_content_range("bytes 0-99/*"), None);
+        assert_eq!(parse_content_range("bytes */1000"), None);
+        assert_eq!(parse_content_range("0-99/1000"), None);
+    }
+
+    #[test]
+    fn retry_after_round_trips_through_the_message() {
+        let e = transient_with_retry_after(7, "status 503");
+        match e {
+            RangeError::Transient(m) => assert_eq!(retry_after_of(&m), Some(Duration::from_secs(7))),
+            _ => panic!(),
+        }
+        assert_eq!(retry_after_of("status 503"), None);
+    }
 }
 
 #[test]

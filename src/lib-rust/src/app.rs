@@ -161,12 +161,8 @@ impl<'a> VelopackApp<'a> {
         let my_version = manager.get_current_version();
         let packages_dir = manager.get_locator().get_packages_dir();
 
-        // Load all local packages once — used for both auto-apply and cleanup.
-        let local_packages = locator::find_local_full_packages(&packages_dir);
-        let latest_full = local_packages
-            .iter()
-            .filter(|(_, m)| m.version > my_version)
-            .max_by(|(_, a), (_, b)| a.version.cmp(&b.version));
+        // The highest pending update: a ready staged (chunk) tree or a downloaded full package.
+        let pending = manager::find_pending_update(&packages_dir, &my_version);
 
         let firstrun = env::var(HOOK_ENV_FIRSTRUN).is_ok();
         env::remove_var(HOOK_ENV_FIRSTRUN);
@@ -175,12 +171,10 @@ impl<'a> VelopackApp<'a> {
         env::remove_var(HOOK_ENV_RESTART);
 
         // if auto apply is true and we haven't just been restarted via Velopack apply,
-        // we should check for a local package downloaded with a version greater than ours.
+        // we should check for a local update with a version greater than ours.
         // If it exists, we should quit and apply it now.
-        let pending_version = if let Some((path, manifest)) = latest_full {
-            let pending_ver = manifest.version.clone();
+        let pending_version = if let Some((pending_ver, asset)) = pending {
             if self.auto_apply && !restarted {
-                let asset = manager::local_path_to_asset(manifest, path);
                 if let Err(e) = manager.apply_updates_and_restart_with_args(&asset, &args) {
                     error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
                 }
@@ -190,8 +184,18 @@ impl<'a> VelopackApp<'a> {
             None
         };
 
-        // clean up old packages
-        cleanup_old_packages_from_list(local_packages, &my_version, pending_version.as_ref());
+        // clean up old packages and staged trees, but only when no other process is downloading
+        // (taking the lock would create the packages directory, so skip when there is nothing to clean)
+        if packages_dir.is_dir() {
+            match manager.get_locator().try_get_exclusive_lock() {
+                Ok(_lock) => {
+                    let local_packages = locator::find_local_full_packages(&packages_dir);
+                    cleanup_old_packages_from_list(local_packages, &my_version, pending_version.as_ref());
+                    crate::chunks::gc_staged_for_run(&packages_dir, &my_version);
+                }
+                Err(e) => info!("VelopackApp: Skipping package cleanup, the packages directory is locked: {}", e),
+            }
+        }
 
         if firstrun {
             Self::call_hook(&mut self.firstrun_hook, &my_version);

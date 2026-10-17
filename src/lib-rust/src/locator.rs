@@ -167,10 +167,11 @@ impl VelopackLocator {
                     error!("Unable to create fallback packages directory: {}", e);
                 }
 
-                // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install),
-                // copy it from the root directory so UpdateExePath always points to an existing file.
+                // Keep the fallback Update.exe in step with the root one: copy it when it does not exist yet
+                // (e.g. first launch after MSI install) and whenever the two differ in length or last-write
+                // time (an MSI/IT upgrade or another user's elevated apply replaced the root updater).
                 let root_update_exe = root.join("Update.exe");
-                if !paths.UpdateExePath.exists() && root_update_exe.exists() {
+                if root_update_exe.exists() && fallback_updater_is_stale(&root_update_exe, &paths.UpdateExePath) {
                     match std::fs::copy(&root_update_exe, &paths.UpdateExePath) {
                         Ok(_) => info!("Copied Update.exe from root to fallback: {}", paths.UpdateExePath.display()),
                         Err(e) => error!("Failed to copy Update.exe to fallback path: {}", e),
@@ -200,6 +201,16 @@ impl VelopackLocator {
         let id = id.unwrap_or(&self.manifest.id);
         let version = version.unwrap_or(self.manifest.version.clone());
         self.paths.PackagesDir.join(format!("{}-{}-full.nupkg", id, version))
+    }
+
+    /// Returns the directory holding staged (pre-assembled) chunk updates: `{PackagesDir}/staged`.
+    pub fn get_staged_root_dir(&self) -> PathBuf {
+        crate::chunks::StagedLayout::root(&self.paths.PackagesDir)
+    }
+
+    /// Returns the staged directory of a chunk update with the given staged id.
+    pub fn get_staged_dir(&self, staged_id: &str) -> PathBuf {
+        self.get_staged_root_dir().join(staged_id)
     }
 
     /// Returns the path to the current app temporary directory.
@@ -627,6 +638,19 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     };
 
     Ok(VelopackLocator::new_with_manifest(config, app))
+}
+
+/// True when the fallback updater is missing or differs from the root one in length or last-write time.
+#[cfg(windows)]
+fn fallback_updater_is_stale(root_update_exe: &Path, fallback_update_exe: &Path) -> bool {
+    let root_md = match root_update_exe.metadata() {
+        Ok(md) => md,
+        Err(_) => return false,
+    };
+    match fallback_update_exe.metadata() {
+        Ok(md) => md.len() != root_md.len() || md.modified().ok() != root_md.modified().ok(),
+        Err(_) => true,
+    }
 }
 
 fn read_current_manifest(nuspec_path: &Path) -> Result<Manifest, Error> {

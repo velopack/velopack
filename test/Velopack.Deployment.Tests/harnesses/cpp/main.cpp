@@ -198,7 +198,7 @@ int run(const std::string& configPath) {
     locator.IsPortable = loc.at("IsPortable").get<bool>();
 
     const std::string channel = config.at("channel").get<std::string>();
-    Velopack::UpdateOptions options;
+    Velopack::UpdateOptions options{};
     options.AllowVersionDowngrade = false;
     options.ExplicitChannel = channel;
 

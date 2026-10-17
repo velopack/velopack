@@ -3,9 +3,10 @@ use std::{path::Path, sync::mpsc::Sender};
 use serde::Deserialize;
 
 use crate::bundle::Manifest;
+use crate::chunks::RangeReader;
 use crate::*;
 
-use super::{download_git_release_entry, get_git_release_feed, UpdateSource};
+use super::{download_git_release_entry, get_git_release_feed, open_git_range_reader, UpdateSource};
 
 #[derive(Deserialize)]
 struct GiteaRelease {
@@ -123,6 +124,17 @@ impl UpdateSource for GiteaSource {
         for release in &releases {
             if let Ok(url) = self.get_asset_url_from_name(release, &asset.FileName) {
                 return download_git_release_entry(&url, &options, local_file, progress_sender);
+            }
+        }
+        Err(Error::Other(format!("Could not find asset '{}' in any Gitea release.", asset.FileName)))
+    }
+
+    fn open_range_reader(&self, asset: &VelopackAsset) -> Result<Option<Box<dyn RangeReader>>, Error> {
+        let releases = self.get_releases()?;
+        let options = self.get_http_options("application/octet-stream");
+        for release in &releases {
+            if let Ok(url) = self.get_asset_url_from_name(release, &asset.FileName) {
+                return open_git_range_reader(&url, &options);
             }
         }
         Err(Error::Other(format!("Could not find asset '{}' in any Gitea release.", asset.FileName)))

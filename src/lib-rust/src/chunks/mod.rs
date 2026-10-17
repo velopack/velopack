@@ -6,6 +6,7 @@
 pub mod assemble;
 pub mod blob;
 pub mod fetch;
+pub mod fetcher;
 pub mod index;
 pub mod inflate;
 pub mod plan;
@@ -14,6 +15,7 @@ pub mod staging;
 pub use assemble::{assemble, AssembleContext, AssembleError};
 pub use blob::ChunkBlob;
 pub use fetch::{RangeError, RangeReader};
+pub use fetcher::{fetch_index, fetch_ranges, Budget, ErrorClass, FetchError, RetryPolicy};
 pub use index::{staged_id, ChunkIndex, ChunkRecord, Disposition, FileKind, FileRecord, IndexError};
 pub use inflate::{inflate_chunk, sha256, sha256_file, sha256_hex, InflateError};
 pub use plan::{coalesce, exceeds_transport_ceiling, local_file_usable, plan, plan_for_hashes, LocalRoots, NeededChunk, Plan, RangeRequest};

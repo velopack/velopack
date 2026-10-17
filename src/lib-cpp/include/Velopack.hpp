@@ -340,6 +340,12 @@ struct VelopackAsset {
     std::string NotesMarkdown;
     /** The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string. */
     std::string NotesHtml;
+    /** The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index. */
+    uint64_t ChunkIndexOffset;
+    /** The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index. */
+    uint64_t ChunkIndexLength;
+    /** The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index. */
+    std::string ChunkIndexSHA256;
 };
 
 static inline std::optional<VelopackAsset> to_cpp_VelopackAsset(const vpkc_asset_t* dto) {
@@ -354,6 +360,9 @@ static inline std::optional<VelopackAsset> to_cpp_VelopackAsset(const vpkc_asset
         dto->Size,
         unwrap(to_cpp_string(dto->NotesMarkdown), "Required property NotesMarkdown was null"),
         unwrap(to_cpp_string(dto->NotesHtml), "Required property NotesHtml was null"),
+        dto->ChunkIndexOffset,
+        dto->ChunkIndexLength,
+        unwrap(to_cpp_string(dto->ChunkIndexSHA256), "Required property ChunkIndexSHA256 was null"),
     });
 }
 
@@ -381,6 +390,9 @@ static inline vpkc_asset_t* alloc_c_VelopackAsset_ptr(const VelopackAsset* dto) 
     obj->Size = dto->Size;
     obj->NotesMarkdown = alloc_c_string(dto->NotesMarkdown);
     obj->NotesHtml = alloc_c_string(dto->NotesHtml);
+    obj->ChunkIndexOffset = dto->ChunkIndexOffset;
+    obj->ChunkIndexLength = dto->ChunkIndexLength;
+    obj->ChunkIndexSHA256 = alloc_c_string(dto->ChunkIndexSHA256);
     return obj;
 }
 
@@ -414,6 +426,9 @@ static inline void free_c_VelopackAsset(vpkc_asset_t* obj) {
     
     free_c_string(obj->NotesMarkdown);
     free_c_string(obj->NotesHtml);
+    
+    
+    free_c_string(obj->ChunkIndexSHA256);
     delete obj;
 }
 
@@ -517,6 +532,8 @@ struct UpdateOptions {
      * without having to reinstall the application.
      */
     std::optional<std::string> ExplicitChannel;
+    /** Disables chunk-based updates, so the full update package is always downloaded. */
+    bool DisableChunkedUpdates;
 };
 
 static inline std::optional<UpdateOptions> to_cpp_UpdateOptions(const vpkc_update_options_t* dto) {
@@ -524,6 +541,7 @@ static inline std::optional<UpdateOptions> to_cpp_UpdateOptions(const vpkc_updat
     return std::optional<UpdateOptions>({
         dto->AllowVersionDowngrade,
         to_cpp_string(dto->ExplicitChannel),
+        dto->DisableChunkedUpdates,
     });
 }
 
@@ -544,6 +562,7 @@ static inline vpkc_update_options_t* alloc_c_UpdateOptions_ptr(const UpdateOptio
     vpkc_update_options_t* obj = new vpkc_update_options_t{};
     obj->AllowVersionDowngrade = dto->AllowVersionDowngrade;
     obj->ExplicitChannel = alloc_c_string(dto->ExplicitChannel);
+    obj->DisableChunkedUpdates = dto->DisableChunkedUpdates;
     return obj;
 }
 
@@ -570,6 +589,7 @@ static inline void free_c_UpdateOptions(vpkc_update_options_t* obj) {
     if (obj == nullptr) { return; }
     
     free_c_string(obj->ExplicitChannel);
+    
     delete obj;
 }
 

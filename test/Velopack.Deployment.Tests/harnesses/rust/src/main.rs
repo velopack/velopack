@@ -90,6 +90,7 @@ fn run() -> Result<HarnessResult, String> {
     let source = build_source(&config.source)?;
     let options = UpdateOptions {
         AllowVersionDowngrade: false,
+        DisableChunkedUpdates: false,
         ExplicitChannel: Some(config.channel.clone()),
     };
 

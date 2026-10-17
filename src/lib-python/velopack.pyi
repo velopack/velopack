@@ -276,7 +276,17 @@ class UpdateOptions:
         allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
         without having to reinstall the application.
         """
-    def __new__(cls, AllowVersionDowngrade: builtins.bool, ExplicitChannel: typing.Optional[builtins.str] = None) -> UpdateOptions: ...
+    @property
+    def DisableChunkedUpdates(self) -> builtins.bool:
+        r"""
+        Disables chunk-based updates, so the full update package is always downloaded.
+        """
+    @DisableChunkedUpdates.setter
+    def DisableChunkedUpdates(self, value: builtins.bool) -> None:
+        r"""
+        Disables chunk-based updates, so the full update package is always downloaded.
+        """
+    def __new__(cls, AllowVersionDowngrade: builtins.bool, DisableChunkedUpdates: builtins.bool, ExplicitChannel: typing.Optional[builtins.str] = None) -> UpdateOptions: ...
 
 @typing.final
 class VelopackAsset:
@@ -373,7 +383,37 @@ class VelopackAsset:
         r"""
         The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
         """
-    def __new__(cls, PackageId: builtins.str, Version: builtins.str, Type: builtins.str, FileName: builtins.str, SHA1: builtins.str, SHA256: builtins.str, Size: builtins.int, NotesMarkdown: builtins.str, NotesHtml: builtins.str) -> VelopackAsset: ...
+    @property
+    def ChunkIndexOffset(self) -> builtins.int:
+        r"""
+        The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @ChunkIndexOffset.setter
+    def ChunkIndexOffset(self, value: builtins.int) -> None:
+        r"""
+        The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @property
+    def ChunkIndexLength(self) -> builtins.int:
+        r"""
+        The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @ChunkIndexLength.setter
+    def ChunkIndexLength(self, value: builtins.int) -> None:
+        r"""
+        The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+        """
+    @property
+    def ChunkIndexSHA256(self) -> builtins.str:
+        r"""
+        The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+        """
+    @ChunkIndexSHA256.setter
+    def ChunkIndexSHA256(self, value: builtins.str) -> None:
+        r"""
+        The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+        """
+    def __new__(cls, PackageId: builtins.str, Version: builtins.str, Type: builtins.str, FileName: builtins.str, SHA1: builtins.str, SHA256: builtins.str, Size: builtins.int, NotesMarkdown: builtins.str, NotesHtml: builtins.str, ChunkIndexOffset: builtins.int, ChunkIndexLength: builtins.int, ChunkIndexSHA256: builtins.str) -> VelopackAsset: ...
 
 @typing.final
 class VelopackFlowSource:
