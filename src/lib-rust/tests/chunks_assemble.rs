@@ -464,8 +464,10 @@ fn readback_mismatch_is_io_error() {
     let corrupted = Mutex::new(false);
     let progress = |p: i16| {
         // after the first chunk of the file is written, damage the partial file through another handle
-        // (what a failing disk would do); the readback must catch it
-        if p > 0 && part.exists() && !*corrupted.lock().unwrap() {
+        // (what a failing disk would do); the readback must catch it. Only while the file is still partial:
+        // the updater's worker also reports progress and could otherwise fire after new.bin's readback.
+        let partial = fs::metadata(&part).map(|m| m.len() > 0 && m.len() < 100_000).unwrap_or(false);
+        if p > 0 && partial && !*corrupted.lock().unwrap() {
             use std::io::{Seek, SeekFrom, Write};
             let mut f = fs::OpenOptions::new().write(true).open(&part).unwrap();
             f.seek(SeekFrom::Start(0)).unwrap();
