@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -81,9 +79,6 @@ namespace Velopack
         /// <summary> If true, UpdateManager should return the latest asset in the feed, even if that version is lower than the current version. </summary>
         protected bool ShouldAllowVersionDowngrade { get; }
 
-        /// <summary>  The maximum number of deltas to consider before falling back to a full update. </summary>
-        protected int MaximumDeltasBeforeFallback { get; }
-
         /// <summary>
         /// Creates a new UpdateManager instance which checks for updates using the Velopack Flow service (see <see cref="VelopackFlowSource"/>).
         /// </summary>
@@ -122,7 +117,6 @@ namespace Velopack
             Log = Locator.Log;
             Channel = options?.ExplicitChannel ?? DefaultChannel;
             ShouldAllowVersionDowngrade = options?.AllowVersionDowngrade ?? false;
-            MaximumDeltasBeforeFallback = options?.MaximumDeltasBeforeFallback ?? 10;
         }
 
         /// <inheritdoc cref="CheckForUpdatesAsync()"/>
@@ -133,8 +127,8 @@ namespace Velopack
         }
 
         /// <summary>
-        /// Checks for updates, returning null if there are none available. If there are updates available, this method will return an 
-        /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+        /// Checks for updates, returning null if there are none available. If there are updates available, this method will return an
+        /// UpdateInfo object containing the latest available release.
         /// </summary>
         /// <returns>Null if no updates, otherwise <see cref="UpdateInfo"/> containing the version of the latest update available.</returns>
         public virtual async Task<UpdateInfo?> CheckForUpdatesAsync()
@@ -157,7 +151,7 @@ namespace Velopack
             // there's a newer version available, easy.
             if (latestRemoteFull.Version > installedVer) {
                 Log.Info($"Found newer remote release available ({installedVer} -> {latestRemoteFull.Version}).");
-                return CreateDeltaUpdateStrategy(feed, latestLocalFull, latestRemoteFull);
+                return new UpdateInfo(latestRemoteFull, false);
             }
 
             // if the remote version is < than current version and downgrade is enabled
@@ -181,37 +175,6 @@ namespace Velopack
             return null;
         }
 
-        /// <summary>
-        /// Given a feed of releases, and the latest local full release, and the latest remote full release, this method will return a delta
-        /// update strategy to be used by <see cref="DownloadUpdatesAsync(UpdateInfo, Action{int}?, CancellationToken)"/>.
-        /// </summary>
-        protected virtual UpdateInfo CreateDeltaUpdateStrategy(VelopackAsset[] feed, VelopackAsset? latestLocalFull, VelopackAsset latestRemoteFull)
-        {
-            if (latestLocalFull == null) {
-                // TODO: for now, we're not trying to handle the case of building delta updates on top of an installation directory,
-                // but we can look at this in the future. Until then, Windows (installer) is the only thing which ships with a complete .nupkg
-                // so in all other cases, Velopack needs to download one full release before it can start using delta's.
-                Log.Info("There is no local/base package available for this update, so delta updates will be disabled.");
-                return new UpdateInfo(latestRemoteFull, false);
-            }
-
-            EnsureInstalled();
-
-            var matchingRemoteDelta = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version == latestRemoteFull.Version).FirstOrDefault();
-            if (matchingRemoteDelta == null) {
-                Log.Info($"Unable to find any delta matching version {latestRemoteFull.Version}, so delta updates will be disabled.");
-                return new UpdateInfo(latestRemoteFull, false);
-            }
-
-            // if we have a local full release, we try to apply delta's from that version to target version.
-            SemanticVersion deltaFromVer = latestLocalFull.Version;
-
-            var deltas = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version)
-                .ToArray();
-            Log.Debug($"Found {deltas.Length} delta release(s) between {deltaFromVer} and {latestRemoteFull.Version}.");
-            return new UpdateInfo(latestRemoteFull, false, latestLocalFull, deltas);
-        }
-
         /// <inheritdoc cref="DownloadUpdatesAsync(UpdateInfo, Action{int}, CancellationToken)"/>
         public void DownloadUpdates(UpdateInfo updates, Action<int>? progress = null)
         {
@@ -220,10 +183,8 @@ namespace Velopack
         }
 
         /// <summary>
-        /// Downloads the specified updates to the local app packages directory. If the update contains delta packages and ignoreDeltas=false, 
-        /// this method will attempt to unpack and prepare them. If there is no delta update available, or there is an error preparing delta 
-        /// packages, this method will fall back to downloading the full version of the update. This function will acquire a global update lock
-        /// so may fail if there is already another update operation in progress.
+        /// Downloads the full package of the specified update to the local app packages directory. This function will acquire a global
+        /// update lock so may fail if there is already another update operation in progress.
         /// </summary>
         /// <param name="updates">The updates to download. Should be retrieved from <see cref="CheckForUpdates"/>.</param>
         /// <param name="progress">The progress callback. Will be called with values from 0-100.</param>
@@ -269,26 +230,6 @@ namespace Velopack
             }
 
             try {
-                var deltasSize = updates.DeltasToTarget.Sum(x => x.Size);
-                var deltasCount = updates.DeltasToTarget.Count();
-
-                try {
-                    if (updates.BaseRelease?.FileName != null && deltasCount > 0) {
-                        if (deltasCount > MaximumDeltasBeforeFallback || deltasSize > targetRelease.Size) {
-                            Log.Info(
-                                $"There are too many delta's ({deltasCount} > {MaximumDeltasBeforeFallback}) or the sum of their size ({deltasSize} > {targetRelease.Size}) is too large. " +
-                                $"Only full update will be available.");
-                        } else {
-                            await DownloadAndApplyDeltaUpdates(updates, incompleteFile, progress, cancelToken).ConfigureAwait(false);
-                            IoUtil.MoveFile(incompleteFile, completeFile, true);
-                            Log.Info("Delta update download complete. Package moved to: " + completeFile);
-                            return; // success!
-                        }
-                    }
-                } catch (Exception ex) when (!VelopackRuntimeInfo.InUnitTestRunner) {
-                    Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
-                }
-
                 Log.Info($"Downloading full release ({targetRelease.FileName})");
                 File.Delete(incompleteFile);
                 await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress, cancelToken).ConfigureAwait(false);
@@ -369,95 +310,13 @@ namespace Velopack
         }
 
         /// <summary>
-        /// Given a folder containing the extracted base package, and a list of delta updates, downloads and applies the 
-        /// delta updates to the base package.
-        /// </summary>
-        /// <param name="updates">An update object containing one or more delta's</param>
-        /// <param name="targetFile">The reconstructed full update after all delta's are applied</param>
-        /// <param name="progress">A callback reporting process of delta application progress (from 0-100).</param>
-        /// <param name="cancelToken">A token to use to cancel the request.</param>
-        protected virtual async Task DownloadAndApplyDeltaUpdates(UpdateInfo updates, string targetFile, Action<int> progress,
-            CancellationToken cancelToken)
-        {
-            var releasesToDownload = updates.DeltasToTarget.OrderBy(d => d.Version).ToArray();
-            var updateExe = Locator.UpdateExePath;
-            if (updateExe == null || !File.Exists(updateExe)) {
-                throw new FileNotFoundException("Update.exe path is null or does not exist, cannot apply delta updates.");
-            }
-
-            // downloading accounts for 0%-70% of progress
-            double current = 0;
-            double toIncrement = 100.0 / releasesToDownload.Length;
-            await releasesToDownload.ForEachAsync(async x => {
-                var targetFile = Locator.GetLocalPackagePath(x);
-                double component = 0;
-                Log.Info($"Downloading delta {x.Version}");
-                await Source.DownloadReleaseEntry(
-                    Log,
-                    x,
-                    targetFile,
-                    p => {
-                        lock (progress) {
-                            current -= component;
-                            component = toIncrement / 100.0 * p;
-                            var progressOfStep = (int) Math.Round(current += component);
-                            progress(CoreUtil.CalculateProgress(progressOfStep, 0, 70));
-                        }
-                    },
-                    cancelToken).ConfigureAwait(false);
-                await VerifyPackageChecksumAsync(x, targetFile).ConfigureAwait(false);
-                cancelToken.ThrowIfCancellationRequested();
-                Log.Debug($"Download complete for delta version {x.Version}");
-            }).ConfigureAwait(false);
-
-            Log.Info("All delta packages downloaded and verified.");
-            Log.Info($"Applying {releasesToDownload.Length} patches to {updates.BaseRelease?.FileName}.");
-
-            // applying deltas accounts for 70%-100% of progress
-            var baseFile = Locator.GetLocalPackagePath(updates.BaseRelease!);
-            var args = new List<string> {
-                "patch",
-                "--old",
-                baseFile,
-                "--output",
-                targetFile
-            };
-
-            if (Locator.RootAppDir is { Length: > 0 }) {
-                args.Add("--root");
-                args.Add(Locator.RootAppDir);
-            }
-
-            foreach (var x in releasesToDownload) {
-                args.Add("--delta");
-                args.Add(Locator.GetLocalPackagePath(x));
-            }
-
-            var psi = new ProcessStartInfo(updateExe);
-            psi.UseShellExecute = true;
-            psi.AppendArgumentListSafe(args, out _);
-            psi.CreateNoWindow = true;
-            var p = psi.StartRedirectOutputToILogger(Log, VelopackLogLevel.Debug);
-            if (!p.WaitForExit((int) TimeSpan.FromMinutes(5).TotalMilliseconds)) {
-                p.Kill();
-                throw new TimeoutException("patch process timed out (5min).");
-            }
-
-            if (p.ExitCode != 0) {
-                throw new Exception($"patch process failed with exit code {p.ExitCode}.");
-            }
-
-            progress(100);
-        }
-
-        /// <summary>
         /// Removes any incomplete files (.partial) and packages (.nupkg) from the packages directory that does not match
         /// the provided asset. If assetToKeep is null, all packages will be deleted.
         /// </summary>
         protected virtual void CleanPackagesExcept(string? assetToKeep)
         {
             try {
-                Log.Info("Cleaning up incomplete and delta packages from packages directory.");
+                Log.Info("Cleaning up old and incomplete packages from packages directory.");
 
                 var appPackageDir = Locator.PackagesDir!;
                 foreach (var l in Directory.EnumerateFiles(appPackageDir, "*.nupkg").ToArray()) {
@@ -482,7 +341,7 @@ namespace Velopack
                     }
                 }
             } catch (Exception ex) {
-                Log.Warn(ex, "Failed to clean up incomplete and delta packages.");
+                Log.Warn(ex, "Failed to clean up old and incomplete packages.");
             }
         }
 

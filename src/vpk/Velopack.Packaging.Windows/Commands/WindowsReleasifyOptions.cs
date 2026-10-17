@@ -1,14 +1,10 @@
-﻿using Velopack.Packaging.Compression;
-
-namespace Velopack.Packaging.Windows.Commands;
+﻿namespace Velopack.Packaging.Windows.Commands;
 
 public class WindowsReleasifyOptions : WindowsSigningOptions
 {
     public DirectoryInfo ReleaseDir { get; set; }
 
     public RID TargetRuntime { get; set; }
-
-    public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
     public string Runtimes { get; set; }
 

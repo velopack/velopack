@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Velopack.Logging;
 
 namespace Velopack.Util
 {
@@ -55,33 +54,6 @@ namespace Velopack.Util
             debug = psi.Arguments;
         }
 #endif
-
-        public static Process StartRedirectOutputToILogger(this ProcessStartInfo psi, IVelopackLogger log, VelopackLogLevel outputLevel)
-        {
-            psi.RedirectStandardOutput = true;
-            psi.RedirectStandardError = true;
-            psi.UseShellExecute = false;
-
-            var p = Process.Start(psi);
-            if (p == null) throw new Exception("Process.Start returned null.");
-
-            p.BeginErrorReadLine();
-            p.BeginOutputReadLine();
-
-            p.ErrorDataReceived += (o, e) => {
-                if (e.Data != null) {
-                    log.LogError(e.Data);
-                }
-            };
-
-            p.OutputDataReceived += (o, e) => {
-                if (e.Data != null) {
-                    log.Log(outputLevel, e.Data);
-                }
-            };
-
-            return p;
-        }
 
         public static string Output(this ProcessStartInfo psi, int timeoutMs)
         {

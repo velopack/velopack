@@ -3,7 +3,7 @@ using System.CommandLine;
 using Microsoft.Extensions.Configuration;
 using Velopack.Core;
 using Velopack.Core.Json;
-using Velopack.Packaging.Compression;
+using Velopack.Packaging;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Vpk;
 using Velopack.Vpk.Commands.Packaging;
@@ -212,19 +212,19 @@ public class JsonDirectiveTests : TempFileTestBase
             $$"""
               {
                   "releaseDir": {{J(newReleaseDir)}},
-                  "deltaMode": "None",
+                  "instLocation": "PerUser",
                   "targetRuntime": "win-x64"
               }
               """);
 
         var options = MapEmptyCommand();
-        Assert.Equal(DeltaMode.BestSpeed, options.DeltaMode); // cli default before overlay
+        Assert.Equal(InstallLocation.Either, options.InstLocation); // cli default before overlay
 
         JsonConfigLoader.Populate(jsonFile.FullName, options);
 
         Assert.Equal(newReleaseDir, options.ReleaseDir.FullName); // DirectoryInfo converted
         Assert.False(Directory.Exists(newReleaseDir)); // created at point of use, not during parsing
-        Assert.Equal(DeltaMode.None, options.DeltaMode); // enum converted from string
+        Assert.Equal(InstallLocation.PerUser, options.InstLocation); // enum converted from string
         Assert.Equal(RID.Parse("win-x64"), options.TargetRuntime); // RID converted from string
     }
 

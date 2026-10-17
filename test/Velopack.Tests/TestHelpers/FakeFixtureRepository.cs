@@ -16,7 +16,7 @@ internal class FakeFixtureRepository : IFileDownloader
     private readonly string _releasesName;
     private readonly string _releasesNameNew;
 
-    public FakeFixtureRepository(string pkgId, bool mockLatestFullVer, string channel = null)
+    public FakeFixtureRepository(string pkgId, string channel = null)
     {
         _releasesName = CoreUtil.GetReleasesFileName(channel);
         _releasesNameNew = CoreUtil.GetVeloReleaseIndexName(channel);
@@ -29,27 +29,6 @@ internal class FakeFixtureRepository : IFileDownloader
             .GetReleaseFeed(NullVelopackLogger.Instance, null, null).GetAwaiterResult().Assets
             .Where(r => r.FileName.StartsWith(_pkgId))
             .ToList();
-
-        if (mockLatestFullVer) {
-            var minFullVer = releases.Where(r => !r.IsDelta).OrderBy(r => r.Version).First();
-            var maxfullVer = releases.Where(r => !r.IsDelta).OrderByDescending(r => r.Version).First();
-            var maxDeltaVer = releases.Where(r => r.IsDelta).OrderByDescending(r => r.Version).First();
-
-            // our fixtures don't have a full package for the latest version, we expect the tests to generate this file
-            if (maxfullVer.Version < maxDeltaVer.Version) {
-                var name = new ReleaseEntryName(maxfullVer.PackageId, maxDeltaVer.Version, false);
-                releases.Add(new ReleaseEntry("0000000000000000000000000000000000000000", name.ToFileName(), maxfullVer.Filesize));
-
-                releasesNew.Add(
-                    new VelopackAsset {
-                        PackageId = maxfullVer.PackageId,
-                        Version = maxDeltaVer.Version,
-                        Type = VelopackAssetType.Full,
-                        FileName = $"{maxfullVer.PackageId}-{maxDeltaVer.Version}-full.nupkg",
-                        Size = maxfullVer.Filesize,
-                    });
-            }
-        }
 
         _releasesNew = new VelopackAssetFeed {
             Assets = releasesNew.ToArray(),

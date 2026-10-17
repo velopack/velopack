@@ -1,5 +1,4 @@
 ﻿using Velopack.Packaging.Abstractions;
-using Velopack.Packaging.Compression;
 
 namespace Velopack.Packaging.Unix.Commands;
 
@@ -8,8 +7,6 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
     public RID TargetRuntime { get; set; }
 
     public string ReleaseNotes { get; set; }
-
-    public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
     public bool NoInst { get; set; }
 

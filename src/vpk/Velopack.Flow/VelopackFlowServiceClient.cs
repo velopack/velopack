@@ -5,14 +5,11 @@ using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Extensions.Msal;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using System.Net;
 using System.Net.Http.Headers;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
-using Velopack.NuGet;
 using Velopack.Packaging;
-using Velopack.Util;
-using System.Net;
-using Velopack.Packaging.Compression;
 
 #if !NET6_0_OR_GREATER
 using System.Net.Http;
@@ -138,12 +135,10 @@ public class VelopackFlowServiceClient(
             return;
         }
 
-        var fullAssetPath = Path.Combine(releaseDirectory, fullAsset.FileName);
         var packageId = fullAsset.PackageId;
         var version = fullAsset.Version;
 
         var filesToUpload = assets.GetAssets()
-            .Where(p => p.Type is not Velopack.VelopackAssetType.Delta)
             .Select(p => (p.Path, p.Type.ToFileType()))
             .ToArray();
 
@@ -158,6 +153,7 @@ public class VelopackFlowServiceClient(
                         $"Creating release {version}",
                         async (report) => {
                             report(-1);
+                            await AssertNewerThanLatestRelease(client, packageId, channel, version, cancellationToken);
                             await CreateChannelIfNotExists(client, packageId, channel, cancellationToken);
                             report(50);
                             var result = await CreateReleaseGroupAsync(client, packageId, version, channel, tieredRolloutPercentage / 100.0, cancellationToken);
@@ -176,50 +172,6 @@ public class VelopackFlowServiceClient(
                                         filePath,
                                         releaseGroup.Id,
                                         fileType,
-                                        report,
-                                        cancellationToken);
-                                    report(100);
-                                })
-                        );
-                    }
-
-                    using var _1 = TempUtil.GetTempDirectory(out var deltaGenTempDir);
-                    var prevVersion = Path.Combine(deltaGenTempDir, "prev.nupkg");
-
-                    ZipPackage? prevZip = await progress.RunTask(
-                        $"Downloading delta base for {version}",
-                        async (report) => {
-                            return await DownloadLatestRelease(packageId, channel, prevVersion, report, cancellationToken);
-                        });
-
-                    if (prevZip is not null) {
-                        if (prevZip.Version! >= version) {
-                            throw new InvalidOperationException(
-                                $"Latest version in channel {channel} is greater than or equal to local (remote={prevZip.Version}, local={version})");
-                        }
-
-                        var suggestedDeltaName = DefaultName.GetSuggestedReleaseName(packageId, version.ToFullString(), channel, true, RuntimeOs.Unknown);
-                        var deltaPath = Path.Combine(releaseDirectory, suggestedDeltaName);
-
-                        await progress.RunTask(
-                            $"Building delta {prevZip.Version} -> {version}",
-                            (report) => {
-                                var delta = new DeltaPackageBuilder(Logger);
-                                var pOld = new ReleasePackage(prevVersion);
-                                var pNew = new ReleasePackage(fullAssetPath);
-                                delta.CreateDeltaPackage(pOld, pNew, deltaPath, DeltaMode.BestSpeed, report);
-                                report(100);
-                                return Task.CompletedTask;
-                            });
-
-                        backgroundTasks.Add(
-                            progress.RunTask(
-                                $"Uploading {Path.GetFileName(deltaPath)}",
-                                async (report) => {
-                                    await UploadReleaseAssetAsync(
-                                        deltaPath,
-                                        releaseGroup.Id,
-                                        FileType.Delta,
                                         report,
                                         cancellationToken);
                                     report(100);
@@ -264,22 +216,6 @@ public class VelopackFlowServiceClient(
         return await client.GetUserProfileAsync(cancellationToken);
     }
 
-    private async Task<ZipPackage?> DownloadLatestRelease(string packageId, string channel, string localPath, Action<int> progress,
-        CancellationToken cancellationToken)
-    {
-        try {
-            var client = GetFlowApi(progress);
-            using (var localFile = File.Create(localPath)) {
-                using var file = await client.DownloadInstallerLatestAsync(packageId, channel, DownloadAssetType.Full, cancellationToken);
-                await file.Stream.CopyToAsync(localFile, 81920, cancellationToken).ConfigureAwait(false);
-            }
-
-            return new ZipPackage(localPath);
-        } catch (ApiException e) when (e.StatusCode == (int) HttpStatusCode.NotFound) {
-            return null;
-        }
-    }
-
     private async Task WaitUntilReleaseGroupLive(FlowApi client, Guid releaseGroupId, CancellationToken cancellationToken)
     {
         for (int i = 0; i < 300; i++) {
@@ -304,6 +240,31 @@ public class VelopackFlowServiceClient(
         }
 
         Logger.LogWarning("Release did not go live within 5 minutes (timeout).");
+    }
+
+    private async Task AssertNewerThanLatestRelease(FlowApi client, string packageId, string channel, SemanticVersion version,
+        CancellationToken cancellationToken)
+    {
+        ICollection<VelopackAsset> remoteAssets;
+        try {
+            remoteAssets = await client.GetManifestAsync(packageId, channel, null, null, null, null, null, null, cancellationToken);
+        } catch (ApiException e) when (e.StatusCode == (int) HttpStatusCode.NotFound) {
+            return; // nothing has been released to this channel yet
+        } catch (ApiException e) {
+            Logger.LogWarning($"Unable to check the latest release in channel {channel}: {e.StatusCode}");
+            return;
+        }
+
+        var latest = remoteAssets
+            .Where(a => a.Type == VelopackAssetType.Full)
+            .Select(a => SemanticVersion.TryParse(a.Version, out var v) ? v : null)
+            .Where(v => v is not null)
+            .Max();
+
+        if (latest is not null && latest >= version) {
+            throw new InvalidOperationException(
+                $"Latest version in channel {channel} is greater than or equal to local (remote={latest}, local={version})");
+        }
     }
 
     private static async Task CreateChannelIfNotExists(FlowApi client, string packageId, string channel, CancellationToken cancellationToken)

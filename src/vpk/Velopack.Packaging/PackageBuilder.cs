@@ -7,7 +7,6 @@ using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
-using Velopack.Packaging.Compression;
 using Velopack.Util;
 
 namespace Velopack.Packaging;
@@ -112,11 +111,9 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
 
         await Console.ExecuteProgressAsync(
             async (ctx) => {
-                ReleasePackage prev = null;
                 await ctx.RunTask(
                     "Pre-process steps",
                     async (progress) => {
-                        prev = entryHelper.GetPreviousFullRelease(SemanticVersion.Parse(packVersion));
                         packDirectory = await PreprocessPackDir(progress, packDirectory);
                     });
 
@@ -146,7 +143,7 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
                 await ctx.RunTask(
                     $"Building release {packVersion}",
                     async (progress) => {
-                        var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, false, TargetOs);
+                        var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, TargetOs);
                         releasePath = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Full);
                         await CreateReleasePackage(progress, packDirectory, releasePath);
                     });
@@ -159,21 +156,6 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
                             var suggestedName = DefaultName.GetSuggestedSetupName(packId, channel, TargetOs);
                             var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Installer);
                             await CreateSetupPackage(progress, releasePath, packDirectory, path, assetCache.MakeAssetPath);
-                        });
-                }
-
-                if (prev != null && options.DeltaMode != DeltaMode.None) {
-                    await ctx.RunTask(
-                        $"Building delta {prev.Version} -> {packVersion}",
-                        async (progress) => {
-                            var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, true, TargetOs);
-                            var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Delta);
-                            var deltaPkg = await CreateDeltaPackage(
-                                progress,
-                                releasePath,
-                                prev.PackageFile,
-                                path,
-                                options.DeltaMode);
                         });
                 }
 
@@ -270,13 +252,6 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
     }
 
     protected abstract Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath);
-
-    protected virtual Task<string> CreateDeltaPackage(Action<int> progress, string releasePkg, string prevReleasePkg, string outputPath, DeltaMode mode)
-    {
-        var deltaBuilder = new DeltaPackageBuilder(Log);
-        var (dp, stats) = deltaBuilder.CreateDeltaPackage(new ReleasePackage(prevReleasePkg), new ReleasePackage(releasePkg), outputPath, mode, progress);
-        return Task.FromResult(dp.PackageFile);
-    }
 
     protected virtual Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string outputPath, Func<string, VelopackAssetType, string> createAsset)
     {

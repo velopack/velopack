@@ -429,14 +429,9 @@ static inline void free_c_VelopackAsset_vec(vpkc_asset_t** arr, size_t count) {
 struct UpdateInfo {
     /** The available version that we are updating to. */
     VelopackAsset TargetFullRelease;
-    /** The base release that this update is based on. This is only available if the update is a delta update. */
-    std::optional<VelopackAsset> BaseRelease;
-    /** The list of delta updates that can be applied to the base version to get to the target version. */
-    std::vector<VelopackAsset> DeltasToTarget;
     /**
      * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-     * deleted.
+     * In this case, any local packages on disk newer than the downloaded version will be deleted.
      */
     bool IsDowngrade;
 };
@@ -445,8 +440,6 @@ static inline std::optional<UpdateInfo> to_cpp_UpdateInfo(const vpkc_update_info
     if (dto == nullptr) { return std::nullopt; }
     return std::optional<UpdateInfo>({
         unwrap(to_cpp_VelopackAsset(dto->TargetFullRelease), "Required property TargetFullRelease was null"),
-        to_cpp_VelopackAsset(dto->BaseRelease),
-        to_cpp_VelopackAsset_vec(dto->DeltasToTarget, dto->DeltasToTargetCount),
         dto->IsDowngrade,
     });
 }
@@ -467,8 +460,6 @@ static inline vpkc_update_info_t* alloc_c_UpdateInfo_ptr(const UpdateInfo* dto) 
     if (dto == nullptr) { return nullptr; }
     vpkc_update_info_t* obj = new vpkc_update_info_t{};
     obj->TargetFullRelease = alloc_c_VelopackAsset(dto->TargetFullRelease);
-    obj->BaseRelease = alloc_c_VelopackAsset(dto->BaseRelease);
-    obj->DeltasToTarget = alloc_c_VelopackAsset_vec(dto->DeltasToTarget, &obj->DeltasToTargetCount);
     obj->IsDowngrade = dto->IsDowngrade;
     return obj;
 }
@@ -495,8 +486,6 @@ static inline vpkc_update_info_t** alloc_c_UpdateInfo_vec(const std::vector<Upda
 static inline void free_c_UpdateInfo(vpkc_update_info_t* obj) {
     if (obj == nullptr) { return; }
     free_c_VelopackAsset(obj->TargetFullRelease);
-    free_c_VelopackAsset(obj->BaseRelease);
-    free_c_VelopackAsset_vec(obj->DeltasToTarget, obj->DeltasToTargetCount);
     
     delete obj;
 }
@@ -528,11 +517,6 @@ struct UpdateOptions {
      * without having to reinstall the application.
      */
     std::optional<std::string> ExplicitChannel;
-    /**
-     * Sets the maximum number of deltas to consider before falling back to a full update.
-     * The default is 10. Set to a negative number (eg. -1) to disable deltas.
-     */
-    int32_t MaximumDeltasBeforeFallback;
 };
 
 static inline std::optional<UpdateOptions> to_cpp_UpdateOptions(const vpkc_update_options_t* dto) {
@@ -540,7 +524,6 @@ static inline std::optional<UpdateOptions> to_cpp_UpdateOptions(const vpkc_updat
     return std::optional<UpdateOptions>({
         dto->AllowVersionDowngrade,
         to_cpp_string(dto->ExplicitChannel),
-        dto->MaximumDeltasBeforeFallback,
     });
 }
 
@@ -561,7 +544,6 @@ static inline vpkc_update_options_t* alloc_c_UpdateOptions_ptr(const UpdateOptio
     vpkc_update_options_t* obj = new vpkc_update_options_t{};
     obj->AllowVersionDowngrade = dto->AllowVersionDowngrade;
     obj->ExplicitChannel = alloc_c_string(dto->ExplicitChannel);
-    obj->MaximumDeltasBeforeFallback = dto->MaximumDeltasBeforeFallback;
     return obj;
 }
 
@@ -588,7 +570,6 @@ static inline void free_c_UpdateOptions(vpkc_update_options_t* obj) {
     if (obj == nullptr) { return; }
     
     free_c_string(obj->ExplicitChannel);
-    
     delete obj;
 }
 
@@ -1073,7 +1054,7 @@ public:
 
     /**
      * Checks for updates, returning null if there are none available. If there are updates available, this method will return an
-     * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+     * UpdateInfo object containing the latest available release.
      * @returns An UpdateInfo object if there is an update available, otherwise null.
      */
     std::optional<UpdateInfo> CheckForUpdates() {
@@ -1097,10 +1078,6 @@ public:
     /**
      * Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional callback.
      * This function will acquire a global update lock so may fail if there is already another update operation in progress.
-     * - If the update contains delta packages and the delta feature is enabled
-     *   this method will attempt to unpack and prepare them.
-     * - If there is no delta update available, or there is an error preparing delta
-     *   packages, this method will fall back to downloading the full version of the update.
      * @param update The update to download.
      * @param progress A callback to report progress to.
      * @param pUserData A pointer to user data that will be passed to the progress callback.

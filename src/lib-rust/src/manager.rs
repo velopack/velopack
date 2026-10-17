@@ -76,13 +76,8 @@ define_struct_case_insensitive! {
 pub struct UpdateInfo {
     /// The available version that we are updating to.
     pub TargetFullRelease: VelopackAsset,
-    /// The base release that this update is based on. This is only available if the update is a delta update.
-    pub BaseRelease: Option<VelopackAsset>,
-    /// The list of delta updates that can be applied to the base version to get to the target version.
-    pub DeltasToTarget: Vec<VelopackAsset>,
     /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-    /// deleted.
+    /// In this case, any local packages on disk newer than the downloaded version will be deleted.
     pub IsDowngrade: bool,
 }
 
@@ -90,18 +85,7 @@ impl UpdateInfo {
     pub(crate) fn new_full(target: VelopackAsset, is_downgrade: bool) -> UpdateInfo {
         UpdateInfo {
             TargetFullRelease: target,
-            BaseRelease: None,
-            DeltasToTarget: Vec::new(),
             IsDowngrade: is_downgrade,
-        }
-    }
-
-    pub(crate) fn new_delta(target: VelopackAsset, base: VelopackAsset, deltas: Vec<VelopackAsset>) -> UpdateInfo {
-        UpdateInfo {
-            TargetFullRelease: target,
-            BaseRelease: Some(base),
-            DeltasToTarget: deltas,
-            IsDowngrade: false,
         }
     }
 }
@@ -136,9 +120,6 @@ pub struct UpdateOptions {
     /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
     /// without having to reinstall the application.
     pub ExplicitChannel: Option<String>,
-    /// Sets the maximum number of deltas to consider before falling back to a full update.
-    /// The default is 10. Set to a negative number (eg. -1) to disable deltas.
-    pub MaximumDeltasBeforeFallback: i32,
 }
 
 struct UpdateManagerInner {
@@ -216,10 +197,7 @@ impl UpdateManager {
         } else {
             locator::auto_locate_app_manifest(LocationContext::FromCurrentExe)?
         };
-        let mut options = options.unwrap_or_default();
-        if options.MaximumDeltasBeforeFallback == 0 {
-            options.MaximumDeltasBeforeFallback = 10;
-        }
+        let options = options.unwrap_or_default();
         Ok(UpdateManager {
             inner: Arc::new(UpdateManagerInner { options, source, locator }),
         })
@@ -301,7 +279,7 @@ impl UpdateManager {
     }
 
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
-    /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+    /// UpdateInfo object containing the latest available release.
     pub fn check_for_updates(&self) -> Result<UpdateCheck, Error> {
         let allow_downgrade = self.inner.options.AllowVersionDowngrade;
         let app_channel = self.inner.locator.get_manifest_channel();
@@ -341,9 +319,7 @@ impl UpdateManager {
 
         if remote_version > app_version {
             info!("Found newer remote release available ({} -> {}).", app_version, remote_version);
-            Ok(UpdateCheck::UpdateAvailable(Box::new(
-                self.create_delta_update_strategy(&assets, (remote_asset, remote_version)),
-            )))
+            Ok(UpdateCheck::UpdateAvailable(Box::new(UpdateInfo::new_full(remote_asset.clone(), false))))
         } else if remote_version < app_version && allow_downgrade {
             info!(
                 "Found older remote release available and downgrade is enabled ({} -> {}).",
@@ -361,59 +337,8 @@ impl UpdateManager {
         }
     }
 
-    fn create_delta_update_strategy(&self, velopack_asset_feed: &[VelopackAsset], latest_remote: (&VelopackAsset, Version)) -> UpdateInfo {
-        let packages_dir = self.inner.locator.get_packages_dir();
-        let latest_local = locator::find_latest_full_package(&packages_dir);
-
-        if latest_local.is_none() {
-            info!("There is no local/base package available for this update, so delta updates will be disabled.");
-            return UpdateInfo::new_full(latest_remote.0.clone(), false);
-        }
-
-        let (latest_local_path, latest_local_manifest) = latest_local.unwrap();
-        let local_asset = local_path_to_asset(&latest_local_manifest, &latest_local_path);
-
-        let assets_and_versions: Vec<(&VelopackAsset, Version)> = velopack_asset_feed
-            .iter()
-            .filter_map(|asset| Version::parse(&asset.Version).ok().map(|ver| (asset, ver)))
-            .collect();
-
-        let matching_latest_delta = assets_and_versions
-            .iter()
-            .find(|(asset, version)| asset.Type.eq_ignore_ascii_case("Delta") && version == &latest_remote.1);
-
-        if matching_latest_delta.is_none() {
-            info!(
-                "No matching delta update found for release {}, so deltas will be disabled.",
-                latest_remote.1
-            );
-            return UpdateInfo::new_full(latest_remote.0.clone(), false);
-        }
-
-        let mut remotes_greater_than_local = assets_and_versions
-            .iter()
-            .filter(|(asset, _version)| asset.Type.eq_ignore_ascii_case("Delta"))
-            .filter(|(_asset, version)| version > &latest_local_manifest.version && version <= &latest_remote.1)
-            .collect::<Vec<_>>();
-
-        remotes_greater_than_local.sort_by(|a, b| a.1.cmp(&b.1));
-        let remotes_greater_than_local = remotes_greater_than_local.iter().map(|obj| obj.0.clone()).collect::<Vec<VelopackAsset>>();
-
-        info!(
-            "Found {} delta updates between {} and {}.",
-            remotes_greater_than_local.len(),
-            latest_local_manifest.version,
-            latest_remote.1
-        );
-        UpdateInfo::new_delta(latest_remote.0.clone(), local_asset, remotes_greater_than_local)
-    }
-
     /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
     /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
-    /// - If the update contains delta packages and the delta feature is enabled
-    ///   this method will attempt to unpack and prepare them.
-    /// - If there is no delta update available, or there is an error preparing delta
-    ///   packages, this method will fall back to downloading the full version of the update.
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let _mutex = &self.inner.locator.try_get_exclusive_lock()?;
         let packages_dir = &self.inner.locator.get_packages_dir();
@@ -429,7 +354,6 @@ impl UpdateManager {
 
         let old_nupkg_pattern = format!("{}/*.nupkg", packages_dir.to_string_lossy());
         let old_partial_pattern = format!("{}/*.partial", packages_dir.to_string_lossy());
-        let delta_pattern = format!("{}/*-delta.nupkg", packages_dir.to_string_lossy());
         let mut to_delete = Vec::new();
 
         fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<PathBuf>) {
@@ -448,28 +372,14 @@ impl UpdateManager {
         find_files_to_delete(&old_nupkg_pattern, &mut to_delete);
         find_files_to_delete(&old_partial_pattern, &mut to_delete);
 
-        if update.BaseRelease.is_some() && !update.DeltasToTarget.is_empty() {
-            info!("Beginning delta update process.");
-            if self.download_and_apply_delta_updates(update, &partial_file, progress.clone()).is_err() {
-                info!("Falling back to full update...");
-                self.inner
-                    .source
-                    .download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
-                self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
-                info!("Successfully downloaded file: '{:?}'", partial_file);
-            }
-        } else {
-            self.inner
-                .source
-                .download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
-            self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
-            info!("Successfully downloaded file: '{:?}'", partial_file);
-        }
+        self.inner
+            .source
+            .download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
+        self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
+        info!("Successfully downloaded file: '{:?}'", partial_file);
 
         info!("Renaming partial file to final target: '{:?}'", final_target_file);
         fs::rename(&partial_file, &final_target_file)?;
-
-        find_files_to_delete(&delta_pattern, &mut to_delete);
 
         // extract new Update.exe on Windows only
         #[cfg(target_os = "windows")]
@@ -491,62 +401,6 @@ impl UpdateManager {
             let _ = fs::remove_file(&path);
         }
 
-        Ok(())
-    }
-
-    fn download_and_apply_delta_updates(&self, update: &UpdateInfo, output_file: &PathBuf, progress: Option<Sender<i16>>) -> Result<(), Error> {
-        let packages_dir = self.inner.locator.get_packages_dir();
-        let base_release_path = local_package_path(&packages_dir, update.BaseRelease.as_ref().unwrap());
-
-        let mut args: Vec<OsString> = vec![
-            "patch".into(),
-            "--old".into(),
-            base_release_path.clone().into(),
-            "--output".into(),
-            output_file.clone().into(),
-        ];
-
-        let count = update.DeltasToTarget.len() as f64;
-        for (i, delta) in update.DeltasToTarget.iter().enumerate() {
-            let delta_file = local_package_path(&packages_dir, delta);
-            let partial_file = delta_file.with_extension("partial");
-
-            info!("Downloading delta package: '{}'", delta.FileName);
-            // each delta reports its download within its share of the 0-70% range
-            let delta_progress = progress
-                .as_ref()
-                .map(|progress| scale_progress(progress.clone(), i as f64 / count * 70.0, (i + 1) as f64 / count * 70.0));
-            self.inner.source.download_release_entry(delta, &partial_file, delta_progress)?;
-            self.verify_package_checksum(&partial_file, delta)?;
-
-            fs::rename(&partial_file, &delta_file)?;
-            debug!("Successfully downloaded file: '{}'", delta.FileName);
-            if let Some(progress) = &progress {
-                let _ = progress.send(((i + 1) as f64 / count * 70.0) as i16);
-            }
-
-            args.push("--delta".into());
-            args.push(delta_file.into());
-        }
-
-        info!("Applying {} patches to {:?}.", update.DeltasToTarget.len(), output_file);
-
-        if let Some(progress) = &progress {
-            let _ = progress.send(70);
-        }
-
-        let output = std::process::Command::new(self.inner.locator.get_update_path()).args(args).output()?;
-        if output.status.success() {
-            info!("Successfully applied delta updates.");
-        } else {
-            let error_message = String::from_utf8_lossy(&output.stderr);
-            error!("Error applying delta updates: {}", error_message);
-            return Err(Error::Io(std::io::Error::other("Process exited with non-zero status")));
-        }
-
-        if let Some(progress) = &progress {
-            let _ = progress.send(100);
-        }
         Ok(())
     }
 
@@ -717,29 +571,4 @@ pub(crate) fn local_path_to_asset(manifest: &Manifest, path: &Path) -> VelopackA
         NotesMarkdown: manifest.release_notes.clone(),
         NotesHtml: manifest.release_notes_html.clone(),
     }
-}
-
-/// Returns a sender that forwards 0-100 progress values to `sender`, scaled into `start..end`, from a background
-/// thread that ends once the returned sender is dropped. The thread is not joined, so that an update source holding
-/// on to the sender cannot block the update, which means a scaled value may arrive after values sent later directly.
-fn scale_progress(sender: Sender<i16>, start: f64, end: f64) -> Sender<i16> {
-    let (scaled, receiver) = std::sync::mpsc::channel::<i16>();
-    std::thread::spawn(move || {
-        while let Ok(p) = receiver.recv() {
-            let _ = sender.send((start + (end - start) * p as f64 / 100.0) as i16);
-        }
-    });
-    scaled
-}
-
-#[test]
-fn test_scale_progress_maps_into_range() {
-    let (sender, receiver) = std::sync::mpsc::channel();
-    let scaled = scale_progress(sender, 35.0, 70.0);
-    for p in [0, 50, 100] {
-        scaled.send(p).unwrap();
-    }
-    drop(scaled);
-    // the forwarding thread owns the only sender, so this ends once it has forwarded every value
-    assert_eq!(receiver.iter().collect::<Vec<i16>>(), vec![35, 52, 70]);
 }

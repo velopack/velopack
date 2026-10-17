@@ -91,7 +91,6 @@ fn run() -> Result<HarnessResult, String> {
     let options = UpdateOptions {
         AllowVersionDowngrade: false,
         ExplicitChannel: Some(config.channel.clone()),
-        MaximumDeltasBeforeFallback: 10,
     };
 
     let um = UpdateManager::new_boxed(source, Some(options), Some(config.locator)).map_err(|e| format!("failed to create UpdateManager: {}", e))?;

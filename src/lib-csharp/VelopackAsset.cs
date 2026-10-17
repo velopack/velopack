@@ -14,7 +14,7 @@ namespace Velopack
     {
         /// <summary> A full update package. </summary>
         Full = 1,
-        /// <summary> A delta update package. </summary>
+        /// <summary> A legacy delta update package. Still recognised in existing feeds, but ignored by update clients. </summary>
         Delta = 2,
         /// <summary> A portable application zip archive. </summary>
         Portable = 3,

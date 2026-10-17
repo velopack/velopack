@@ -3,9 +3,9 @@
 //! With less than 10 lines of code, you can add auto-update and installation features to your application.
 //!
 //! ## Features
-//! - 😍 **Zero config** – Velopack takes your build output (eg. `cargo build`), and generates an installer, and updates and delta packages in a single command.
+//! - 😍 **Zero config** – Velopack takes your build output (eg. `cargo build`), and generates an installer and update packages in a single command.
 //! - 🎯 **Cross platform** – Velopack supports building packages for **Windows**, **OSX**, and **Linux**. No matter your target, Velopack can create a release in just one command.
-//! - ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and produces delta packages for ultra fast app updates. Applying update packages is highly optimised, and often can be done in the background.
+//! - ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and applying update packages is highly optimised and can often be done in the background.
 //! - 🌍 **Localized** – Translated into 39 languages across 6 continents, so your users feel at home no matter where they are.
 //!
 //! ## Documentation

@@ -46,7 +46,6 @@ public static class FlowApiExtensions
     {
         return type switch {
             Velopack.VelopackAssetType.Full => FileType.Full,
-            Velopack.VelopackAssetType.Delta => FileType.Delta,
             Velopack.VelopackAssetType.Portable => FileType.Portable,
             Velopack.VelopackAssetType.Installer => FileType.Setup,
             //TODO: MSI Deployment Tool?

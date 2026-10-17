@@ -189,40 +189,18 @@ class UpdateInfo:
         The available version that we are updating to.
         """
     @property
-    def BaseRelease(self) -> typing.Optional[VelopackAsset]:
-        r"""
-        The base release that this update is based on. This is only available if the update is a delta update.
-        """
-    @BaseRelease.setter
-    def BaseRelease(self, value: typing.Optional[VelopackAsset]) -> None:
-        r"""
-        The base release that this update is based on. This is only available if the update is a delta update.
-        """
-    @property
-    def DeltasToTarget(self) -> builtins.list[VelopackAsset]:
-        r"""
-        The list of delta updates that can be applied to the base version to get to the target version.
-        """
-    @DeltasToTarget.setter
-    def DeltasToTarget(self, value: typing.Sequence[VelopackAsset]) -> None:
-        r"""
-        The list of delta updates that can be applied to the base version to get to the target version.
-        """
-    @property
     def IsDowngrade(self) -> builtins.bool:
         r"""
         True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-        In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-        deleted.
+        In this case, any local packages on disk newer than the downloaded version will be deleted.
         """
     @IsDowngrade.setter
     def IsDowngrade(self, value: builtins.bool) -> None:
         r"""
         True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-        In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-        deleted.
+        In this case, any local packages on disk newer than the downloaded version will be deleted.
         """
-    def __new__(cls, TargetFullRelease: VelopackAsset, DeltasToTarget: typing.Sequence[VelopackAsset], IsDowngrade: builtins.bool, BaseRelease: typing.Optional[VelopackAsset] = None) -> UpdateInfo: ...
+    def __new__(cls, TargetFullRelease: VelopackAsset, IsDowngrade: builtins.bool) -> UpdateInfo: ...
 
 @typing.final
 class UpdateManager:
@@ -298,19 +276,7 @@ class UpdateOptions:
         allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
         without having to reinstall the application.
         """
-    @property
-    def MaximumDeltasBeforeFallback(self) -> builtins.int:
-        r"""
-        Sets the maximum number of deltas to consider before falling back to a full update.
-        The default is 10. Set to a negative number (eg. -1) to disable deltas.
-        """
-    @MaximumDeltasBeforeFallback.setter
-    def MaximumDeltasBeforeFallback(self, value: builtins.int) -> None:
-        r"""
-        Sets the maximum number of deltas to consider before falling back to a full update.
-        The default is 10. Set to a negative number (eg. -1) to disable deltas.
-        """
-    def __new__(cls, AllowVersionDowngrade: builtins.bool, MaximumDeltasBeforeFallback: builtins.int, ExplicitChannel: typing.Optional[builtins.str] = None) -> UpdateOptions: ...
+    def __new__(cls, AllowVersionDowngrade: builtins.bool, ExplicitChannel: typing.Optional[builtins.str] = None) -> UpdateOptions: ...
 
 @typing.final
 class VelopackAsset:

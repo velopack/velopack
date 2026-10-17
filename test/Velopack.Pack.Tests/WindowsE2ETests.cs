@@ -5,8 +5,6 @@ using System.Xml.Linq;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Core;
-using Velopack.Packaging.Commands;
-using Velopack.Packaging.Compression;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
 using Velopack.Vpk;
@@ -248,7 +246,7 @@ public class WindowsInstallTests
     }
 }
 
-// Auto-update and delta-update end-to-end tests.
+// Auto-update and manual update end-to-end tests.
 [SupportedOSPlatform("windows")]
 public class WindowsUpdateTests
 {
@@ -306,13 +304,13 @@ public class WindowsUpdateTests
     [Theory]
     [InlineData("csharp")]
     [InlineData("rust")]
-    public async Task TestPackedAppCanDeltaUpdateToLatest(string variant)
+    public async Task TestPackedAppCanUpdateToLatest(string variant)
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
-        string id = $"WinDeltaTest-{variant}";
+        string id = $"WinUpdateTest-{variant}";
         var exeName = variant == "rust" ? "testapp.exe" : "TestApp.exe";
         var appPath = Path.Combine(installDir, "current", exeName);
         string packagesPath = Path.Combine(installDir, "packages");
@@ -367,11 +365,7 @@ public class WindowsUpdateTests
         // pack v3
         await WindowsPackTests.PackTestAppVariant(variant, id, "3.0.0", "version 3 test", releaseDir, logger);
 
-        // corrupt the v2/v3 full packages, so the update can only succeed via the
-        // v2/v3 delta packages - a fallback to a full update will fail its checksum
-        TestHelper.CorruptFullPackagesToForceDelta(releaseDir, id, ["2.0.0", "3.0.0"]);
-
-        // perform delta update, check that we get v3
+        // perform update, check that we get v3
         // apply should fail if there's not an update downloaded
         run(["apply", releaseDir], exitCode: -1);
         run(["download", releaseDir]);

@@ -5,8 +5,6 @@ using System.Xml.Linq;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Core;
-using Velopack.Packaging.Commands;
-using Velopack.Packaging.Compression;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
 using Velopack.Vpk;
@@ -271,81 +269,6 @@ public class WindowsPackTests
         Assert.Throws<UserInfoException>(() => runner.Run(options).GetAwaiterResult());
     }
 
-    [Fact]
-    public async Task TestPackGeneratesValidDelta()
-    {
-        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
-        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-        string id = "SquirrelDeltaTest";
-        await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
-        await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, true);
-        await PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
-
-        // did a zsdiff get created for the changed file in our v2 update? (test_string.txt is the
-        // only file that differs between versions now that the test string is not compiled in)
-        var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
-        Assert.True(File.Exists(deltaPath));
-        using var _2 = TempUtil.GetTempDirectory(out var extractDir);
-        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), deltaPath, extractDir);
-        var extractStringDiff = Path.Combine(extractDir, "lib", "app", "test_string.txt.zsdiff");
-        var extractStringShasum = Path.Combine(extractDir, "lib", "app", "test_string.txt.shasum");
-        Assert.True(File.Exists(extractStringDiff));
-        Assert.True(new FileInfo(extractStringDiff).Length > 0);
-        Assert.True(File.Exists(extractStringShasum));
-        Assert.True(new FileInfo(extractStringShasum).Length > 0);
-
-        // unchanged files get zero-length dummy .diff markers
-        var extractDllDiff = Path.Combine(extractDir, "lib", "app", "TestApp.dll.diff");
-        Assert.True(File.Exists(extractDllDiff));
-        Assert.True(new FileInfo(extractDllDiff).Length == 0);
-        var extractAppDiff = Path.Combine(extractDir, "lib", "app", "TestApp.exe.diff");
-        Assert.True(File.Exists(extractAppDiff));
-        Assert.True(new FileInfo(extractAppDiff).Length == 0);
-
-        // new file should exist but not have shasum
-        var extractNewFile = Path.Combine(extractDir, "lib", "app", "NewFile.txt");
-        Assert.True(File.Exists(extractNewFile));
-        Assert.True(new FileInfo(extractNewFile).Length > 0);
-        var extractNewFileShasum = Path.Combine(extractDir, "lib", "app", "NewFile.txt.shasum");
-        Assert.False(File.Exists(extractNewFileShasum));
-
-        // apply delta and check package
-        var output = Path.Combine(releaseDir, "delta.patched");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(
-            new DeltaPatchOptions {
-                BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
-                OutputFile = output,
-                PatchFiles = [new FileInfo(deltaPath)],
-            }).GetAwaiterResult();
-
-        // are the packages the same?
-        Assert.True(File.Exists(output));
-        var v2 = Path.Combine(releaseDir, $"{id}-2.0.0-full.nupkg");
-        var f1 = File.ReadAllBytes(output);
-        var f2 = File.ReadAllBytes(v2);
-        Assert.True(new ReadOnlySpan<byte>(f1).SequenceEqual(new ReadOnlySpan<byte>(f2)));
-        Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v2));
-
-        // can apply multiple deltas, and handle add/removing files?
-        output = Path.Combine(releaseDir, "delta.patched2");
-        var deltav3 = Path.Combine(releaseDir, $"{id}-3.0.0-delta.nupkg");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(
-            new DeltaPatchOptions {
-                BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
-                OutputFile = output,
-                PatchFiles = [new FileInfo(deltaPath), new FileInfo(deltav3)],
-            }).GetAwaiterResult();
-
-        // are the packages the same?
-        Assert.True(File.Exists(output));
-        var v3 = Path.Combine(releaseDir, $"{id}-3.0.0-full.nupkg");
-        var f4 = File.ReadAllBytes(output);
-        var f5 = File.ReadAllBytes(v3);
-        Assert.True(new ReadOnlySpan<byte>(f4).SequenceEqual(new ReadOnlySpan<byte>(f5)));
-        Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v3));
-    }
-
     internal static async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger)
     {
         if (variant == "csharp") {
@@ -384,17 +307,13 @@ public class WindowsPackTests
     }
 
     internal static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null)
+        string assemblyNameOverride = null, string mainExeSubfolder = null)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
         {
             var publishDir = Path.Combine(workDir, "publish");
             TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger, singleFile: assemblyNameOverride != null);
-
-            if (addNewFile) {
-                File.WriteAllText(Path.Combine(publishDir, "NewFile.txt"), "New File Test");
-            }
 
             if (assemblyNameOverride != null) {
                 var targetExe = Path.Combine(publishDir, assemblyNameOverride + ".exe");

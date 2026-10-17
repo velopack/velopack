@@ -61,14 +61,9 @@ export type VelopackAsset = {
 export type UpdateInfo = {
     /** The available version that we are updating to. */
     TargetFullRelease: VelopackAsset,
-    /** The base release that this update is based on. This is only available if the update is a delta update. */
-    BaseRelease?: VelopackAsset,
-    /** The list of delta updates that can be applied to the base version to get to the target version. */
-    DeltasToTarget: VelopackAsset[],
     /**
      * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-     * deleted.
+     * In this case, any local packages on disk newer than the downloaded version will be deleted.
      */
     IsDowngrade: boolean,
 }
@@ -92,10 +87,5 @@ export type UpdateOptions = {
      * without having to reinstall the application.
      */
     ExplicitChannel?: string,
-    /**
-     * Sets the maximum number of deltas to consider before falling back to a full update.
-     * The default is 10. Set to a negative number (eg. -1) to disable deltas.
-     */
-    MaximumDeltasBeforeFallback: number,
 }
 

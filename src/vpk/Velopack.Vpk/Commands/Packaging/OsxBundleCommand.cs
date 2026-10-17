@@ -12,7 +12,6 @@ public class OsxBundleCommand : PackCommand
         RemoveOption(NoPortableOption);
         RemoveOption(NoInstOption);
         RemoveOption(ReleaseNotesOption);
-        RemoveOption(DeltaModeOption);
     }
 
     public OsxBundleCommand(string name, string description)

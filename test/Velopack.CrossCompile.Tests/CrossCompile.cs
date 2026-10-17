@@ -68,7 +68,7 @@ public class CrossCompile
         Assert.True(File.Exists(src), $"Expected {src} to exist");
         File.Copy(src, dest, overwrite: true);
 
-        // v2 lands in the same release dir, so the feed also gets a v1 -> v2 delta
+        // v2 lands in the same release dir, so the feed lists both v1 and v2
         pack("2.0.0", id + "-v2");
 
         var feedDir = Path.Combine(artifactsDir, id + "-feed");

@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
-using Velopack.Packaging.Compression;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;
@@ -136,11 +135,5 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions, LinuxPack
         var dir = TempDir.CreateSubdirectory("CreateReleasePackage.Linux");
         File.Copy(PortablePackagePath, Path.Combine(dir.FullName, Options.PackId + ".AppImage"), true);
         return base.CreateReleasePackage(progress, dir.FullName, outputPath);
-    }
-
-    protected override Task<string> CreateDeltaPackage(Action<int> progress, string releasePkg, string prevReleasePkg, string outputPkg, DeltaMode mode)
-    {
-        progress(-1); // there is only one "file", so progress will not work
-        return base.CreateDeltaPackage(progress, releasePkg, prevReleasePkg, outputPkg, mode);
     }
 }

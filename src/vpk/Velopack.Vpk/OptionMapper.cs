@@ -2,7 +2,6 @@
 using Velopack.Core;
 using Velopack.Deployment;
 using Velopack.Flow.Commands;
-using Velopack.Packaging.Commands;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Vpk.Commands.Deployment;
@@ -56,10 +55,6 @@ public static partial class OptionMapper
     public static partial AzureDownloadOptions ToOptions(this AzureDownloadCommand cmd);
 
     public static partial AzureUploadOptions ToOptions(this AzureUploadCommand cmd);
-
-    public static partial DeltaGenOptions ToOptions(this DeltaGenCommand cmd);
-
-    public static partial DeltaPatchOptions ToOptions(this DeltaPatchCommand cmd);
 
     public static partial LoginOptions ToOptions(this LoginCommand cmd);
 

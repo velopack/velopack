@@ -201,7 +201,6 @@ int run(const std::string& configPath) {
     Velopack::UpdateOptions options;
     options.AllowVersionDowngrade = false;
     options.ExplicitChannel = channel;
-    options.MaximumDeltasBeforeFallback = 10;
 
     auto source = build_source(config.at("source"));
     Velopack::UpdateManager manager(std::move(source), &options, &locator);

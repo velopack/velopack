@@ -279,15 +279,8 @@ pub struct PyUpdateInfo {
     /// The available version that we are updating to.
     #[pyo3(get, set)]
     pub TargetFullRelease: PyVelopackAsset,
-    /// The base release that this update is based on. This is only available if the update is a delta update.
-    #[pyo3(get, set)]
-    pub BaseRelease: Option<PyVelopackAsset>,
-    /// The list of delta updates that can be applied to the base version to get to the target version.
-    #[pyo3(get, set)]
-    pub DeltasToTarget: Vec<PyVelopackAsset>,
     /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-    /// deleted.
+    /// In this case, any local packages on disk newer than the downloaded version will be deleted.
     #[pyo3(get, set)]
     pub IsDowngrade: bool,
 }
@@ -296,17 +289,13 @@ pub struct PyUpdateInfo {
 #[pymethods]
 impl PyUpdateInfo {
     #[new]
-    #[pyo3(signature = (TargetFullRelease, DeltasToTarget, IsDowngrade, BaseRelease = None))]
+    #[pyo3(signature = (TargetFullRelease, IsDowngrade))]
     fn new(
         TargetFullRelease: PyVelopackAsset,
-        DeltasToTarget: Vec<PyVelopackAsset>,
         IsDowngrade: bool,
-        BaseRelease: Option<PyVelopackAsset>,
         ) -> Self {
         Self {
             TargetFullRelease: TargetFullRelease.into(),
-            BaseRelease: BaseRelease.map(Into::into),
-            DeltasToTarget: DeltasToTarget.into_iter().map(Into::into).collect(),
             IsDowngrade: IsDowngrade,
         }
     }
@@ -316,8 +305,6 @@ impl From<UpdateInfo> for PyUpdateInfo {
     fn from(value: UpdateInfo) -> Self {
         PyUpdateInfo {
             TargetFullRelease: value.TargetFullRelease.into(),
-            BaseRelease: value.BaseRelease.map(Into::into),
-            DeltasToTarget: value.DeltasToTarget.into_iter().map(Into::into).collect(),
             IsDowngrade: value.IsDowngrade,
         }
     }
@@ -327,8 +314,6 @@ impl Into<UpdateInfo> for PyUpdateInfo {
     fn into(self) -> UpdateInfo {
         UpdateInfo {
             TargetFullRelease: self.TargetFullRelease.into(),
-            BaseRelease: self.BaseRelease.map(Into::into),
-            DeltasToTarget: self.DeltasToTarget.into_iter().map(Into::into).collect(),
             IsDowngrade: self.IsDowngrade,
         }
     }
@@ -354,26 +339,20 @@ pub struct PyUpdateOptions {
     /// without having to reinstall the application.
     #[pyo3(get, set)]
     pub ExplicitChannel: Option<String>,
-    /// Sets the maximum number of deltas to consider before falling back to a full update.
-    /// The default is 10. Set to a negative number (eg. -1) to disable deltas.
-    #[pyo3(get, set)]
-    pub MaximumDeltasBeforeFallback: i32,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyUpdateOptions {
     #[new]
-    #[pyo3(signature = (AllowVersionDowngrade, MaximumDeltasBeforeFallback, ExplicitChannel = None))]
+    #[pyo3(signature = (AllowVersionDowngrade, ExplicitChannel = None))]
     fn new(
         AllowVersionDowngrade: bool,
-        MaximumDeltasBeforeFallback: i32,
         ExplicitChannel: Option<String>,
         ) -> Self {
         Self {
             AllowVersionDowngrade: AllowVersionDowngrade,
             ExplicitChannel: ExplicitChannel.map(Into::into),
-            MaximumDeltasBeforeFallback: MaximumDeltasBeforeFallback,
         }
     }
 }
@@ -383,7 +362,6 @@ impl From<UpdateOptions> for PyUpdateOptions {
         PyUpdateOptions {
             AllowVersionDowngrade: value.AllowVersionDowngrade,
             ExplicitChannel: value.ExplicitChannel.map(Into::into),
-            MaximumDeltasBeforeFallback: value.MaximumDeltasBeforeFallback,
         }
     }
 }
@@ -393,7 +371,6 @@ impl Into<UpdateOptions> for PyUpdateOptions {
         UpdateOptions {
             AllowVersionDowngrade: self.AllowVersionDowngrade,
             ExplicitChannel: self.ExplicitChannel.map(Into::into),
-            MaximumDeltasBeforeFallback: self.MaximumDeltasBeforeFallback,
         }
     }
 }

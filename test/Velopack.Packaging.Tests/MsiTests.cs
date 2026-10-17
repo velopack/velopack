@@ -2,7 +2,6 @@
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using Velopack.Core;
-using Velopack.Packaging.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
 using Velopack.Vpk;

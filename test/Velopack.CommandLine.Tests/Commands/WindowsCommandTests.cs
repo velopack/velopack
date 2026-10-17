@@ -23,17 +23,6 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
         => new WindowsPackOptionsValidator().Validate(options);
 
     [Fact]
-    public void NoDelta_BareOption_SetsFlag()
-    {
-        var command = new T();
-
-        string cli = GetRequiredDefaultOptions() + "--delta none";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.True(command.DeltaMode == Packaging.Compression.DeltaMode.None);
-    }
-
-    [Fact]
     public void Runtime_WithValue_ParsesValue()
     {
         var command = new T();

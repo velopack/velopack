@@ -54,7 +54,6 @@ async function main() {
     const options = {
         ExplicitChannel: config.channel,
         AllowVersionDowngrade: false,
-        MaximumDeltasBeforeFallback: 10,
     };
     const locator = config.locator;
 

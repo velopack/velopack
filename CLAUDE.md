@@ -97,13 +97,25 @@ samples/                         # Example apps (C#, C++, Node.js, Python, Rust)
 
 **Backwards compatibility**: Changes to the CLI/binaries must be backwards compatible, because older library versions shipped with apps in the field may call newer executables.
 
+### Delta updates
+
+The legacy delta system (`-delta.nupkg` files with zstd `.zsdiff` patches, `UpdateInfo.DeltasToTarget`, `vpk delta`,
+`vpk pack --delta`) has been removed from lib-csharp, lib-rust, the bindings and vpk: nothing generates or consumes legacy
+deltas any more, and clients always download the full package. A new chunk-based delta system is being built to replace it.
+What remains for compatibility:
+- The update binaries (`src/bins`) still implement the `patch` command (and keep their `zstd` dependency), because older
+  libraries in the field call newer update binaries.
+- `Delta` assets in existing `releases.{channel}.json` / `RELEASES` feeds still parse (`VelopackAssetType.Delta`,
+  `IsDeltaFile`, `ReleaseEntry.IsDelta`, Rust `is_delta`); clients ignore them, and vpk keeps them when it merges or
+  rewrites a feed.
+
 ### Update Flow
 
 1. **`VelopackApp.Run()`** executes at app startup. It handles fast-exit lifecycle hooks invoked by the update binary (`--veloapp-install`, `--veloapp-updated`, `--veloapp-obsolete`, `--veloapp-uninstall` — each with a version arg). These hooks have strict time limits (15-30s) and the process is killed if exceeded. It also auto-applies pending updates if a newer local package exists, fires `OnFirstRun`/`OnRestarted` callbacks based on environment variables (`VELOPACK_FIRSTRUN`, `VELOPACK_RESTART`), and cleans up old packages.
 
-2. **`UpdateManager.CheckForUpdatesAsync()`** queries an `IUpdateSource` for the remote release feed, compares against the installed version, and builds a delta strategy. It selects deltas if: they exist, there are ≤10 in the chain, and their total size < the full package size. Returns `UpdateInfo` with `TargetFullRelease` and `DeltasToTarget[]`.
+2. **`UpdateManager.CheckForUpdatesAsync()`** queries an `IUpdateSource` for the remote release feed, compares against the installed version, and returns `UpdateInfo` with `TargetFullRelease` (the latest `Full` asset) and `IsDowngrade`. Legacy `Delta` assets in the feed are ignored.
 
-3. **`UpdateManager.DownloadUpdatesAsync()`** acquires a lock (`PackagesDir/.velopack_lock`), downloads deltas (or falls back to full package), verifies checksums (SHA256 preferred, SHA1 fallback), then invokes the update binary's `patch` command to reconstruct the full package from deltas. On Windows, it also extracts the new `Update.exe` from the downloaded package. Local paths for feed assets always go through `PathUtil.GetSafeFilename` (C#, via `IVelopackLocator.GetLocalPackagePath`) / `misc::get_safe_filename` (Rust, via `local_package_path`): only the last path segment of `FileName` is kept, so a feed may reference packages in sub-folders or at absolute URLs (#596) and can never write outside `PackagesDir`. The raw `FileName` is still what gets resolved against the source's base URL/directory for the download.
+3. **`UpdateManager.DownloadUpdatesAsync()`** acquires a lock (`PackagesDir/.velopack_lock`), downloads the full package and verifies its checksum (SHA256 preferred, SHA1 fallback). On Windows, it also extracts the new `Update.exe` from the downloaded package. Local paths for feed assets always go through `PathUtil.GetSafeFilename` (C#, via `IVelopackLocator.GetLocalPackagePath`) / `misc::get_safe_filename` (Rust, via `local_package_path`): only the last path segment of `FileName` is kept, so a feed may reference packages in sub-folders or at absolute URLs (#596) and can never write outside `PackagesDir`. The raw `FileName` is still what gets resolved against the source's base URL/directory for the download.
 
 4. **`UpdateManager.ApplyUpdatesAndRestart()`** invokes the update binary's `apply` command with `--waitPid`, `--rootDir`, `--packageDir`, and optional `--package` and restart args, then exits the app. The update binary waits for the app to exit, extracts the package, calls the app's fast-exit hooks, and relaunches.
 
@@ -120,7 +132,9 @@ The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platfo
    - **Release package** (`.nupkg`): ZIP with `lib/app/` containing all app files + update binary + `sq.version` manifest, plus a `.nuspec` with metadata. This is the canonical package format.
    - **Portable package**: On Windows: ZIP with `Update.exe`, `current/` dir, execution stub, and `.portable` marker. On Linux: AppImage (squashfs appended to runtime binary). On macOS: ditto ZIP of `.app` bundle.
    - **Setup installer**: On Windows: `setup.exe` template with the `.nupkg` appended as a bundle (offset+length header + signature). Optional MSI via WiX 5 compilation from Handlebars templates. On macOS: `.pkg` via `pkgbuild`.
-   - **Delta package** (`.delta.nupkg`): Created if a previous release exists. Compares files between old and new releases — unchanged files get zero-length `.diff` markers, changed files get zstd patches (`.zsdiff`), new files included as-is. zstd is the only supported patch format (creation and apply); zstd being unavailable fails delta creation. Legacy `.bsdiff`/msdelta patches are rejected with an "Unsupported patch format" error on apply. vpk shells out to `zstd` once per changed file (`Zstd.cs`); on Windows `zstd.exe` mangles non-ASCII argument characters (facebook/zstd#3882), so when any path is non-ASCII the files are moved into a temp dir under ASCII names and zstd runs there with relative paths.
+   - **No delta packages**: vpk no longer creates legacy `-delta.nupkg` files (no `--delta` option, no `vpk delta`
+     commands, no vendored `zstd.exe`). Delta assets already in a `releases.{channel}.json`/`RELEASES` feed or a
+     release dir are still parsed and kept when vpk rewrites a feed (upload/download merges), never generated.
 
 4. **Post-processing**: Writes `releases.<channel>.json` (asset feed for update clients) and legacy `RELEASES` file.
 
