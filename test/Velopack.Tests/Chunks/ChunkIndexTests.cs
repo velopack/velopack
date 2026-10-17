@@ -271,9 +271,16 @@ public class ChunkIndexTests
     {
         Assert.Null(ChunkIndex.ValidatePath(new string('a', 255)));
         Assert.Contains("255", ChunkIndex.ValidatePath(new string('a', 256))!);
-        // 128 two-byte characters are 256 bytes
-        Assert.Contains("255", ChunkIndex.ValidatePath(new string('ü', 128))!);
-        Assert.Null(ChunkIndex.ValidatePath(new string('ü', 127)));
+        // counted in UTF-16 code units like NTFS, not UTF-8 bytes: 255 two-byte characters (510 bytes) are fine
+        Assert.Null(ChunkIndex.ValidatePath(new string('ü', 255)));
+        Assert.Contains("255", ChunkIndex.ValidatePath(new string('ü', 256))!);
+        // a CJK file name of 90 characters (270 UTF-8 bytes) packs as it always did
+        Assert.Null(ChunkIndex.ValidatePath("docs/" + new string('文', 90) + ".pdf"));
+        // a character outside the BMP is two code units
+        Assert.Contains("255", ChunkIndex.ValidatePath(string.Concat(Enumerable.Repeat("😀", 128)))!);
+        Assert.Null(ChunkIndex.ValidatePath(string.Concat(Enumerable.Repeat("😀", 127))));
+        // symlink target segments follow the same limit as the Rust reader
+        Assert.Contains("255", ChunkIndex.ValidateSymlinkTarget("link", new string('a', 256))!);
     }
 
     [Theory]

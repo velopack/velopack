@@ -337,6 +337,26 @@ fn accepts_unicode_fold_sample() {
 }
 
 #[test]
+fn segment_length_counts_utf16_code_units() {
+    // NTFS allows 255 UTF-16 code units per name, however many UTF-8 bytes that is
+    let cjk = format!("docs/{}.pdf", "文".repeat(90)); // 94 code units, 274 bytes
+    let umlauts = "ü".repeat(255); // 255 code units, 510 bytes
+    let index = ChunkIndex::parse_trailer(&trailer_of(vec![
+        TestFile::file(&cjk, b"1".to_vec()),
+        TestFile::file(&umlauts, b"2".to_vec()),
+    ]))
+    .unwrap();
+    assert_eq!(index.file_count(), 2);
+    assert_rejects(
+        "256 two-byte characters",
+        &trailer_of(vec![TestFile::file(&"ü".repeat(256), b"x".to_vec())]),
+    );
+    // a character outside the BMP is two code units: 128 of them are 256
+    assert_rejects("128 surrogate pairs", &trailer_of(vec![TestFile::file(&"😀".repeat(128), b"x".to_vec())]));
+    assert!(ChunkIndex::parse_trailer(&trailer_of(vec![TestFile::file(&"😀".repeat(127), b"x".to_vec())])).is_ok());
+}
+
+#[test]
 fn staged_id_is_first_32_hex_lower() {
     let sha = "ABCDEF0123456789ABCDEF0123456789abcdef0123456789ABCDEF0123456789";
     assert_eq!(staged_id(sha).as_deref(), Some("abcdef0123456789abcdef0123456789"));

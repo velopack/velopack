@@ -135,8 +135,9 @@ fn check_control_chars(s: &[u8]) -> Result<(), IndexError> {
 }
 
 fn check_segment_chars(segment: &str) -> Result<(), IndexError> {
-    if segment.len() > MAX_SEGMENT_LEN {
-        return err(format!("path segment '{}' is too long", segment));
+    // counted in UTF-16 code units, the unit NTFS/Win32 limit a name to (C#: string.Length)
+    if segment.encode_utf16().count() > MAX_SEGMENT_LEN {
+        return err(format!("path segment '{}' is longer than 255 UTF-16 code units", segment));
     }
     if segment.chars().any(|c| matches!(c, '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')) {
         return err(format!("path segment '{}' contains an invalid character", segment));

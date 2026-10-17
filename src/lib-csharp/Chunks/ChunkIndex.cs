@@ -443,7 +443,6 @@ namespace Velopack.Chunks
         {
             var folded = new HashSet<string>(StringComparer.Ordinal);
             var exact = new HashSet<string>(StringComparer.Ordinal);
-            var emptyDirs = new List<string>();
             int prevOff = -1, prevLen = 0;
             int nextChunk = 0;
             bool seenUpdater = false;
@@ -532,24 +531,17 @@ namespace Velopack.Chunks
                 case ChunkFileKind.EmptyDir:
                     if (chunkCount != 0 || firstChunk != 0) throw Invalid($"record {i} '{path}': empty directory with chunks");
                     if (length != 0 || targetLen != 0) throw Invalid($"record {i} '{path}': empty directory with length or target");
-                    emptyDirs.Add(path);
                     break;
                 }
             }
 
             if (nextChunk != ChunkCount) throw Invalid($"{ChunkCount - nextChunk} chunk records are not owned by any file");
 
-            // no record may be a directory prefix of another (checked on the exact paths)
+            // no record may be a directory prefix of another (checked on the exact paths); this also rejects anything
+            // under an EmptyDir record, in O(total path length) like the Rust reader
             foreach (var path in exact) {
                 for (int slash = path.IndexOf('/'); slash > 0; slash = path.IndexOf('/', slash + 1)) {
                     if (exact.Contains(path.Substring(0, slash))) throw Invalid($"'{path.Substring(0, slash)}' is both a file and a directory");
-                }
-            }
-            foreach (var dir in emptyDirs) {
-                foreach (var path in exact) {
-                    if (path.Length > dir.Length && path[dir.Length] == '/' && path.StartsWith(dir, StringComparison.Ordinal)) {
-                        throw Invalid($"empty directory '{dir}' is not empty");
-                    }
                 }
             }
         }
@@ -671,8 +663,9 @@ namespace Velopack.Chunks
             }
             char last = path[start + length - 1];
             if (last == '.' || last == ' ') return "segment ends with '.' or space";
+            // counted in UTF-16 code units, the unit NTFS/Win32 limit a name to (Rust: encode_utf16().count())
+            if (length > MaxSegmentLength) return "segment longer than 255 UTF-16 code units";
             if (!allowDots) {
-                if (Encoding.UTF8.GetByteCount(path.ToCharArray(), start, length) > MaxSegmentLength) return "segment longer than 255 bytes";
                 int dot = path.IndexOf('.', start, length);
                 int stemLength = (dot < 0 ? start + length : dot) - start;
                 foreach (var reserved in ReservedStems) {
