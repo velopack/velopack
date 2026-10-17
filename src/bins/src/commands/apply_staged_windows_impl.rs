@@ -173,7 +173,8 @@ fn copy_tree(src: &Path, dest: &Path, total_bytes: u64, reporter: &dyn ProgressR
     Ok(())
 }
 
-enum SwapOutcome {
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum SwapOutcome {
     Done,
     NotSameDevice,
 }
@@ -181,7 +182,7 @@ enum SwapOutcome {
 /// The crash-safe swap: `current` → `backup`, then immediately `new` → `current`. On failure of the
 /// second rename the backup is moved back. `NotSameDevice` reports a junction/mount point inside root
 /// so the caller can copy under root and retry.
-fn swap_current_dir(current: &Path, backup: &Path, new: &Path, retry_delay_ms: i32) -> Result<SwapOutcome> {
+pub(crate) fn swap_current_dir(current: &Path, backup: &Path, new: &Path, retry_delay_ms: i32) -> Result<SwapOutcome> {
     shared::retry_io_ex(|| fs::rename(current, backup), retry_delay_ms, 10)
         .context("Unable to start the update, because one or more running processes prevented it. Try again later, or if the issue persists, restart your computer.")?;
 
@@ -453,6 +454,37 @@ fn remove_packages(packages_dir: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tree(dir: &Path, marker: &str) {
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        fs::write(dir.join("marker.txt"), marker).unwrap();
+        fs::write(dir.join("sub").join("file.bin"), marker).unwrap();
+    }
+
+    #[test]
+    fn swap_restores_the_previous_version_when_the_new_tree_cannot_be_moved() {
+        let tmp = tempfile::tempdir().unwrap();
+        let current = tmp.path().join("current");
+        let backup = tmp.path().join("current.old-1-abcd");
+        let new = tmp.path().join("staged").join("current");
+        tree(&current, "old");
+        tree(&new, "new");
+
+        // an open handle inside the new tree (an AV scanner, an indexer) blocks rename #2, not rename #1
+        let handle = fs::File::open(new.join("sub").join("file.bin")).unwrap();
+        let err = swap_current_dir(&current, &backup, &new, 0).unwrap_err();
+        assert!(format!("{:#}", err).contains("previous version was restored"), "{:#}", err);
+        assert_eq!(fs::read_to_string(current.join("marker.txt")).unwrap(), "old");
+        assert!(!backup.exists(), "the backup was moved back");
+        assert_eq!(fs::read_to_string(new.join("marker.txt")).unwrap(), "new", "the new tree is untouched");
+        drop(handle);
+
+        // once released, the same swap goes through
+        assert_eq!(swap_current_dir(&current, &backup, &new, 0).unwrap(), SwapOutcome::Done);
+        assert_eq!(fs::read_to_string(current.join("marker.txt")).unwrap(), "new");
+        assert_eq!(fs::read_to_string(backup.join("marker.txt")).unwrap(), "old");
+        assert!(!new.exists());
+    }
 
     #[test]
     fn elevated_child_is_marked_and_gets_the_forwarded_flags() {

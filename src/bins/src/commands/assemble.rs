@@ -16,6 +16,15 @@ fn single_line(msg: &str) -> String {
     msg.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
+/// Runs `on_exit` on a background thread as soon as process `pid` has exited (or cannot be waited on).
+pub(crate) fn spawn_parent_watchdog(pid: u32, on_exit: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(move || {
+        let result = velopack::process::wait_for_pid_to_exit(pid, None);
+        debug!("Watched process {} has exited ({:?})", pid, result);
+        on_exit();
+    });
+}
+
 /// The `assemble --staged <DIR> --parentPid <PID>` command (§7.1). Builds the staged tree from local
 /// files and the chunk blob and returns the process exit code: 0 success, 2 invalid input, 3 chunks
 /// missing (`missing.bin` written), 4 IO error, 1 anything else. Takes no lock: the caller holds it
@@ -49,9 +58,8 @@ pub fn assemble_cli(context: LocationContext, staged: Option<&Path>, parent_pid:
             return 1;
         }
     }
-    std::thread::spawn(move || {
-        let result = velopack::process::wait_for_pid_to_exit(parent_pid, None);
-        warn!("Parent process {} is gone ({:?}), exiting.", parent_pid, result);
+    spawn_parent_watchdog(parent_pid, move || {
+        warn!("Parent process {} is gone, exiting.", parent_pid);
         std::process::exit(1);
     });
 
@@ -97,5 +105,33 @@ pub fn assemble_cli(context: LocationContext, staged: Option<&Path>, parent_pid:
             print_protocol(&format!("VPK:ERROR {}", single_line(&e.to_string())));
             e.exit_code()
         }
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn watchdog_fires_when_the_parent_exits_mid_assembly() {
+        // a parent that lives about 2 seconds
+        let mut parent = std::process::Command::new("cmd")
+            .args(["/c", "ping -n 3 127.0.0.1 >nul"])
+            .spawn()
+            .unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let started = Instant::now();
+        spawn_parent_watchdog(parent.id(), move || {
+            let _ = tx.send(Instant::now());
+        });
+        assert!(rx.recv_timeout(Duration::from_millis(500)).is_err(), "fired while the parent was alive");
+        let fired = rx.recv_timeout(Duration::from_secs(15)).expect("fired after the parent exited");
+        let _ = parent.wait();
+        assert!(
+            fired.duration_since(started) >= Duration::from_secs(1),
+            "fired after {:?}",
+            fired.duration_since(started)
+        );
     }
 }
