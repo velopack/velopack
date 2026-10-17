@@ -17,6 +17,7 @@ pub enum RangeError {
 }
 
 /// Byte-range access to one release asset.
+#[allow(clippy::len_without_is_empty)]
 pub trait RangeReader: Send + Sync {
     /// The asset size as reported by the origin, once learned from the first ranged response.
     fn len(&self) -> Option<u64>;
