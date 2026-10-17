@@ -144,12 +144,13 @@ namespace Velopack.Locators
                         UpdateExePath = Path.Combine(fallbackBase, "Update.exe");
                         initLog.Info($"Root directory is not writable, using fallback directory: {fallbackBase}");
 
-                        // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install),
-                        // copy it from the root directory so UpdateExePath always points to an existing file.
+                        // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install), or is
+                        // stale (an MSI/IT upgrade or another user's elevated apply replaced the root one), copy it
+                        // from the root directory so UpdateExePath always points to the updater vendored with the app.
                         var rootUpdateExe = Path.Combine(RootAppDir, "Update.exe");
-                        if (!File.Exists(UpdateExePath) && File.Exists(rootUpdateExe)) {
+                        if (File.Exists(rootUpdateExe) && FallbackUpdateExeNeedsRefresh(rootUpdateExe, UpdateExePath)) {
                             try {
-                                File.Copy(rootUpdateExe, UpdateExePath);
+                                File.Copy(rootUpdateExe, UpdateExePath, true);
                                 initLog.Info($"Copied Update.exe from root to fallback: {UpdateExePath}");
                             } catch (Exception ex) {
                                 initLog.Error($"Failed to copy Update.exe to fallback path: {ex.Message}");
@@ -180,6 +181,21 @@ namespace Velopack.Locators
                     $"Failed to initialize {nameof(WindowsVelopackLocator)}. This could be because the program is not installed or packaged properly.");
             } else {
                 initLog.Info($"Initialized {nameof(WindowsVelopackLocator)} for {AppId} v{CurrentlyInstalledVersion}");
+            }
+        }
+
+        /// <summary>
+        /// True when the fallback copy of Update.exe is missing or differs from the root one in length or last-write time.
+        /// </summary>
+        internal static bool FallbackUpdateExeNeedsRefresh(string rootUpdateExe, string fallbackUpdateExe)
+        {
+            try {
+                var fallback = new FileInfo(fallbackUpdateExe);
+                if (!fallback.Exists) return true;
+                var root = new FileInfo(rootUpdateExe);
+                return root.Length != fallback.Length || root.LastWriteTimeUtc != fallback.LastWriteTimeUtc;
+            } catch (Exception) {
+                return false;
             }
         }
     }

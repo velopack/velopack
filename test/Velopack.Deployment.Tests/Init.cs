@@ -1,5 +1,5 @@
+global using Velopack.TestCommon;
 using System.Runtime.CompilerServices;
-using Velopack.TestCommon;
 
 namespace Velopack.Deployment.Tests;
 

@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Compile Include="..\Velopack.TestCommon\PathHelper.cs" Link="PathHelper.cs" />
+    <Compile Include="..\Velopack.TestCommon\StaticFileServer.cs" Link="StaticFileServer.cs" />
   </ItemGroup>
 
   <ItemGroup>

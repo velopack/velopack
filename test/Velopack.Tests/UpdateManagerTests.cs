@@ -8,7 +8,7 @@ using Velopack.Util;
 
 namespace Velopack.Tests;
 
-public class UpdateManagerTests
+public partial class UpdateManagerTests
 {
     private readonly ITestOutputHelper _output;
 
