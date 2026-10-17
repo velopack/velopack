@@ -5,7 +5,7 @@ use core::cell::UnsafeCell;
 use core::ffi::c_void;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use windows_sys::core::{BOOL, HRESULT, PCSTR, PCWSTR};
-use windows_sys::Win32::Foundation::{SetLastError, ERROR_INVALID_PARAMETER, FILETIME, TRUE};
+use windows_sys::Win32::Foundation::{GetLastError, SetLastError, ERROR_INVALID_PARAMETER, FILETIME, TRUE};
 use windows_sys::Win32::Security::Authentication::Identity::RtlGenRandom;
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress, LoadLibraryExW, LoadLibraryW, LOAD_LIBRARY_SEARCH_SYSTEM32};
 use windows_sys::Win32::System::SystemInformation::GetSystemTimeAsFileTime;
@@ -57,19 +57,23 @@ static SYNCH_MODULE: LazyAddress = LazyAddress::new();
 
 /// The real synchronization function `name`, or None when all three must use the fallback.
 unsafe fn find_synch_export(function: &LazyAddress, name: PCSTR) -> Option<usize> {
-    let module =
-        SYNCH_MODULE.get(|| {
-                        let module = LoadLibraryExW(w!("api-ms-win-core-synch-l1-2-0.dll"),
-                                                    core::ptr::null_mut(),
-                                                    LOAD_LIBRARY_SEARCH_SYSTEM32);
-                        let exports_all =
-                            [s!("WaitOnAddress"), s!("WakeByAddressSingle"), s!("WakeByAddressAll")].into_iter()
-                                                                                                    .all(|name| find_export(module, name).is_some());
-                        exports_all.then_some(module as usize)
-                    })?;
+    let module = SYNCH_MODULE.get(|| {
+        let module = LoadLibraryExW(
+            w!("api-ms-win-core-synch-l1-2-0.dll"),
+            core::ptr::null_mut(),
+            LOAD_LIBRARY_SEARCH_SYSTEM32,
+        );
+        let exports_all = [s!("WaitOnAddress"), s!("WakeByAddressSingle"), s!("WakeByAddressAll")]
+            .into_iter()
+            .all(|name| find_export(module, name).is_some());
+        exports_all.then_some(module as usize)
+    })?;
     // The module was checked to export it, and falling back now would mix the real and fallback implementations.
-    Some(function.get(|| find_export(module as *mut c_void, name))
-                 .unwrap_or_else(|| std::process::abort()))
+    Some(
+        function
+            .get(|| find_export(module as *mut c_void, name))
+            .unwrap_or_else(|| std::process::abort()),
+    )
 }
 
 /// windows-core links its COM functions from combase.dll (Windows 8+); Windows 7 exports the same functions from
@@ -179,8 +183,10 @@ mod fallback {
 
     const BUCKET_BITS: u32 = 6;
     #[allow(clippy::declare_interior_mutable_const)]
-    const EMPTY_BUCKET: Bucket = Bucket { lock: UnsafeCell::new(SRWLOCK_INIT),
-                                          waiters: UnsafeCell::new(CONDITION_VARIABLE_INIT) };
+    const EMPTY_BUCKET: Bucket = Bucket {
+        lock: UnsafeCell::new(SRWLOCK_INIT),
+        waiters: UnsafeCell::new(CONDITION_VARIABLE_INIT),
+    };
     static BUCKETS: [Bucket; 1 << BUCKET_BITS] = [EMPTY_BUCKET; 1 << BUCKET_BITS];
 
     fn bucket(address: *const c_void) -> &'static Bucket {
@@ -205,12 +211,22 @@ mod fallback {
         };
         // Same contract as WaitOnAddress: TRUE right away if the value already changed, FALSE with
         // ERROR_TIMEOUT (set by SleepConditionVariableSRW) on timeout, and TRUE on (possibly spurious) wakeups.
+        // A failed sleep's last error is re-set after unlocking: std's futex_wait checks it for ERROR_TIMEOUT,
+        // and ReleaseSRWLockExclusive is not documented to leave the thread's last error untouched.
         let result = if unchanged {
             SleepConditionVariableSRW(bucket.waiters.get(), bucket.lock.get(), timeout_ms, 0)
         } else {
             TRUE
         };
+        let error = if result == 0 {
+            GetLastError()
+        } else {
+            0
+        };
         ReleaseSRWLockExclusive(bucket.lock.get());
+        if result == 0 {
+            SetLastError(error);
+        }
         result
     }
 
@@ -238,8 +254,10 @@ mod tests {
 
     #[test]
     fn real_functions_resolve_on_windows_8_and_newer() {
-        let mut time = FILETIME { dwLowDateTime: 0,
-                                  dwHighDateTime: 0 };
+        let mut time = FILETIME {
+            dwLowDateTime: 0,
+            dwHighDateTime: 0,
+        };
         let mut buf = [0u8; 4];
         let value = AtomicU32::new(1);
         unsafe {
@@ -249,13 +267,14 @@ mod tests {
             wake_by_address_single(ptr(&value));
             wake_by_address_all(ptr(&value));
         }
-        for f in [&GET_SYSTEM_TIME_PRECISE_AS_FILE_TIME,
-                  &PROCESS_PRNG,
-                  &SYNCH_MODULE,
-                  &WAIT_ON_ADDRESS,
-                  &WAKE_BY_ADDRESS_SINGLE,
-                  &WAKE_BY_ADDRESS_ALL]
-        {
+        for f in [
+            &GET_SYSTEM_TIME_PRECISE_AS_FILE_TIME,
+            &PROCESS_PRNG,
+            &SYNCH_MODULE,
+            &WAIT_ON_ADDRESS,
+            &WAKE_BY_ADDRESS_SINGLE,
+            &WAKE_BY_ADDRESS_ALL,
+        ] {
             assert!(f.get(|| None).is_some());
         }
     }
@@ -308,15 +327,16 @@ mod tests {
     #[test]
     fn fallback_wake_releases_waiters() {
         let value = Arc::new(AtomicU32::new(0));
-        let waiters: Vec<_> = (0..4).map(|_| {
-                                        let value = value.clone();
-                                        std::thread::spawn(move || {
-                                            while value.load(Ordering::Acquire) == 0 {
-                                                unsafe { fallback::wait_on_address(ptr(&*value), ptr(&0u32), 4, u32::MAX) };
-                                            }
-                                        })
-                                    })
-                                    .collect();
+        let waiters: Vec<_> = (0..4)
+            .map(|_| {
+                let value = value.clone();
+                std::thread::spawn(move || {
+                    while value.load(Ordering::Acquire) == 0 {
+                        unsafe { fallback::wait_on_address(ptr(&*value), ptr(&0u32), 4, u32::MAX) };
+                    }
+                })
+            })
+            .collect();
         std::thread::sleep(Duration::from_millis(50));
         value.store(1, Ordering::Release);
         unsafe { fallback::wake_by_address(ptr(&*value)) };
@@ -336,16 +356,17 @@ mod tests {
     fn std_works_through_the_shims() {
         // The test binary links the shims (see lib.rs), so this exercises std's futex Mutex/Condvar through them.
         let pair = Arc::new((std::sync::Mutex::new(0u32), std::sync::Condvar::new()));
-        let workers: Vec<_> = (0..8).map(|_| {
-                                        let pair = pair.clone();
-                                        std::thread::spawn(move || {
-                                            for _ in 0..1000 {
-                                                *pair.0.lock().unwrap() += 1;
-                                                pair.1.notify_all();
-                                            }
-                                        })
-                                    })
-                                    .collect();
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                let pair = pair.clone();
+                std::thread::spawn(move || {
+                    for _ in 0..1000 {
+                        *pair.0.lock().unwrap() += 1;
+                        pair.1.notify_all();
+                    }
+                })
+            })
+            .collect();
         let mut count = pair.0.lock().unwrap();
         while *count < 8000 {
             count = pair.1.wait_timeout(count, Duration::from_millis(10)).unwrap().0;
