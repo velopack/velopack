@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Velopack.Util;
@@ -11,6 +12,11 @@ namespace Velopack.Build;
 /// </summary>
 public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggingHelper log)
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true,
+    };
+
     /// <summary>
     /// Run a dotnet CLI command
     /// </summary>
@@ -85,5 +91,40 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
         }
 
         return process.ExitCode;
+    }
+
+    public async Task<int> RunVpkJson(
+        IEnumerable<string> command,
+        Dictionary<string, object?> options,
+        Dictionary<string, string>? environmentVariables,
+        CancellationToken cancellationToken)
+    {
+        string configPath = Path.Combine(Path.GetTempPath(), $"velopack-{Guid.NewGuid():N}.json");
+        try {
+            var fileOptions = new FileStreamOptions {
+                Mode = FileMode.CreateNew,
+                Access = FileAccess.Write,
+                Share = FileShare.None,
+                Options = FileOptions.Asynchronous,
+            };
+            if (!OperatingSystem.IsWindows()) {
+                fileOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            }
+
+            using (var stream = new FileStream(configPath, fileOptions)) {
+                await JsonSerializer.SerializeAsync(stream, options, JsonOptions, cancellationToken).ConfigureAwait(false);
+            }
+
+            string[] arguments = ["[json]", .. command, configPath];
+            return await RunVpk(arguments, environmentVariables, cancellationToken).ConfigureAwait(false);
+        } finally {
+            try {
+                File.Delete(configPath);
+            } catch (IOException ex) {
+                log.LogWarning($"Failed to remove temporary VPK JSON config '{configPath}': {ex.Message}");
+            } catch (UnauthorizedAccessException ex) {
+                log.LogWarning($"Failed to remove temporary VPK JSON config '{configPath}': {ex.Message}");
+            }
+        }
     }
 }
