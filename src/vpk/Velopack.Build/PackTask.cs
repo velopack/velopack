@@ -43,7 +43,7 @@ public class PackTask : VpkTask
 
     public bool NoDefaultExclude { get; set; }
 
-    public bool NoPortable { get; private set; }
+    public bool NoPortable { get; set; }
 
     public bool NoInst { get; set; }
 
@@ -115,33 +115,18 @@ public class PackTask : VpkTask
 
         Log.LogMessage(MessageImportance.High, "DeltaMode is enabled, downloading latest release from Velopack Flow...");
 
-        var args = new List<string>
-        {
-            "download",
-            "flow",
-            "--legacyConsole",
-            "--yes",
-            "--packageId",
-            PackId,
-            "--outputDir",
-            ReleaseDir,
-            "--timeout",
-            Timeout.ToString()
+        var options = new Dictionary<string, object?> {
+            ["PackageId"] = PackId,
+            ["ReleaseDir"] = ReleaseDir,
+            ["Timeout"] = Timeout,
         };
+        AddIfNotEmpty(options, "Channel", Channel);
+        AddIfNotEmpty(options, "VelopackBaseUrl", VelopackBaseUrl);
 
-        if (!string.IsNullOrWhiteSpace(Channel)) {
-            args.Add("--channel");
-            args.Add(Channel!);
-        }
+        Log.LogMessage(MessageImportance.High, "Downloading latest release from Velopack Flow using JSON options...");
 
-        if (!string.IsNullOrWhiteSpace(VelopackBaseUrl)) {
-            args.Add("--baseUrl");
-            args.Add(VelopackBaseUrl!);
-        }
-
-        Log.LogMessage(MessageImportance.High, $"Executing: vpk {string.Join(" ", args)}");
-
-        var exitCode = await toolRunner.RunVpk(args, [], cancellationToken).ConfigureAwait(false);
+        var exitCode = await toolRunner.RunVpkJson(
+            ["download", "flow"], options, [], cancellationToken).ConfigureAwait(false);
 
         if (exitCode != 0) {
             Log.LogWarning($"Failed to download latest release from Velopack Flow (exit code {exitCode}). Delta generation may not work correctly.");
@@ -153,205 +138,82 @@ public class PackTask : VpkTask
     protected override string GetSuccesMessage()
         => $"{PackId} ({PackVersion}) created in {ReleaseDir}";
 
-    protected override string[] BuildArguments()
+    protected override string CommandName => "pack";
+
+    protected override Dictionary<string, object?> BuildJsonOptions()
     {
-        IEnumerable<string> GetArguments()
-        {
-            yield return "pack";
-            yield return "--legacyConsole";
-            yield return "--yes";
+        var options = new Dictionary<string, object?>();
+        AddIfNotEmpty(options, "PackId", PackId);
+        AddIfNotEmpty(options, "PackVersion", PackVersion);
+        AddIfNotEmpty(options, "PackDirectory", PackDirectory);
+        AddIfNotEmpty(options, "ReleaseDir", ReleaseDir);
+        AddIfNotEmpty(options, "PackAuthors", PackAuthors);
+        AddIfNotEmpty(options, "PackTitle", PackTitle);
+        AddIfNotEmpty(options, "EntryExecutableName", EntryExecutableName);
+        AddIfNotEmpty(options, "Icon", Icon);
+        AddIfNotEmpty(options, "ReleaseNotes", ReleaseNotes);
+        AddIfNotEmpty(options, "DeltaMode", DeltaMode);
+        AddIfNotEmpty(options, "Channel", Channel);
+        AddIfNotEmpty(options, "Exclude", Exclude);
+        AddIfNotEmpty(options, "TargetRuntime", TargetRuntime);
 
-            if (!string.IsNullOrWhiteSpace(PackId)) {
-                yield return "--packId";
-                yield return PackId;
-            }
+        AddIfTrue(options, "NoDefaultExclude", NoDefaultExclude);
+        AddIfTrue(options, "NoPortable", NoPortable);
+        AddIfTrue(options, "NoInst", NoInst);
 
-            if (!string.IsNullOrWhiteSpace(PackVersion)) {
-                yield return "--packVersion";
-                yield return PackVersion;
-            }
-
-            if (!string.IsNullOrWhiteSpace(PackDirectory)) {
-                yield return "--packDir";
-                yield return PackDirectory;
-            }
-
-            if (!string.IsNullOrWhiteSpace(ReleaseDir)) {
-                yield return "--outputDir";
-                yield return ReleaseDir;
-            }
-
-            if (!string.IsNullOrWhiteSpace(EntryExecutableName)) {
-                yield return "--mainExe";
-                yield return EntryExecutableName!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(PackAuthors)) {
-                yield return "--packAuthors";
-                yield return PackAuthors!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(PackTitle)) {
-                yield return "--packTitle";
-                yield return PackTitle!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Icon)) {
-                yield return "--icon";
-                yield return Icon!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(ReleaseNotes)) {
-                yield return "--releaseNotes";
-                yield return ReleaseNotes!;
-            }
-
-            if (!string.IsNullOrEmpty(DeltaMode)) {
-                yield return "--delta";
-                yield return DeltaMode!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Channel)) {
-                yield return "--channel";
-                yield return Channel!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Exclude)) {
-                yield return "--exclude";
-                yield return Exclude!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Runtimes)) {
-                yield return "--framework";
-                yield return Runtimes!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(SplashImage)) {
-                yield return "--splashImage";
-                yield return SplashImage!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(SignParameters)) {
-                yield return "--signParams";
-                yield return SignParameters!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(SignTemplate)) {
-                yield return "--signTemplate";
-                yield return SignTemplate!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(SignExclude)) {
-                yield return "--signExclude";
-                yield return SignExclude!;
-            }
-
+        if (OperatingSystem.IsWindows()) {
+            AddIfNotEmpty(options, "Runtimes", Runtimes);
+            AddIfNotEmpty(options, "SplashImage", SplashImage);
+            AddIfNotEmpty(options, "SplashProgressColor", SplashProgressColor);
+            AddIfNotEmpty(options, "SignParameters", SignParameters);
+            AddIfNotEmpty(options, "SignExclude", SignExclude);
+            AddIfNotEmpty(options, "SignTemplate", SignTemplate);
+            AddIfNotEmpty(options, "AzureTrustedSignFile", AzureTrustedSignFile);
+            AddIfNotEmpty(options, "Shortcuts", Shortcuts);
+            AddIfNotEmpty(options, "InstWelcome", InstWelcome);
+            AddIfNotEmpty(options, "InstReadme", InstReadme);
+            AddIfNotEmpty(options, "InstLicense", InstLicense);
+            AddIfNotEmpty(options, "InstConclusion", InstConclusion);
+            AddIfNotEmpty(options, "MsiTopBanner", MsiTopBanner);
+            AddIfNotEmpty(options, "MsiDialogBackground", MsiDialogBackground);
+            AddIfNotEmpty(options, "MsiVersionOverride", MsiVersionOverride);
+            AddIfTrue(options, "SkipVelopackAppCheck", SkipVelopackAppCheck);
+            AddIfTrue(options, "BuildMsi", BuildMsi);
             if (SignParallel is { } signParallel) {
-                yield return "--signParallel";
-                yield return signParallel.ToString();
+                options["SignParallel"] = signParallel;
             }
-
-            if (!string.IsNullOrWhiteSpace(Shortcuts)) {
-                yield return "--shortcuts";
-                yield return Shortcuts!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Categories)) {
-                yield return "--categories";
-                yield return Categories!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Compression)) {
-                yield return "--compression";
-                yield return Compression!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(SignAppIdentity)) {
-                yield return "--signAppIdentity";
-                yield return SignAppIdentity!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(SignInstallIdentity)) {
-                yield return "--signInstallIdentity";
-                yield return SignInstallIdentity!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(SignEntitlements)) {
-                yield return "--signEntitlements";
-                yield return SignEntitlements!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(NotaryProfile)) {
-                yield return "--notaryProfile";
-                yield return NotaryProfile!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Keychain)) {
-                yield return "--keychain";
-                yield return Keychain!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(BundleId)) {
-                yield return "--bundleId";
-                yield return BundleId!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(InfoPlistPath)) {
-                yield return "--infoPlist";
-                yield return InfoPlistPath!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(AzureTrustedSignFile)) {
-                yield return "--azureTrustedSignFile";
-                yield return AzureTrustedSignFile!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(InstWelcome)) {
-                yield return "--instWelcome";
-                yield return InstWelcome!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(InstReadme)) {
-                yield return "--instReadme";
-                yield return InstReadme!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(InstLicense)) {
-                yield return "--instLicense";
-                yield return InstLicense!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(InstConclusion)) {
-                yield return "--instConclusion";
-                yield return InstConclusion!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(MsiVersionOverride)) {
-                yield return "--msiVersionOverride";
-                yield return MsiVersionOverride!;
-            }
-
-            if (SkipVelopackAppCheck) {
-                yield return "--skipVeloAppCheck";
-            }
-
-            if (NoPortable) {
-                yield return "--noPortable";
-            }
-
-            if (NoInst) {
-                yield return "--noInst";
-            }
-
-            if (BuildMsi) {
-                yield return "--msi";
-            }
-
-            if (SignDisableDeep) {
-                yield return "--signDisableDeep";
-            }
+        } else if (OperatingSystem.IsMacOS()) {
+            AddIfNotEmpty(options, "BundleId", BundleId);
+            AddIfNotEmpty(options, "InfoPlistPath", InfoPlistPath);
+            AddIfNotEmpty(options, "InstWelcome", InstWelcome);
+            AddIfNotEmpty(options, "InstReadme", InstReadme);
+            AddIfNotEmpty(options, "InstLicense", InstLicense);
+            AddIfNotEmpty(options, "InstConclusion", InstConclusion);
+            AddIfNotEmpty(options, "SignAppIdentity", SignAppIdentity);
+            AddIfNotEmpty(options, "SignInstallIdentity", SignInstallIdentity);
+            AddIfNotEmpty(options, "SignEntitlements", SignEntitlements);
+            AddIfNotEmpty(options, "NotaryProfile", NotaryProfile);
+            AddIfNotEmpty(options, "Keychain", Keychain);
+            AddIfTrue(options, "SignDisableDeep", SignDisableDeep);
+        } else if (OperatingSystem.IsLinux()) {
+            AddIfNotEmpty(options, "Categories", Categories);
+            AddIfNotEmpty(options, "Compression", Compression);
         }
 
-        return [.. GetArguments()];
+        return options;
+    }
+
+    private static void AddIfNotEmpty(Dictionary<string, object?> options, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) {
+            options[name] = value;
+        }
+    }
+
+    private static void AddIfTrue(Dictionary<string, object?> options, string name, bool value)
+    {
+        if (value) {
+            options[name] = true;
+        }
     }
 }
