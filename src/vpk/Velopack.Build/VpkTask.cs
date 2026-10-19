@@ -1,5 +1,3 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.Build.Framework;
 
@@ -27,13 +25,11 @@ public abstract class VpkTask : MSBuildAsyncTask
                 return false;
             }
             
-            var args = BuildArguments();
+            var options = BuildJsonOptions();
 
-            Dictionary<string, string> envVars = BuildEnvironmentVariables();
+            Log.LogMessage(MessageImportance.High, $"Executing: vpk [json] {CommandName} <config>");
 
-            Log.LogMessage(MessageImportance.High, $"Executing: vpk {string.Join(" ", args)}");
-
-            var exitCode = await toolRunner.RunVpk(args, envVars, cancellationToken)
+            var exitCode = await toolRunner.RunVpkJson([CommandName], options, BuildEnvironmentVariables(), cancellationToken)
                 .ConfigureAwait(false);
 
             if (exitCode == 0) {
@@ -56,10 +52,9 @@ public abstract class VpkTask : MSBuildAsyncTask
 
     protected abstract string GetSuccesMessage();
 
-    protected abstract string[] BuildArguments();
+    protected abstract string CommandName { get; }
 
-    protected virtual Dictionary<string, string> BuildEnvironmentVariables()
-    {
-        return [];
-    }
+    protected abstract Dictionary<string, object?> BuildJsonOptions();
+
+    protected virtual Dictionary<string, string> BuildEnvironmentVariables() => [];
 }

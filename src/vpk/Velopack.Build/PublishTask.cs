@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
@@ -19,49 +20,35 @@ public class PublishTask : VpkTask
 
     public bool WaitForLive { get; set; }
 
-    protected override Dictionary<string, string> BuildEnvironmentVariables()
+    protected override string CommandName => "publish";
+
+    protected override Dictionary<string, object?> BuildJsonOptions()
     {
-        Dictionary<string, string> envVars = base.BuildEnvironmentVariables();
-        if (!string.IsNullOrWhiteSpace(ServiceUrl)) {
-            envVars["VPK_FLOW_SERVICE_URL"] = ServiceUrl!;
+        var options = new Dictionary<string, object?>();
+        AddIfNotEmpty(options, "ReleaseDirectory", ReleaseDirectory);
+        AddIfNotEmpty(options, "Channel", Channel);
+        AddIfNotEmpty(options, "VelopackBaseUrl", ServiceUrl);
+        AddIfNotEmpty(options, "ApiKey", ApiKey);
+        if (!string.IsNullOrWhiteSpace(Timeout)) {
+            if (!double.TryParse(Timeout, NumberStyles.Float, CultureInfo.InvariantCulture, out double timeout)) {
+                throw new FormatException($"Timeout must be a number of minutes, but was '{Timeout}'.");
+            }
+            options["Timeout"] = timeout;
         }
-        if (!string.IsNullOrWhiteSpace(ApiKey)) {
-            envVars["VPK_FLOW_API_KEY"] = ApiKey!;
+        if (WaitForLive) {
+            options["WaitForLive"] = true;
         }
-        return envVars;
+
+        return options;
+    }
+
+    private static void AddIfNotEmpty(Dictionary<string, object?> options, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) {
+            options[name] = value;
+        }
     }
 
     protected override string GetSuccesMessage()
         => "Successfully published release to Velopack Flow";
-
-    protected override string[] BuildArguments()
-    {
-        IEnumerable<string> GetArguments()
-        {
-            yield return "publish";
-            yield return "--legacyConsole";
-            yield return "--yes";
-
-            if (!string.IsNullOrWhiteSpace(ReleaseDirectory)) {
-                yield return "--outputDir";
-                yield return ReleaseDirectory;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Channel)) {
-                yield return "--channel";
-                yield return Channel!;
-            }
-
-            if (!string.IsNullOrWhiteSpace(Timeout)) {
-                yield return "--timeout";
-                yield return Timeout!;
-            }
-
-            if (WaitForLive) {
-                yield return "--waitForLive";
-            }
-        }
-
-        return [.. GetArguments()];
-    }
 }

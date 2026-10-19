@@ -22,8 +22,8 @@ public static partial class CommandMapper
     //Windows
     [MapperIgnoreTarget(nameof(PackTask.InstLocation))]
     [MapperIgnoreTarget(nameof(PackTask.Runtimes))]
-    [MapperIgnoreTarget(nameof(PackTask.MsiBanner))]
-    [MapperIgnoreTarget(nameof(PackTask.MsiLogo))]
+    [MapperIgnoreTarget(nameof(PackTask.MsiTopBanner))]
+    [MapperIgnoreTarget(nameof(PackTask.MsiDialogBackground))]
     [MapperIgnoreTarget(nameof(PackTask.MsiVersionOverride))]
     [MapperIgnoreTarget(nameof(PackTask.BuildMsi))]
     [MapperIgnoreTarget(nameof(PackTask.SplashImage))]
@@ -84,8 +84,8 @@ public static partial class CommandMapper
     //Windows
     [MapperIgnoreTarget(nameof(PackTask.InstLocation))]
     [MapperIgnoreTarget(nameof(PackTask.Runtimes))]
-    [MapperIgnoreTarget(nameof(PackTask.MsiBanner))]
-    [MapperIgnoreTarget(nameof(PackTask.MsiLogo))]
+    [MapperIgnoreTarget(nameof(PackTask.MsiTopBanner))]
+    [MapperIgnoreTarget(nameof(PackTask.MsiDialogBackground))]
     [MapperIgnoreTarget(nameof(PackTask.MsiVersionOverride))]
     [MapperIgnoreTarget(nameof(PackTask.BuildMsi))]
     [MapperIgnoreTarget(nameof(PackTask.SplashImage))]
