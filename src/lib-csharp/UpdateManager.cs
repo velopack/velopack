@@ -48,6 +48,18 @@ namespace Velopack
         /// <summary> The currently installed app version when you created your release. Null if this is not a currently installed app. </summary>
         public virtual SemanticVersion? CurrentVersion => Locator.CurrentlyInstalledVersion;
 
+        /// <summary>
+        /// The release notes (markdown) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+        /// Null if this is not a currently installed app, or the release was packed without release notes.
+        /// </summary>
+        public virtual string? CurrentReleaseNotesMarkdown => (Locator as VelopackLocator)?.CurrentReleaseNotesMarkdown;
+
+        /// <summary>
+        /// The release notes (rendered HTML) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+        /// Null if this is not a currently installed app, or the release was packed without release notes.
+        /// </summary>
+        public virtual string? CurrentReleaseNotesHtml => (Locator as VelopackLocator)?.CurrentReleaseNotesHtml;
+
         /// <summary> The update source to use when checking for/downloading updates. </summary>
         protected IUpdateSource Source { get; }
 

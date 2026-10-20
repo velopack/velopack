@@ -137,6 +137,51 @@ fn download_success() {
 }
 
 #[test]
+fn download_from_subfolder() {
+    // the feed may point at packages in a sub-folder next to releases.{channel}.json (velopack/velopack#596);
+    // the trailing space pins the request line to the exact path
+    let body = vec![1, 2, 3, 4];
+    let server = MockHttpServer::empty();
+    server.add_route(MockRoute {
+        path_contains: "GET /releases/2.0.0/TestApp-2.0.0-full.nupkg ".into(),
+        response_code: 200,
+        response_body: body.clone(),
+        expected_headers: vec![],
+    });
+
+    let source = HttpSource::new(format!("{}/releases", server.url()));
+    let mut asset = sample_asset();
+    asset.FileName = "2.0.0/TestApp-2.0.0-full.nupkg".to_string();
+
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("downloaded.nupkg");
+    source.download_release_entry(&asset, &dest, None).unwrap();
+    assert_eq!(std::fs::read(&dest).unwrap(), body);
+}
+
+#[test]
+fn download_from_absolute_url() {
+    let body = vec![5, 6, 7, 8];
+    let server = MockHttpServer::empty();
+    server.add_route(MockRoute {
+        path_contains: "GET /cdn/TestApp-2.0.0-full.nupkg ".into(),
+        response_code: 200,
+        response_body: body.clone(),
+        expected_headers: vec![],
+    });
+
+    // an absolute FileName is downloaded as-is, ignoring the feed's base url
+    let source = HttpSource::new("http://feed.invalid/releases");
+    let mut asset = sample_asset();
+    asset.FileName = format!("{}/cdn/TestApp-2.0.0-full.nupkg", server.url());
+
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("downloaded.nupkg");
+    source.download_release_entry(&asset, &dest, None).unwrap();
+    assert_eq!(std::fs::read(&dest).unwrap(), body);
+}
+
+#[test]
 fn download_reports_progress() {
     // Create a body large enough to trigger progress reports (>5% chunks)
     let body = vec![0u8; 10240];

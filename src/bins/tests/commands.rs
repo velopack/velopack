@@ -120,9 +120,9 @@ fn repack_nupkg_with_channel(src: &Path, dest: &Path, channel: &str) {
     let mut src_zip = zip::ZipArchive::new(fs::File::open(src).unwrap()).unwrap();
     let mut dest_zip = zip::ZipWriter::new(fs::File::create(dest).unwrap());
     for i in 0..src_zip.len() {
-        if src_zip.by_index(i).unwrap().name().ends_with(".nuspec") {
+        if src_zip.by_index(i).unwrap().name().unwrap().ends_with(".nuspec") {
             let mut entry = src_zip.by_index(i).unwrap();
-            let name = entry.name().to_string();
+            let name = entry.name().unwrap().into_owned();
             let mut nuspec = String::new();
             entry.read_to_string(&mut nuspec).unwrap();
             drop(entry);

@@ -49,6 +49,18 @@ public class UtilityTests
         Assert.Equal(isIn, fileInDir);
     }
 
+    [Theory]
+    [InlineData("App-1.0.0-full.nupkg", "App-1.0.0-full.nupkg")]
+    [InlineData("1.20.0/App-1.20.0-full.nupkg", "App-1.20.0-full.nupkg")]
+    [InlineData("https://cdn.example.com/releases/App-1.20.0-full.nupkg", "App-1.20.0-full.nupkg")]
+    [InlineData("../../App-1.20.0-full.nupkg", "App-1.20.0-full.nupkg")]
+    [InlineData("/etc/App-1.20.0-full.nupkg", "App-1.20.0-full.nupkg")]
+    public void SafeFilenameKeepsOnlyTheLastSegment(string input, string expected)
+    {
+        // the rust library's misc::get_safe_filename must agree with this, both store assets by this name
+        Assert.Equal(expected, PathUtil.GetSafeFilename(input));
+    }
+
     [Fact]
     public void SetAppIdOnShortcutTest()
     {

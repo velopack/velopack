@@ -334,6 +334,44 @@ pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id:
     }
 }
 
+/// Returns the release notes (markdown) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+/// @param p_manager The update manager instance.
+/// @param psz_notes A buffer to store the release notes string.
+/// @param c_notes The size of the `psz_notes` buffer.
+/// @returns The number of characters written to `psz_notes` (including null terminator), or the required buffer size if the buffer is too small.
+/// Returns 0 if the release was packed without release notes.
+#[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
+pub extern "C" fn vpkc_get_current_release_notes_markdown(p_manager: *mut vpkc_update_manager_t, psz_notes: *mut c_char, c_notes: size_t) -> size_t {
+    match p_manager.to_opaque_ref() {
+        Some(manager) => {
+            let notes = manager.get_current_release_notes_markdown().unwrap_or_default();
+            return_cstr(psz_notes, c_notes, &notes)
+        }
+        None => 0,
+    }
+}
+
+/// Returns the release notes (rendered HTML) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+/// @param p_manager The update manager instance.
+/// @param psz_notes A buffer to store the release notes string.
+/// @param c_notes The size of the `psz_notes` buffer.
+/// @returns The number of characters written to `psz_notes` (including null terminator), or the required buffer size if the buffer is too small.
+/// Returns 0 if the release was packed without release notes.
+#[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
+pub extern "C" fn vpkc_get_current_release_notes_html(p_manager: *mut vpkc_update_manager_t, psz_notes: *mut c_char, c_notes: size_t) -> size_t {
+    match p_manager.to_opaque_ref() {
+        Some(manager) => {
+            let notes = manager.get_current_release_notes_html().unwrap_or_default();
+            return_cstr(psz_notes, c_notes, &notes)
+        }
+        None => 0,
+    }
+}
+
 /// Returns whether the app is in portable mode. On Windows this can be true or false.
 /// On MacOS and Linux this will always be true.
 /// @param p_manager The update manager instance.
@@ -884,6 +922,18 @@ mod tests {
         assert!(written > 0);
         let app_id = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().to_string();
         assert_eq!(app_id, "Test.Squirrel-App");
+
+        let mut buf = [0 as c_char; 256];
+        let written = vpkc_get_current_release_notes_markdown(manager, buf.as_mut_ptr(), buf.len());
+        assert!(written > 0);
+        let notes = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().to_string();
+        assert_eq!(notes, "# Release 1.0.0\n\n- Initial release");
+
+        let mut buf = [0 as c_char; 256];
+        let written = vpkc_get_current_release_notes_html(manager, buf.as_mut_ptr(), buf.len());
+        assert!(written > 0);
+        let notes = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().to_string();
+        assert_eq!(notes, "<h1>Release 1.0.0</h1>\n<ul>\n<li>Initial release</li>\n</ul>");
 
         vpkc_free_update_manager(manager);
     }

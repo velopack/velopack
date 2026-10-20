@@ -82,7 +82,9 @@ namespace Velopack.Util
 
         static void SwapBytes(byte[] guid, int left, int right)
         {
-            (guid[left], guid[right]) = (guid[right], guid[left]);
+            var temp = guid[left];
+            guid[left] = guid[right];
+            guid[right] = temp;
         }
     }
 }

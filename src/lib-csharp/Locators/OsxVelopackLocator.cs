@@ -48,6 +48,12 @@ namespace Velopack.Locators
         public override string? Channel { get; }
 
         /// <inheritdoc />
+        public override string? CurrentReleaseNotesMarkdown { get; }
+
+        /// <inheritdoc />
+        public override string? CurrentReleaseNotesHtml { get; }
+
+        /// <inheritdoc />
         public override bool IsPortable => true;
 
         /// <summary>
@@ -99,6 +105,8 @@ namespace Velopack.Locators
                     UpdateExePath = updateExe;
                     CurrentlyInstalledVersion = manifest.Version;
                     Channel = manifest.Channel;
+                    CurrentReleaseNotesMarkdown = manifest.ReleaseNotes;
+                    CurrentReleaseNotesHtml = manifest.ReleaseNotesHtml;
                     logFileName = $"velopack_{manifest.Id}.log";
                 }
             } else {

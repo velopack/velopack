@@ -127,17 +127,29 @@ public static class TestApp
     }
 
     /// <summary>
-    /// Packs the rust testapp (src/bins/src/testapp.rs) for win-x64. It has no .NET runtime dependency and CI
-    /// builds it for the win7 target, so unlike TestApp its packages can also be installed on Windows 7.
+    /// Finds the rust testapp binary for the given Windows architecture, or null if it has not been built.
+    /// CI ships the release binaries from the rust-windows-{arch} artifacts as testapp_{arch}.exe to every OS;
+    /// a local Windows build only produces the unsuffixed (host-native, x64) testapp.exe.
     /// </summary>
-    public static void PackRustTestAppWindows(string id, string version, string testString, string releaseDir, ILogger logger)
+    public static string? FindRustTestAppWindows(RuntimeCpu arch)
     {
-        // CI ships the win7-target binary in the rust-windows-x64 artifact (testapp_x64.exe) to every OS;
-        // a local Windows build only produces the unsuffixed testapp.exe.
-        var rustBinary = new[] { "testapp_x64.exe", "testapp.exe" }
-            .Select(n => PathHelper.GetRustAsset(n))
-            .FirstOrDefault(File.Exists)
-            ?? throw new FileNotFoundException($"Rust testapp not found in {PathHelper.GetRustBuildOutputDir()}.");
+        var names = arch switch {
+            RuntimeCpu.x64 => new[] { "testapp_x64.exe", "testapp.exe" },
+            RuntimeCpu.x86 => new[] { "testapp_x86.exe" },
+            _ => throw new ArgumentOutOfRangeException(nameof(arch), arch, "Only x64 and x86 are supported."),
+        };
+        return names.Select(n => PathHelper.GetRustAsset(n)).FirstOrDefault(File.Exists);
+    }
+
+    /// <summary>
+    /// Packs the rust testapp (src/bins/src/testapp.rs) for win-x64 or win-x86. It has no .NET runtime dependency
+    /// and links src/win7-shims, so unlike TestApp its packages can also be installed on Windows 7.
+    /// </summary>
+    public static void PackRustTestAppWindows(string id, string version, string testString, string releaseDir, ILogger logger,
+        RuntimeCpu arch = RuntimeCpu.x64)
+    {
+        var rustBinary = FindRustTestAppWindows(arch)
+            ?? throw new FileNotFoundException($"Rust testapp ({arch}) not found in {PathHelper.GetRustBuildOutputDir()}.");
 
         using var _ = TempUtil.GetTempDirectory(out var packDir);
         File.Copy(rustBinary, Path.Combine(packDir, "testapp.exe"));
@@ -147,7 +159,7 @@ public static class TestApp
             EntryExecutableName = "testapp.exe",
             ReleaseDir = new DirectoryInfo(releaseDir),
             PackId = id,
-            TargetRuntime = RID.Parse("win-x64"),
+            TargetRuntime = RID.Parse($"win-{arch}"),
             PackVersion = version,
             PackDirectory = packDir,
         };

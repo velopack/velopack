@@ -110,7 +110,7 @@ samples/                         # Example apps (C#, C++, Node.js, Python, Rust)
 
 2. **`UpdateManager.CheckForUpdatesAsync()`** queries an `IUpdateSource` for the remote release feed, compares against the installed version, and builds a delta strategy. It selects deltas if: they exist, there are ≤10 in the chain, and their total size < the full package size. Returns `UpdateInfo` with `TargetFullRelease` and `DeltasToTarget[]`.
 
-3. **`UpdateManager.DownloadUpdatesAsync()`** acquires a lock (`PackagesDir/.velopack_lock`), downloads deltas (or falls back to full package), verifies checksums (SHA256 preferred, SHA1 fallback), then invokes the update binary's `patch` command to reconstruct the full package from deltas. On Windows, it also extracts the new `Update.exe` from the downloaded package.
+3. **`UpdateManager.DownloadUpdatesAsync()`** acquires a lock (`PackagesDir/.velopack_lock`), downloads deltas (or falls back to full package), verifies checksums (SHA256 preferred, SHA1 fallback), then invokes the update binary's `patch` command to reconstruct the full package from deltas. On Windows, it also extracts the new `Update.exe` from the downloaded package. Local paths for feed assets always go through `PathUtil.GetSafeFilename` (C#, via `IVelopackLocator.GetLocalPackagePath`) / `misc::get_safe_filename` (Rust, via `local_package_path`): only the last path segment of `FileName` is kept, so a feed may reference packages in sub-folders or at absolute URLs (#596) and can never write outside `PackagesDir`. The raw `FileName` is still what gets resolved against the source's base URL/directory for the download.
 
 4. **`UpdateManager.ApplyUpdatesAndRestart()`** invokes the update binary's `apply` command with `--waitPid`, `--rootDir`, `--packageDir`, and optional `--package` and restart args, then exits the app. The update binary waits for the app to exit, extracts the package, calls the app's fast-exit hooks, and relaunches.
 
@@ -130,7 +130,7 @@ The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platfo
    - **Release package** (`.nupkg`): ZIP with `lib/app/` containing all app files + update binary + `sq.version` manifest, plus a `.nuspec` with metadata. This is the canonical package format. For macOS targets the bundle's internal symlinks stay symlinks (`PackageBuilder.CopyFiles`), on every host.
    - **Portable package**: On Windows: ZIP with `Update.exe`, `current/` dir, execution stub, and `.portable` marker. On Linux: AppImage (squashfs appended to runtime binary). On macOS: ZIP of the `.app` bundle, by `ditto` on a macOS host and the managed `OsxPortableZip` elsewhere (keeps Unix modes and symlinks).
    - **Setup installer**: On Windows: `setup.exe` template with the `.nupkg` appended as a bundle (offset+length header + signature). Optional MSI via WiX 5 compilation from Handlebars templates. On macOS: `.pkg` via `pkgbuild` (macOS host only; signed and notarized with Apple's tools even when the app uses rcodesign).
-   - **Delta package** (`.delta.nupkg`): Created if a previous release exists. Compares files between old and new releases — unchanged files get zero-length `.diff` markers, changed files get zstd patches (`.zsdiff`), new files included as-is. zstd is the only supported patch format (creation and apply); zstd being unavailable fails delta creation. Legacy `.bsdiff`/msdelta patches are rejected with an "Unsupported patch format" error on apply.
+   - **Delta package** (`.delta.nupkg`): Created if a previous release exists. Compares files between old and new releases — unchanged files get zero-length `.diff` markers, changed files get zstd patches (`.zsdiff`), new files included as-is. zstd is the only supported patch format (creation and apply); zstd being unavailable fails delta creation. Legacy `.bsdiff`/msdelta patches are rejected with an "Unsupported patch format" error on apply. vpk shells out to `zstd` once per changed file (`Zstd.cs`); on Windows `zstd.exe` mangles non-ASCII argument characters (facebook/zstd#3882), so when any path is non-ASCII the files are moved into a temp dir under ASCII names and zstd runs there with relative paths.
 
 4. **Post-processing**: Writes `releases.<channel>.json` (asset feed for update clients) and legacy `RELEASES` file.
 
@@ -151,15 +151,28 @@ icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
 
 ## Windows 7 support
 
-The Windows x86/x64 binaries are built for the `*-win7-windows-msvc` targets and must keep loading on Windows 7:
+Our x86/x64 final artifacts — the binaries (update/setup/stub/testapp) and velopack_wix.dll (loaded by our MSI) — must
+keep working on Windows 7. They are built on stable for the regular `*-pc-windows-msvc` targets, whose std statically
+imports five Win8+ functions (`WaitOnAddress`/`WakeByAddressSingle`/`WakeByAddressAll`, `ProcessPrng`,
+`GetSystemTimePreciseAsFileTime`), and windows-core links `CoTaskMemAlloc`/`CoTaskMemFree`/`CoCreateFreeThreadedMarshaler`
+from `combase.dll` (Windows 8+; Windows 7 has them in ole32). `src/win7-shims` (`velopack_win7_shims::link_win7_shims!()`, invoked in the root of
+each of those crates) defines the `__imp_` symbols for them via `global_asm!`, so the imports vanish and calls go through
+shims that use the real function when present and a Win7 fallback otherwise. Do not move back to the tier 3
+`*-win7-windows-msvc` targets (nightly + `-Z build-std` only, and they break on nightly).
+- **Never link the shims into libraries end users link or load themselves** (velopack_libc, velopack_nodeffi): only
+  into our own final artifacts that users don't consume directly.
+- A new such artifact invokes `link_win7_shims!()` in its own root: the symbols have to be in the final crate's own
+  object (an rlib definition loses to the import library), and `global_asm!` keeps them out of a cdylib's export
+  table, unlike `#[export_name]`.
+- If a new Rust version makes std import another Win8+ function, add a shim for it in `src/win7-shims` (both arch
+  variants of the macro; x86 symbols are stdcall-decorated, e.g. `__imp__WaitOnAddress@16`).
 - Never statically import Windows 8+ APIs; resolve them at runtime with `libloading` (see `splash.rs`/`mitigate.rs`).
-- windows-core links COM functions from `combase.dll` (Windows 8+); it is delay-loaded (`src/bins/build.rs`) and the
-  delay-load failure hook in `src/bins/src/windows/delay_load.rs` substitutes `ole32.dll`. A new missing import shows
-  up as setup/update exiting with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) on Windows 7 — fix the caller (for our
-  own crates like xdialog, fix it there) rather than working around it here.
+- A new missing import shows up as setup/update exiting with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) on Windows 7.
+  If it comes from our own code or crates (e.g. xdialog), fix the caller there; shim only what std/windows-core link.
 - CI covers this with the `win7` job in `build-tests.yml`: it boots a Win7 SP1 qcow2 under QEMU/KVM and runs
   `CrossCompile.RunCrossAppWindows7` over SSH (`VELOPACK_WIN7_SSH=user:password@host:port`). The .NET 8 TestApp
-  can't run on Win7, so it uses the rust testapp packages (`-rust` artifact ids). Commands run through a scheduled
+  can't run on Win7, so it uses the x64 and x86 rust testapp packages (`-rust` / `-rust-x86` artifact ids; the
+  x86 testapp ships as `testapp_x86.exe`, and x86 runs under WOW64 on the x64 VM). Commands run through a scheduled
   task in the desktop session, since Win32-OpenSSH kills a session's child processes (e.g. Update.exe) on exit.
 
 ## Locators
@@ -193,7 +206,7 @@ Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-
 - **Do not `cd` to the repo root** — you are already there. Never prefix commands with `cd /c/Source/velopack &&`. You may `cd` into a subdirectory only if genuinely needed.
 - **Test framework**: xunit v3. Test helpers in `test/PathHelper.cs` — use `PathHelper.GetFixturesDir()` for test fixture paths and `PathHelper.IsCI` to detect CI.
 - **Versioning**: Nerdbank.GitVersioning (NBGV) — version derived from git height, not manually set.
-- **Assembly signing**: All assemblies signed with `Velopack.snk`.
+- **Assembly signing**: All assemblies signed with `src/Velopack.snk`.
 - **Build output**: Goes to `build/{Configuration}/{TargetFramework}/` (not default `bin/`).
 - **Rust output**: `target/debug/` or `target/release/`.
 - **Main branch**: `develop` (not `main`/`master`). Releases from `master`.

@@ -18,6 +18,7 @@ path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [target.'cfg(windows)'.dependencies]
+velopack_win7_shims.workspace = true
 anyhow.workspace = true
 cfb.workspace = true
 velopack.workspace = true

@@ -111,6 +111,28 @@ public class UpdateManagerTests
         Assert.Equal("MyCoolApp", um.AppId);
         Assert.True(new SemanticVersion(1, 0, 0) == um.CurrentVersion);
         Assert.True(um.IsInstalled);
+        Assert.Null(um.CurrentReleaseNotesMarkdown);
+        Assert.Null(um.CurrentReleaseNotesHtml);
+    }
+
+    [Fact]
+    public void ExposesCurrentReleaseNotesFromLocator()
+    {
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var locator = new TestVelopackLocator(
+            "MyCoolApp",
+            "1.0.0",
+            tempPath,
+            null,
+            null,
+            null,
+            logger: logger.ToVelopackLogger(),
+            releaseNotesMarkdown: "# Notes\n\n- one",
+            releaseNotesHtml: "<h1>Notes</h1>");
+        var um = new UpdateManager(locator: locator);
+        Assert.Equal("# Notes\n\n- one", um.CurrentReleaseNotesMarkdown);
+        Assert.Equal("<h1>Notes</h1>", um.CurrentReleaseNotesHtml);
     }
 
     [Fact]
@@ -153,6 +175,46 @@ public class UpdateManagerTests
         Assert.True(File.Exists(Path.Combine(tempPath, "AvaloniaCrossPlat$-1.1.0.nupkg")));
         Assert.Equal(Path.Combine(tempPath, "AvaloniaCrossPlat$-1.1.0.nupkg.partial"), dl.LastLocalFile);
         Assert.Equal("https://mysite.com/releases/AvaloniaCrossPlat$-1.1.0.nupkg", dl.LastUrl);
+    }
+
+    [Fact]
+    public async Task CanDownloadFilesFromSubfolder()
+    {
+        // the feed may point at packages in a sub-folder next to releases.{channel}.json (velopack/velopack#596)
+        var fixture = PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg");
+
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var dl = new FakeDownloader() {
+            MockedResponseBytes = Encoding.UTF8.GetBytes(
+                SimpleJson.SerializeObject(
+                    new VelopackAssetFeed {
+                        Assets = new VelopackAsset[] {
+                            new VelopackAsset() {
+                                PackageId = "AvaloniaCrossPlat",
+                                Version = new SemanticVersion(1, 0, 11),
+                                Type = VelopackAssetType.Full,
+                                FileName = "1.0.11/AvaloniaCrossPlat-1.0.11-full.nupkg",
+                                SHA1 = (await IoUtil.CalculateFileSHA1AndSHA256Async(fixture)).SHA1,
+                                Size = new FileInfo(fixture).Length,
+                            }
+                        }
+                    }))
+        };
+        var source = new SimpleWebSource("http://any.com/releases", dl);
+        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger.ToVelopackLogger());
+        var um = new UpdateManager(source, null, locator);
+        var info = um.CheckForUpdates();
+        Assert.NotNull(info);
+
+        dl.MockedResponseBytes = File.ReadAllBytes(fixture);
+        dl.WriteMockLocalFile = true;
+        um.DownloadUpdates(info);
+
+        Assert.Equal("http://any.com/releases/1.0.11/AvaloniaCrossPlat-1.0.11-full.nupkg", dl.LastUrl);
+        Assert.Equal(Path.Combine(tempPath, "AvaloniaCrossPlat-1.0.11-full.nupkg.partial"), dl.LastLocalFile);
+        Assert.True(File.Exists(Path.Combine(tempPath, "AvaloniaCrossPlat-1.0.11-full.nupkg")));
+        Assert.False(Directory.Exists(Path.Combine(tempPath, "1.0.11")));
     }
 
     [Fact]

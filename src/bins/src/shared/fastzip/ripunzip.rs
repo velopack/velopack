@@ -123,11 +123,12 @@ impl UnzipEngine {
     }
 }
 
-/// Return a list of filenames from the zip. For now this is infallible
-/// but provide the option of an error code in case we do something
-/// smarter in future.
+/// Return a list of filenames from the zip.
 fn list<'a, T: Read + Seek + 'a>(zip_archive: &ZipArchive<T>) -> Result<Vec<String>> {
-    Ok(zip_archive.file_names().map(|s| s.to_string()).collect())
+    Ok(zip_archive
+        .file_names()
+        .map(|s| s.map(Cow::into_owned))
+        .collect::<zip::result::ZipResult<_>>()?)
 }
 
 fn unzip_serial_or_parallel<'a, T: Read + Seek + 'a>(
@@ -188,11 +189,14 @@ fn unzip_serial_or_parallel<'a, T: Read + Seek + 'a>(
             if !single_threaded {
                 log::warn!("Unzipping specific files - assuming --single-threaded since we currently cannot unzip specific files in a multi-threaded mode. If you need that, consider launching multiple copies of ripunzip in parallel.");
             }
-            let mut filenames: Vec<_> = get_ziparchive_clone()
-                .file_names()
-                .filter(|name| filename_filter.as_ref().should_unzip(name))
-                .map(|s| s.to_string())
-                .collect();
+            let mut filenames = Vec::new();
+            for name in get_ziparchive_clone().file_names() {
+                match name {
+                    Ok(name) if filename_filter.as_ref().should_unzip(&name) => filenames.push(name.into_owned()),
+                    Ok(_) => {}
+                    Err(e) => return vec![e.into()],
+                }
+            }
             // The filenames returned by the file_names() method above are in
             // HashMap iteration order (i.e. random). To avoid creating lots
             // of HTTPS streams for files which are nearby each other in the
@@ -278,7 +282,7 @@ fn extract_file_inner<R: Read>(
         file.compressed_size(),
         display_name
     );
-    if file.name().ends_with('/') {
+    if file.is_dir() {
         directory_creator.create_dir_all(&out_path)?;
     } else {
         if let Some(parent) = out_path.parent() {

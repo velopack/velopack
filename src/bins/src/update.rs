@@ -12,6 +12,10 @@ use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack::logging::*;
 use velopack_bins::{shared::OperationWait, *};
 
+// Lets the x86/x64 build start on Windows 7 (see src/win7-shims).
+#[cfg(windows)]
+velopack_win7_shims::link_win7_shims!();
+
 #[rustfmt::skip]
 fn root_command() -> Command {
     let cmd = Command::new("Update")

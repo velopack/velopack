@@ -12,6 +12,17 @@
 <rid>win-x64</rid>
 <osMinVersion>10.0.19043</osMinVersion>
 <machineArchitecture>x64</machineArchitecture>
+<releaseNotes><![CDATA[
+# Release 1.0.0
+
+- Initial release
+]]></releaseNotes>
+<releaseNotesHtml><![CDATA[
+<h1>Release 1.0.0</h1>
+<ul>
+<li>Initial release</li>
+</ul>
+]]></releaseNotesHtml>
 
 <runtimeDependencies>net6-x64-desktop</runtimeDependencies>
 </metadata>

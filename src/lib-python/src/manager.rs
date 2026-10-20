@@ -39,6 +39,18 @@ impl UpdateManagerWrapper {
         self.inner.get_app_id().to_string()
     }
 
+    /// The release notes (markdown) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+    /// Returns None if the release was packed without release notes.
+    pub fn get_current_release_notes_markdown(&self) -> Option<String> {
+        self.inner.get_current_release_notes_markdown()
+    }
+
+    /// The release notes (rendered HTML) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+    /// Returns None if the release was packed without release notes.
+    pub fn get_current_release_notes_html(&self) -> Option<String> {
+        self.inner.get_current_release_notes_html()
+    }
+
     pub fn get_is_portable(&self) -> bool {
         self.inner.get_is_portable()
     }

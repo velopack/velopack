@@ -260,6 +260,18 @@ impl UpdateManager {
         self.inner.locator.get_manifest_id()
     }
 
+    /// The release notes (markdown) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+    /// Returns None if the release was packed without release notes.
+    pub fn get_current_release_notes_markdown(&self) -> Option<String> {
+        self.inner.locator.get_manifest_release_notes()
+    }
+
+    /// The release notes (rendered HTML) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+    /// Returns None if the release was packed without release notes.
+    pub fn get_current_release_notes_html(&self) -> Option<String> {
+        self.inner.locator.get_manifest_release_notes_html()
+    }
+
     /// Check if the app is in portable mode. This can be true or false on Windows.
     /// On Linux and MacOS, this will always return true.
     pub fn get_is_portable(&self) -> bool {
@@ -404,11 +416,10 @@ impl UpdateManager {
     ///   packages, this method will fall back to downloading the full version of the update.
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let _mutex = &self.inner.locator.try_get_exclusive_lock()?;
-        let name = &update.TargetFullRelease.FileName;
         let packages_dir = &self.inner.locator.get_packages_dir();
 
         fs::create_dir_all(packages_dir)?;
-        let final_target_file = packages_dir.join(name);
+        let final_target_file = local_package_path(packages_dir, &update.TargetFullRelease);
         let partial_file = final_target_file.with_extension("partial");
 
         if final_target_file.exists() {
@@ -485,7 +496,7 @@ impl UpdateManager {
 
     fn download_and_apply_delta_updates(&self, update: &UpdateInfo, output_file: &PathBuf, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let packages_dir = self.inner.locator.get_packages_dir();
-        let base_release_path = packages_dir.join(&update.BaseRelease.as_ref().unwrap().FileName);
+        let base_release_path = local_package_path(&packages_dir, update.BaseRelease.as_ref().unwrap());
 
         let mut args: Vec<OsString> = vec![
             "patch".into(),
@@ -497,7 +508,7 @@ impl UpdateManager {
 
         let count = update.DeltasToTarget.len() as f64;
         for (i, delta) in update.DeltasToTarget.iter().enumerate() {
-            let delta_file = packages_dir.join(&delta.FileName);
+            let delta_file = local_package_path(&packages_dir, delta);
             let partial_file = delta_file.with_extension("partial");
 
             info!("Downloading delta package: '{}'", delta.FileName);
@@ -631,7 +642,7 @@ impl UpdateManager {
         C: IntoIterator<Item = S>,
     {
         let to_apply = to_apply.as_ref();
-        let pkg_path = self.inner.locator.get_packages_dir().join(&to_apply.FileName);
+        let pkg_path = local_package_path(&self.inner.locator.get_packages_dir(), to_apply);
 
         if !pkg_path.exists() {
             error!("Package does not exist on disk: '{:?}'", pkg_path);
@@ -684,6 +695,13 @@ impl UpdateManager {
         crate::process::run_process(&update_path, args, update_path.parent(), false, None)?;
         Ok(())
     }
+}
+
+/// Returns the path an asset is stored at in the packages directory. Only the (sanitised) file name part of the
+/// asset's FileName is used, so feed entries in a sub-folder or at an absolute URL land directly in the packages
+/// directory and can never escape it. Mirrors `GetLocalPackagePath` in the C# library, so both pick the same file.
+fn local_package_path(packages_dir: &Path, asset: &VelopackAsset) -> PathBuf {
+    packages_dir.join(misc::get_safe_filename(&asset.FileName))
 }
 
 /// Converts a local manifest and path into a VelopackAsset.

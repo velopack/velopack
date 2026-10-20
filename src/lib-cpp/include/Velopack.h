@@ -399,6 +399,30 @@ size_t vpkc_get_app_id(vpkc_update_manager_t *p_manager,
                        size_t c_id);
 
 /**
+ * Returns the release notes (markdown) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+ * @param p_manager The update manager instance.
+ * @param psz_notes A buffer to store the release notes string.
+ * @param c_notes The size of the `psz_notes` buffer.
+ * @returns The number of characters written to `psz_notes` (including null terminator), or the required buffer size if the buffer is too small.
+ * Returns 0 if the release was packed without release notes.
+ */
+size_t vpkc_get_current_release_notes_markdown(vpkc_update_manager_t *p_manager,
+                                               char *psz_notes,
+                                               size_t c_notes);
+
+/**
+ * Returns the release notes (rendered HTML) of the currently installed version, as provided to `vpk pack --releaseNotes`.
+ * @param p_manager The update manager instance.
+ * @param psz_notes A buffer to store the release notes string.
+ * @param c_notes The size of the `psz_notes` buffer.
+ * @returns The number of characters written to `psz_notes` (including null terminator), or the required buffer size if the buffer is too small.
+ * Returns 0 if the release was packed without release notes.
+ */
+size_t vpkc_get_current_release_notes_html(vpkc_update_manager_t *p_manager,
+                                           char *psz_notes,
+                                           size_t c_notes);
+
+/**
  * Returns whether the app is in portable mode. On Windows this can be true or false.
  * On MacOS and Linux this will always be true.
  * @param p_manager The update manager instance.

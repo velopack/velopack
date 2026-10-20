@@ -50,7 +50,6 @@ semver.workspace = true
 chrono.workspace = true
 lazy_static.workspace = true
 strum.workspace = true
-derivative.workspace = true
 glob.workspace = true
 remove_dir_all.workspace = true
 time.workspace = true
@@ -78,6 +77,7 @@ waitpid-any.workspace = true
 libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
+velopack_win7_shims.workspace = true
 fs_extra.workspace = true
 memmap2.workspace = true
 fast_image_resize.workspace = true
@@ -94,7 +94,6 @@ windows = { workspace = true, features = [
     "Win32_System_ProcessStatus",
     "Win32_System_ApplicationInstallationAndServicing",
     "Win32_System_LibraryLoader",
-    "Win32_System_WindowsProgramming",
     "Win32_Storage_EnhancedStorage",
     "Win32_Storage_FileSystem",
 ] }
@@ -115,4 +114,4 @@ serial_test.workspace = true
 semver.workspace = true
 
 [target.'cfg(windows)'.build-dependencies]
-winres.workspace = true
+embed-resource.workspace = true

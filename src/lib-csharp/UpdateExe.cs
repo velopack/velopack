@@ -66,7 +66,7 @@ namespace Velopack
 
             var entry = toApply ?? locator.GetLatestLocalFullPackage();
             if (entry != null && locator.PackagesDir != null) {
-                var pkg = Path.Combine(locator.PackagesDir, entry.FileName);
+                var pkg = locator.GetLocalPackagePath(entry);
                 if (File.Exists(pkg)) {
                     args.Add("--package");
                     args.Add(pkg);

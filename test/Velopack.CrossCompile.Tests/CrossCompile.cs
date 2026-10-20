@@ -43,11 +43,12 @@ public class CrossCompile
     /// <summary>
     /// Packs v1 of an app for the target OS and publishes its installer as {id}.exe / {id}.AppImage, plus an
     /// update feed directory {id}-feed holding v2, to the artifacts dir. The "rust" variant packs the rust
-    /// testapp, which (unlike the .NET 8 TestApp) also runs on Windows 7.
+    /// testapp, which (unlike the .NET 8 TestApp) also runs on Windows 7; its win-x86 build gets a "-x86" id suffix.
     /// </summary>
     [Theory]
     [InlineData("win-x64", "csharp")]
     [InlineData("win-x64", "rust")]
+    [InlineData("win-x86", "rust")]
     [InlineData("linux-x64", "csharp")]
     [InlineData("osx-arm64", "csharp")]
     public void PackCrossApp(string target, string variant)
@@ -60,12 +61,19 @@ public class CrossCompile
 
         string id = $"from-{VelopackRuntimeInfo.SystemOs.GetOsShortName()}-targets-{rid.BaseRID.GetOsShortName()}";
         if (variant == "rust") id += "-rust";
+        if (variant == "rust" && rid.Architecture == RuntimeCpu.x86) {
+            id += "-x86";
+            // only CI downloads the x86 testapp (testapp_x86.exe); a missing binary there must fail, not skip
+            Assert.SkipWhen(
+                !PathHelper.IsCI && TestApp.FindRustTestAppWindows(RuntimeCpu.x86) == null,
+                "Rust testapp_x86.exe not built locally");
+        }
 
         using var _1 = TempUtil.GetTempDirectory(out var tempDir);
         void pack(string version, string testString)
         {
             if (variant == "rust") {
-                TestApp.PackRustTestAppWindows(id, version, testString, tempDir, logger);
+                TestApp.PackRustTestAppWindows(id, version, testString, tempDir, logger, rid.Architecture);
             } else {
                 // only the portable zip goes to the macOS leg; the .pkg (built on macOS) is covered by Velopack.Pack.Tests
                 TestApp.PackTestApp(id, version, testString, tempDir, logger, targetRid: rid, configureOsx: options => options.NoInst = true);
@@ -275,6 +283,9 @@ public class CrossCompile
     [InlineData("from-win-targets-win-rust")]
     [InlineData("from-linux-targets-win-rust")]
     [InlineData("from-osx-targets-win-rust")]
+    [InlineData("from-win-targets-win-rust-x86")]
+    [InlineData("from-linux-targets-win-rust-x86")]
+    [InlineData("from-osx-targets-win-rust-x86")]
     public void RunCrossAppWindows(string artifactId)
     {
         using var logger = _output.BuildLoggerFor<CrossCompile>();
@@ -288,12 +299,16 @@ public class CrossCompile
 
     /// <summary>
     /// Runs the rust-testapp installers on a Windows 7 VM over SSH (see the win7 job in build-tests.yml);
-    /// the .NET 8 TestApp variants are excluded since .NET 8 does not support Windows 7.
+    /// the .NET 8 TestApp variants are excluded since .NET 8 does not support Windows 7. The VM is x64, so the
+    /// x86 packages (x86 update.exe/setup.exe/testapp.exe) run under WOW64.
     /// </summary>
     [Theory]
     [InlineData("from-win-targets-win-rust")]
     [InlineData("from-linux-targets-win-rust")]
     [InlineData("from-osx-targets-win-rust")]
+    [InlineData("from-win-targets-win-rust-x86")]
+    [InlineData("from-linux-targets-win-rust-x86")]
+    [InlineData("from-osx-targets-win-rust-x86")]
     public void RunCrossAppWindows7(string artifactId)
     {
         using var logger = _output.BuildLoggerFor<CrossCompile>();
@@ -312,7 +327,7 @@ public class CrossCompile
         Assert.True(Directory.Exists(feedPath), $"Expected {feedPath} to exist");
 
         var appRoot = host.Combine(host.LocalAppData, artifactId);
-        var appExe = host.Combine(appRoot, "current", artifactId.EndsWith("-rust") ? "testapp.exe" : "TestApp.exe");
+        var appExe = host.Combine(appRoot, "current", artifactId.Contains("-rust") ? "testapp.exe" : "TestApp.exe");
         var appUpdate = host.Combine(appRoot, "Update.exe");
 
         host.Delete(appRoot);

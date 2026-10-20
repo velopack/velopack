@@ -8,23 +8,75 @@ fn main() {
 
     let version = env!("CARGO_PKG_VERSION");
     let ver = semver::Version::parse(version).expect("Unable to parse ngbv output as semver version");
-    let ver: u64 = ver.major << 48 | ver.minor << 32 | ver.patch << 16;
-    let desc = format!("Velopack {}", version);
 
     println!("cargo:rustc-env=NGBV_VERSION={}", version);
 
     #[cfg(target_os = "windows")]
-    winres::WindowsResource::new()
-        .set_manifest_file("app.manifest")
-        .set_version_info(winres::VersionInfo::PRODUCTVERSION, ver)
-        .set_version_info(winres::VersionInfo::FILEVERSION, ver)
-        .set("CompanyName", "Velopack")
-        .set("ProductName", "Velopack")
-        .set("ProductVersion", version)
-        .set("FileDescription", &desc)
-        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024")
-        .compile()
-        .unwrap();
+    version_resources(&ver);
+}
+
+/// Compiles a version resource for each binary, so per-binary fields like OriginalFilename can be set.
+/// AppLocker publisher rules need the OriginalFilename of Update.exe (#729).
+#[cfg(target_os = "windows")]
+fn version_resources(ver: &semver::Version) {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    // The manifest is embedded by the linker for every executable, including unit and integration test harnesses:
+    // without its supportedOS entries Windows reports itself as 6.2, which fails the os_min_version checks.
+    println!("cargo:rerun-if-changed=app.manifest");
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg=/MANIFESTUAC:NO");
+    println!("cargo:rustc-link-arg=/MANIFESTINPUT:{manifest_dir}\\app.manifest");
+
+    for (bin, original_filename) in [
+        ("update", "Update.exe"),
+        ("setup", "Setup.exe"),
+        ("stub", "stub.exe"),
+        ("testapp", "testapp.exe"),
+    ] {
+        let rc = format!("{out_dir}/{bin}.rc");
+        std::fs::write(&rc, version_rc(ver, original_filename)).unwrap();
+        embed_resource::compile_for(rc, [bin], embed_resource::NONE).manifest_required().unwrap();
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn version_rc(ver: &semver::Version, original_filename: &str) -> String {
+    let version = ver.to_string();
+    let (major, minor, patch) = (ver.major, ver.minor, ver.patch);
+    let internal_name = original_filename.trim_end_matches(".exe");
+    format!(
+        r#"#pragma code_page(65001)
+1 VERSIONINFO
+FILEVERSION {major}, {minor}, {patch}, 0
+PRODUCTVERSION {major}, {minor}, {patch}, 0
+FILEOS 0x40004
+FILETYPE 0x1
+FILESUBTYPE 0x0
+FILEFLAGSMASK 0x3f
+FILEFLAGS 0x0
+{{
+BLOCK "StringFileInfo"
+{{
+BLOCK "000004b0"
+{{
+VALUE "CompanyName", "Velopack"
+VALUE "FileDescription", "Velopack {version}"
+VALUE "FileVersion", "{version}"
+VALUE "InternalName", "{internal_name}"
+VALUE "OriginalFilename", "{original_filename}"
+VALUE "LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024"
+VALUE "ProductName", "Velopack"
+VALUE "ProductVersion", "{version}"
+}}
+}}
+BLOCK "VarFileInfo" {{
+VALUE "Translation", 0x0, 0x04b0
+}}
+}}
+"#
+    )
 }
 
 #[cfg(target_os = "windows")]
@@ -64,10 +116,6 @@ fn delay_load_exe(bin_name: &str) {
     for dll in delay_load_dlls {
         println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:{dll}.dll");
     }
-
-    // combase.dll is Windows 8+ but windows-rs links COM functions from it; delay load it so Windows 7 can
-    // start the binaries. src/windows/delay_load.rs substitutes ole32.dll when it is first needed.
-    println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:combase.dll");
 
     // When using delayload, it's necessary to also link delayimp.lib
     // https://learn.microsoft.com/en-us/cpp/build/reference/dependentloadflag?view=msvc-170

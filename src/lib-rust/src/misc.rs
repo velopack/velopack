@@ -113,6 +113,46 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> bo
     path.starts_with(&parent)
 }
 
+/// Reduces an asset's FileName from a release feed to a name that is safe to store directly in the packages
+/// directory. Only the last path segment is kept, so `1.2.0/App-1.2.0-full.nupkg`,
+/// `https://cdn.example.com/App-1.2.0-full.nupkg` and `../../App-1.2.0-full.nupkg` all become
+/// `App-1.2.0-full.nupkg`, and characters the OS does not allow in file names are replaced with `_`.
+/// This mirrors `PathUtil.GetSafeFilename` in the C# library (`Path.GetFileName` followed by
+/// `Path.GetInvalidFileNameChars` replacement) so that both libraries pick the same local file for an asset.
+pub fn get_safe_filename(file_name: &str) -> String {
+    let name = file_name.rsplit(is_path_separator).next().unwrap_or("");
+    name.chars()
+        .map(|c| {
+            if is_invalid_filename_char(c) {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+#[cfg(windows)]
+fn is_path_separator(c: char) -> bool {
+    c == '/' || c == '\\'
+}
+
+#[cfg(not(windows))]
+fn is_path_separator(c: char) -> bool {
+    c == '/'
+}
+
+// Same set as .NET's Path.GetInvalidFileNameChars() on each platform.
+#[cfg(windows)]
+fn is_invalid_filename_char(c: char) -> bool {
+    matches!(c, '"' | '<' | '>' | '|' | ':' | '*' | '?' | '\\' | '/') || (c as u32) < 32
+}
+
+#[cfg(not(windows))]
+fn is_invalid_filename_char(c: char) -> bool {
+    matches!(c, '\0' | '/')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,5 +183,42 @@ mod tests {
         // verify they are uppercase hex (consistent with C# BitConverter.ToString)
         assert!(sha1.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()));
         assert!(sha256.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()));
+    }
+
+    #[test]
+    fn test_get_safe_filename_keeps_plain_names() {
+        assert_eq!(get_safe_filename("App-1.0.0-full.nupkg"), "App-1.0.0-full.nupkg");
+        assert_eq!(get_safe_filename(""), "");
+    }
+
+    #[test]
+    fn test_get_safe_filename_keeps_only_the_last_path_segment() {
+        // feed entries may point into a sub-folder or at an absolute URL (velopack/velopack#596)
+        assert_eq!(get_safe_filename("1.20.0/App-1.20.0-full.nupkg"), "App-1.20.0-full.nupkg");
+        assert_eq!(
+            get_safe_filename("https://cdn.example.com/releases/App-1.20.0-full.nupkg"),
+            "App-1.20.0-full.nupkg"
+        );
+        // and must never be able to escape the packages directory
+        assert_eq!(get_safe_filename("../../App-1.20.0-full.nupkg"), "App-1.20.0-full.nupkg");
+        assert_eq!(get_safe_filename("/etc/App-1.20.0-full.nupkg"), "App-1.20.0-full.nupkg");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_get_safe_filename_windows() {
+        assert_eq!(get_safe_filename("..\\..\\App-1.20.0-full.nupkg"), "App-1.20.0-full.nupkg");
+        assert_eq!(get_safe_filename("C:\\Windows\\App-1.20.0-full.nupkg"), "App-1.20.0-full.nupkg");
+        assert_eq!(get_safe_filename("releases\\1.20.0/App-1.20.0-full.nupkg"), "App-1.20.0-full.nupkg");
+        assert_eq!(get_safe_filename("App:1.0?.nupkg"), "App_1.0_.nupkg");
+        assert_eq!(get_safe_filename("<>|\"*\t"), "______");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn test_get_safe_filename_unix() {
+        // like .NET on unix, a backslash is an ordinary file name character, so this is one (odd) file name
+        assert_eq!(get_safe_filename("..\\..\\App-1.20.0-full.nupkg"), "..\\..\\App-1.20.0-full.nupkg");
+        assert_eq!(get_safe_filename("App:1.0?\0.nupkg"), "App:1.0?_.nupkg");
     }
 }

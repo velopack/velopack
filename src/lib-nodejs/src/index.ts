@@ -11,6 +11,10 @@ declare module "./load" {
 
   function js_get_app_id(um: UpdateManagerOpaque): string;
 
+  function js_get_current_release_notes_markdown(um: UpdateManagerOpaque): string | null;
+
+  function js_get_current_release_notes_html(um: UpdateManagerOpaque): string | null;
+
   function js_is_portable(um: UpdateManagerOpaque): boolean;
 
   function js_update_pending_restart(um: UpdateManagerOpaque): string | null;
@@ -373,6 +377,22 @@ export class UpdateManager {
    */
   getAppId(): string {
     return addon.js_get_app_id(this.opaque);
+  }
+
+  /**
+   * Returns the release notes (markdown) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+   * Returns null if the release was packed without release notes.
+   */
+  getCurrentReleaseNotesMarkdown(): string | null {
+    return addon.js_get_current_release_notes_markdown(this.opaque);
+  }
+
+  /**
+   * Returns the release notes (rendered HTML) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+   * Returns null if the release was packed without release notes.
+   */
+  getCurrentReleaseNotesHtml(): string | null {
+    return addon.js_get_current_release_notes_html(this.opaque);
   }
 
   /**
