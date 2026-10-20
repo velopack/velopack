@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using Velopack.Core;
 using Velopack.Packaging.Windows;
 
@@ -35,6 +36,44 @@ public class IcoReaderTests
             var offset = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(entry + 12, 4));
             Assert.Equal(data.AsSpan((int) offset, (int) length).ToArray(), frames[i].PixelData);
         }
+    }
+
+    [Fact]
+    public void ReadsEveryFrameOfIconWithoutAndMasks()
+    {
+        using var logger = _output.BuildLoggerFor<IcoReaderTests>();
+        // Every frame is a 32bpp DIB with the colour pixels only: the AND mask that would follow
+        // them is left out, which some icon editors do since 32bpp frames carry their own alpha.
+        var path = PathHelper.GetFixture("icon-no-and-mask.ico");
+        var frames = IcoReader.ReadFrames(path, logger);
+
+        Assert.Equal(new[] { 64, 32, 24, 16 }, frames.Select(f => f.PixelWidth));
+        Assert.All(frames, f => Assert.Equal(f.PixelWidth, f.PixelHeight));
+        Assert.All(frames, f => Assert.Equal(32, f.BitsPerPixel));
+        Assert.All(frames, f => Assert.Equal(40 + (f.PixelWidth * f.PixelHeight * 4), f.PixelData.Length));
+        Assert.All(frames, AssertWindowsCanLoad);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(24)]
+    [InlineData(32)]
+    public void AcceptsDibWithoutAndMask(int bitsPerPixel)
+    {
+        using var logger = _output.BuildLoggerFor<IcoReaderTests>();
+        // Windows loads a DIB icon frame whether or not the AND mask follows its colour pixels,
+        // at every bit depth, so a missing mask must not make the frame look truncated.
+        var payload = Dib(32, 32, bitsPerPixel, includeAndMask: false);
+
+        var frame = Assert.Single(ReadIco(logger, Entry(32, 32, (ushort) bitsPerPixel, payload)));
+        Assert.Equal(32, frame.PixelWidth);
+        Assert.Equal(32, frame.PixelHeight);
+        Assert.Equal(bitsPerPixel, frame.BitsPerPixel);
+        Assert.Equal(payload, frame.PixelData);
+        AssertWindowsCanLoad(frame);
     }
 
     [Fact]
@@ -263,6 +302,9 @@ public class IcoReaderTests
         BinaryPrimitives.WriteInt32LittleEndian(truncatedPixels.AsSpan(4, 4), 256);
         BinaryPrimitives.WriteInt32LittleEndian(truncatedPixels.AsSpan(8, 4), 512);
 
+        // Without an AND mask the colour pixels are all that is required, but they still are.
+        var truncatedColourPixels = Dib(32, 32, 32, includeAndMask: false).AsSpan(0, 40 + (32 * 32 * 4) - 1).ToArray();
+
         // A 4bpp DIB whose biClrUsed pushes the palette past the end of the payload.
         var oversizedPalette = Dib(32, 32, 4);
         BinaryPrimitives.WriteUInt32LittleEndian(oversizedPalette.AsSpan(32, 4), 4096);
@@ -282,6 +324,7 @@ public class IcoReaderTests
             { "dib with a height of one", oneHeight },
             { "top-down dib", topDown },
             { "dib too small for its declared pixels", truncatedPixels },
+            { "dib too small for its colour pixels alone", truncatedColourPixels },
             { "dib whose biClrUsed overruns the payload", oversizedPalette },
             { "png with an implausible width", Png(70_000, 32, 8, 6) },
         };
@@ -337,15 +380,16 @@ public class IcoReaderTests
     public void AccountsForTheColourMasksOfABitfieldsDib()
     {
         using var logger = _output.BuildLoggerFor<IcoReaderTests>();
-        // BI_BITFIELDS puts three colour masks between a BITMAPINFOHEADER and its pixels.
-        var withMasks = Dib(32, 32, 32).Concat(new byte[12]).ToArray();
+        // BI_BITFIELDS puts three colour masks between a BITMAPINFOHEADER and its pixels. The AND
+        // mask is optional and left out here, so it cannot make up for missing colour masks.
+        var withMasks = Dib(32, 32, 32, includeAndMask: false).Concat(new byte[12]).ToArray();
         BinaryPrimitives.WriteUInt32LittleEndian(withMasks.AsSpan(16, 4), 3); // BI_BITFIELDS
 
         var frame = Assert.Single(ReadIco(logger, Entry(32, 32, 32, withMasks)));
         Assert.Equal(32, frame.PixelWidth);
 
         // Without room for them the payload is too short for what it declares.
-        var withoutMasks = Dib(32, 32, 32);
+        var withoutMasks = Dib(32, 32, 32, includeAndMask: false);
         BinaryPrimitives.WriteUInt32LittleEndian(withoutMasks.AsSpan(16, 4), 3);
 
         var ex = Assert.Throws<UserInfoException>(() => ReadIco(logger, Entry(32, 32, 32, withoutMasks)));
@@ -534,9 +578,10 @@ public class IcoReaderTests
 
     /// <summary>
     /// A DIB icon payload: a header of the requested version followed by enough bytes to stand in
-    /// for the XOR image and AND mask. Only the header is ever parsed.
+    /// for the XOR image and, unless left out, the AND mask. Only the header is ever parsed.
     /// </summary>
-    private static byte[] Dib(int width, int height, int bitsPerPixel, int headerSize = 40, bool negativeHeight = false)
+    private static byte[] Dib(
+        int width, int height, int bitsPerPixel, int headerSize = 40, bool negativeHeight = false, bool includeAndMask = true)
     {
         // An icon DIB stacks the XOR image and the AND mask, so it records twice the height.
         var storedHeight = negativeHeight ? -(height * 2) : height * 2;
@@ -544,7 +589,8 @@ public class IcoReaderTests
         // The payload has to be big enough for the pixels the header declares, or the reader
         // rightly treats it as truncated.
         var paletteBytes = bitsPerPixel is > 0 and <= 8 ? (1 << bitsPerPixel) * (headerSize == 12 ? 3 : 4) : 0;
-        var payload = new byte[headerSize + paletteBytes + ((RowSize(width, bitsPerPixel) + RowSize(width, 1)) * Math.Abs(height))];
+        var maskRowBytes = includeAndMask ? RowSize(width, 1) : 0;
+        var payload = new byte[headerSize + paletteBytes + ((RowSize(width, bitsPerPixel) + maskRowBytes) * Math.Abs(height))];
         BinaryPrimitives.WriteUInt32LittleEndian(payload.AsSpan(0, 4), (uint) headerSize);
 
         if (headerSize == 12) {
@@ -563,6 +609,28 @@ public class IcoReaderTests
     }
 
     private static int RowSize(int width, int bitsPerPixel) => (((width * bitsPerPixel) + 31) / 32) * 4;
+
+    /// <summary>
+    /// The reader keeps a frame only if Windows can draw it, so on Windows ask Windows itself:
+    /// this loads the payload exactly as an RT_ICON resource is loaded.
+    /// </summary>
+    private static void AssertWindowsCanLoad(IcoFrame frame)
+    {
+        if (!OperatingSystem.IsWindows()) {
+            return;
+        }
+
+        var icon = CreateIconFromResourceEx(
+            frame.PixelData, (uint) frame.PixelData.Length, true, 0x00030000, frame.PixelWidth, frame.PixelHeight, 0);
+        Assert.True(icon != IntPtr.Zero, $"Windows could not load a {frame.PixelWidth}px frame (error {Marshal.GetLastWin32Error()}).");
+        DestroyIcon(icon);
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CreateIconFromResourceEx(byte[] data, uint length, bool icon, uint version, int width, int height, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr icon);
 
     /// <summary>
     /// A PNG icon payload: a signature and IHDR chunk, which is all that gets parsed, followed by
