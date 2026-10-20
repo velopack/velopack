@@ -190,31 +190,42 @@ jobs:
             chmod +x target/release/testapp
           fi
       ## START PRIMARY RELEASETESTING
+      # Coverage is collected by Microsoft.Testing.Extensions.CodeCoverage (--coverage), as in vpk-deployment, into
+      # ./test/coverage, which Upload Coverage sends along with the coverage.rundotnet.*.xml of RunCoveredDotnet.
       - name: Test Velopack.Tests
         run: >-
           dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Tests.xml
+          --coverage --coverage-output-format cobertura --coverage-settings ${{ github.workspace }}/test/codecoverage.settings.xml
+          --coverage-output ${{ github.workspace }}/test/coverage/coverage.${{ matrix.os }}.Velopack.Tests.xml
       - name: Test Velopack.Packaging.Tests
         run: >-
           dotnet test --project test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.xml
+          --coverage --coverage-output-format cobertura --coverage-settings ${{ github.workspace }}/test/codecoverage.settings.xml
+          --coverage-output ${{ github.workspace }}/test/coverage/coverage.${{ matrix.os }}.Velopack.Packaging.Tests.xml
       - name: Test Velopack.CommandLine.Tests
         run: >-
           dotnet test --project test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.CommandLine.Tests.xml
+          --coverage --coverage-output-format cobertura --coverage-settings ${{ github.workspace }}/test/codecoverage.settings.xml
+          --coverage-output ${{ github.workspace }}/test/coverage/coverage.${{ matrix.os }}.Velopack.CommandLine.Tests.xml
       - name: Test Velopack.Pack.Tests
         run: >-
           dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
+          --coverage --coverage-output-format cobertura --coverage-settings ${{ github.workspace }}/test/codecoverage.settings.xml
+          --coverage-output ${{ github.workspace }}/test/coverage/coverage.${{ matrix.os }}.Velopack.Pack.Tests.xml
       - name: Upload Coverage
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           directory: ./test/coverage

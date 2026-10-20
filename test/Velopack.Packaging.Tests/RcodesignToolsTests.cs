@@ -1,5 +1,8 @@
+using System.Reflection;
 using System.Text.RegularExpressions;
+using Neovolve.Logging.Xunit;
 using Velopack.Core;
+using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Unix;
 using Velopack.TestCommon;
 using Velopack.Util;
@@ -11,7 +14,7 @@ namespace Velopack.Packaging.Tests;
 /// (an app that crashes at launch, is reported as damaged, or is rejected by the notary), so the arguments are pinned
 /// exactly.
 /// </summary>
-public class RcodesignToolsTests
+public class RcodesignToolsTests(ITestOutputHelper output)
 {
     private const string P12 = "/certs/developer-id.p12";
     private const string Password = "/certs/password.txt";
@@ -441,7 +444,193 @@ public class RcodesignToolsTests
         Assert.Null(RcodesignTools.FindOnPath(shadowDir));
     }
 
-    private static string WriteFakeRcodesign(string dir, bool executable)
+    [Fact]
+    public void DeepSignRunsRcodesignWithTheSignArgs()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var argsFile = Path.Combine(dir, "args.txt");
+        var binary = WriteFakeRcodesignScript(FakeScriptPath(dir), argsFile, 0, "signed",
+            "signing bundle at /tmp/pack/MyApp.app", "signing Mach-O file Contents/MacOS/MyApp", "binary has no team ID");
+        var tools = CreateTools(logger, binary);
+        (string, string)[] nestedCode = [("Contents/MacOS/UpdateMac", VelopackEntitlements), ("Contents/MacOS/createdump", null)];
+
+        tools.Sign(Bundle, AppEntitlements, shallow: false, forNotarization: false, nestedCode);
+
+        Assert.Equal(RcodesignTools.BuildSignArgs(Bundle, P12, Password, AppEntitlements, false, false, nestedCode), ReadArgs(argsFile));
+        // Routine progress and stdout only show with --verbose; anything else rcodesign says is shown by default.
+        Assert.Contains(logger.Entries, e => e.LogLevel == LogLevel.Debug && e.Message == "signed");
+        Assert.Contains(logger.Entries, e => e.LogLevel == LogLevel.Debug
+                                             && e.Message.Contains("signing bundle at /tmp/pack/MyApp.app")
+                                             && e.Message.Contains("signing Mach-O file Contents/MacOS/MyApp"));
+        var shown = Assert.Single(logger.Entries, e => e.LogLevel == LogLevel.Information);
+        Assert.Equal("binary has no team ID", shown.Message);
+    }
+
+    [Fact]
+    public void ShallowNotarizedSignRunsRcodesignWithBothFlags()
+    {
+        // The --signDisableDeep pack: shallow, and with --for-notarization as notarizing follows.
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var argsFile = Path.Combine(dir, "args.txt");
+        var tools = CreateTools(logger, WriteFakeRcodesignScript(FakeScriptPath(dir), argsFile, 0, null));
+
+        tools.Sign(Bundle, AppEntitlements, shallow: true, forNotarization: true);
+
+        Assert.Equal(RcodesignTools.BuildSignArgs(Bundle, P12, Password, AppEntitlements, true, true), ReadArgs(argsFile));
+        Assert.Contains("--shallow", ReadArgs(argsFile));
+        // Without any output from rcodesign, nothing is shown by default.
+        Assert.DoesNotContain(logger.Entries, e => e.LogLevel >= LogLevel.Information);
+    }
+
+    [Fact]
+    public void FailedSignThrowsWithRcodesignOutput()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var tools = CreateTools(logger,
+            WriteFakeRcodesignScript(FakeScriptPath(dir), Path.Combine(dir, "args.txt"), 1, null, "error: bad p12 password"));
+
+        var ex = Assert.Throws<ProcessFailedException>(() => tools.Sign(Bundle, AppEntitlements, false, false));
+        Assert.Contains("error: bad p12 password", ex.Message);
+    }
+
+    [Fact]
+    public void SignThatLeavesFilesUnsealedThrowsEvenThoughRcodesignSucceeded()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var tools = CreateTools(logger, WriteFakeRcodesignScript(FakeScriptPath(dir), Path.Combine(dir, "args.txt"), 0, null,
+            "non Mach-O file with a nested rule: Contents/MacOS/MyApp.dll"));
+
+        var ex = Assert.Throws<UserInfoException>(() => tools.Sign(Bundle, AppEntitlements, false, false));
+        Assert.Contains("Contents/MacOS/MyApp.dll", ex.Message);
+    }
+
+    [Fact]
+    public void SignOfBundleWithoutMainExecutableThrowsEvenThoughRcodesignSucceeded()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var tools = CreateTools(logger, WriteFakeRcodesignScript(FakeScriptPath(dir), Path.Combine(dir, "args.txt"), 0, null,
+            "bundle has no main executable to sign specially"));
+
+        var ex = Assert.Throws<UserInfoException>(() => tools.Sign(Bundle, AppEntitlements, false, false));
+        Assert.Contains("CFBundleExecutable", ex.Message);
+    }
+
+    [Fact]
+    public void NotarizeAndStapleRunsNotarySubmitAndShowsApplesLog()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var argsFile = Path.Combine(dir, "args.txt");
+        var tools = CreateTools(logger, WriteFakeRcodesignScript(FakeScriptPath(dir), argsFile, 0, "notary log: no issues",
+            "created submission ID: 3a1f6c2e", "poll state after 5s: InProgress", "stapling ticket to /tmp/pack/MyApp.app"));
+
+        tools.NotarizeAndStaple(Bundle, "/certs/api-key.json");
+
+        Assert.Equal(RcodesignTools.BuildNotarizeArgs(Bundle, "/certs/api-key.json"), ReadArgs(argsFile));
+        var shown = logger.Entries.Where(e => e.LogLevel == LogLevel.Information).Select(e => e.Message).ToArray();
+        Assert.Contains("notary log: no issues", shown);
+        Assert.Contains(shown, m => m.Contains("created submission ID: 3a1f6c2e") && m.Contains("stapling ticket"));
+        Assert.Contains("Notarization completed and stapled successfully", shown);
+        Assert.DoesNotContain(shown, m => m.Contains("poll state after"));
+        Assert.Contains(logger.Entries, e => e.LogLevel == LogLevel.Debug && e.Message == "poll state after 5s: InProgress");
+    }
+
+    [Fact]
+    public void FailedNotarizationNamesTheSubmissionAndHowToReadItsLog()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var tools = CreateTools(logger, WriteFakeRcodesignScript(FakeScriptPath(dir), Path.Combine(dir, "args.txt"), 1, "status: Invalid",
+            "created submission ID: 3a1f6c2e", "error: notarization rejected"));
+
+        var ex = Assert.Throws<UserInfoException>(() => tools.NotarizeAndStaple(Bundle, "/certs/api-key.json"));
+        Assert.Contains("Notarization of submission 3a1f6c2e failed", ex.Message);
+        Assert.Contains("exited with code 1", ex.Message);
+        Assert.Contains("notary-log --api-key-file <file> 3a1f6c2e", ex.Message);
+        Assert.Contains("status: Invalid", ex.Message);
+        Assert.Contains("error: notarization rejected", ex.Message);
+        Assert.DoesNotContain(logger.Entries, e => e.Message.Contains("Notarization completed"));
+    }
+
+    [Fact]
+    public void FailedNotarizationBeforeUploadReportsTheExitCode()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var tools = CreateTools(logger,
+            WriteFakeRcodesignScript(FakeScriptPath(dir), Path.Combine(dir, "args.txt"), 2, null, "error: invalid API key"));
+
+        var ex = Assert.Throws<UserInfoException>(() => tools.NotarizeAndStaple(Bundle, "/certs/api-key.json"));
+        Assert.StartsWith("Notarization failed: 'rcodesign notary-submit' exited with code 2.", ex.Message);
+        Assert.DoesNotContain("notary-log", ex.Message);
+        Assert.Contains("error: invalid API key", ex.Message);
+    }
+
+    /// <summary>
+    /// The tools as <see cref="RcodesignTools.Create"/> returns them, but running <paramref name="binaryPath"/> (e.g. a
+    /// script from <see cref="WriteFakeRcodesignScript"/>) without looking for rcodesign on the PATH, which is shared
+    /// with tests running in parallel. <see cref="RcodesignToolsCreateTests"/> covers Create itself.
+    /// </summary>
+    private static RcodesignTools CreateTools(ILogger logger, string binaryPath) =>
+        (RcodesignTools) Activator.CreateInstance(typeof(RcodesignTools), BindingFlags.Instance | BindingFlags.NonPublic, null,
+            [logger, binaryPath, P12, Password], null)!;
+
+    /// <summary>
+    /// Where to write a fake rcodesign that only runs by its full path: a batch file on Windows, which Process.Start
+    /// runs as it would an .exe (but FindOnPath, which looks for rcodesign.exe, does not find).
+    /// </summary>
+    private static string FakeScriptPath(string dir) => Path.Combine(dir, VelopackRuntimeInfo.IsWindows ? "rcodesign.cmd" : "rcodesign");
+
+    /// <summary>The arguments a fake rcodesign recorded, one per line.</summary>
+    private static string[] ReadArgs(string argsFile) =>
+        File.ReadAllLines(argsFile).Select(l => l.TrimEnd()).ToArray();
+
+    /// <summary>
+    /// Writes a stand-in for rcodesign at <paramref name="path"/> (a sh script, or a batch file on Windows) that appends
+    /// each of its arguments as a line of <paramref name="argsFile"/>, writes <paramref name="stdOut"/> (if any) to
+    /// stdout and each of <paramref name="stdErrLines"/> to stderr, and exits with <paramref name="exitCode"/>. The
+    /// arguments and output must not contain quotes or shell/batch special characters (%^&amp;|&lt;&gt;).
+    /// </summary>
+    internal static string WriteFakeRcodesignScript(string path, string argsFile, int exitCode, string stdOut, params string[] stdErrLines)
+    {
+        var lines = new List<string>();
+        if (VelopackRuntimeInfo.IsWindows) {
+            lines.Add("@echo off");
+            lines.Add(":next");
+            lines.Add("if \"%~1\"==\"\" goto done");
+            lines.Add($">>\"{argsFile}\" echo(%~1");
+            lines.Add("shift");
+            lines.Add("goto next");
+            lines.Add(":done");
+            if (stdOut != null) {
+                lines.Add("echo(" + stdOut);
+            }
+
+            lines.AddRange(stdErrLines.Select(l => ">&2 echo(" + l));
+            lines.Add($"exit /b {exitCode}");
+            File.WriteAllText(path, String.Join("\r\n", lines) + "\r\n");
+        } else {
+            lines.Add("#!/bin/sh");
+            lines.Add($"printf '%s\\n' \"$@\" >> '{argsFile}'");
+            if (stdOut != null) {
+                lines.Add($"printf '%s\\n' '{stdOut}'");
+            }
+
+            lines.AddRange(stdErrLines.Select(l => $"printf '%s\\n' '{l}' >&2"));
+            lines.Add($"exit {exitCode}");
+            File.WriteAllText(path, String.Join("\n", lines) + "\n");
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        return path;
+    }
+
+    internal static string WriteFakeRcodesign(string dir, bool executable)
     {
         var binary = Path.Combine(dir, VelopackRuntimeInfo.IsWindows ? "rcodesign.exe" : "rcodesign");
         File.WriteAllText(binary, "");
@@ -496,5 +685,111 @@ public class RcodesignToolsTests
         var link = InfoOf(bundle, relativePath);
         Assert.IsType<DirectoryInfo>(link);
         Assert.Equal(expectedTarget, LinkTargetOf(link));
+    }
+}
+
+/// <summary>
+/// Tests that change the process-wide PATH, so never run alongside any other test.
+/// </summary>
+[CollectionDefinition(nameof(ProcessPathCollection), DisableParallelization = true)]
+public class ProcessPathCollection
+{
+}
+
+/// <summary>
+/// <see cref="RcodesignTools.Create"/>: finding rcodesign on the PATH and checking it is recent enough before any
+/// packaging work. A fake rcodesign that runs has to be a script, which only Linux and macOS find as rcodesign.
+/// </summary>
+[Collection(nameof(ProcessPathCollection))]
+public class RcodesignToolsCreateTests(ITestOutputHelper output)
+{
+    [Fact]
+    public void MissingRcodesignFailsWithInstallHint()
+    {
+        using var logger = output.BuildLoggerFor<RcodesignToolsCreateTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var ex = Assert.Throws<UserInfoException>(() => WithPath(dir, () => RcodesignTools.Create(logger, "a.p12", "pw.txt")));
+        Assert.Contains("'rcodesign', which was not found on the PATH", ex.Message);
+        Assert.Contains("cargo install --locked apple-codesign", ex.Message);
+    }
+
+    [Fact]
+    public void RcodesignThatCannotRunFailsWithInstallHint()
+    {
+        // An empty file is not a program on any OS; on Linux and macOS it has to be executable to be found at all.
+        using var logger = output.BuildLoggerFor<RcodesignToolsCreateTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var binary = RcodesignToolsTests.WriteFakeRcodesign(dir, executable: true);
+
+        var ex = Assert.Throws<UserInfoException>(() => WithPath(dir, () => RcodesignTools.Create(logger, "a.p12", "pw.txt")));
+        Assert.Contains($"Could not run '{binary}'", ex.Message);
+    }
+
+    [Fact]
+    public void RecentRcodesignIsUsedForSigning()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "a fake rcodesign.exe cannot be a script");
+        using var logger = output.BuildLoggerFor<RcodesignToolsCreateTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var argsFile = Path.Combine(dir, "args.txt");
+        RcodesignToolsTests.WriteFakeRcodesignScript(Path.Combine(dir, "rcodesign"), argsFile, 0, "rcodesign 0.29.0");
+
+        var tools = WithPath(dir, () => RcodesignTools.Create(logger, "a.p12", "pw.txt"));
+        tools.Sign("/tmp/pack/MyApp.app", "/build/App.entitlements", shallow: false, forNotarization: false);
+
+        Assert.Equal(new[] { "--version" }.Concat(RcodesignTools.BuildSignArgs("/tmp/pack/MyApp.app", "a.p12", "pw.txt",
+            "/build/App.entitlements", false, false)), File.ReadAllLines(argsFile));
+        Assert.Contains(logger.Entries, e => e.LogLevel == LogLevel.Debug && e.Message.StartsWith("Using rcodesign 0.29.0 ("));
+    }
+
+    [Fact]
+    public void RcodesignWithUnreadableVersionIsAssumedRecent()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "a fake rcodesign.exe cannot be a script");
+        using var logger = output.BuildLoggerFor<RcodesignToolsCreateTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        RcodesignToolsTests.WriteFakeRcodesignScript(Path.Combine(dir, "rcodesign"), Path.Combine(dir, "args.txt"), 0, "rcodesign dev");
+
+        Assert.NotNull(WithPath(dir, () => RcodesignTools.Create(logger, "a.p12", "pw.txt")));
+        Assert.Contains(logger.Entries, e => e.LogLevel == LogLevel.Debug && e.Message.Contains("assuming it is recent enough"));
+    }
+
+    [Fact]
+    public void OutdatedRcodesignFailsWithInstallHint()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "a fake rcodesign.exe cannot be a script");
+        using var logger = output.BuildLoggerFor<RcodesignToolsCreateTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        RcodesignToolsTests.WriteFakeRcodesignScript(Path.Combine(dir, "rcodesign"), Path.Combine(dir, "args.txt"), 0, "rcodesign 0.27.0");
+
+        var ex = Assert.Throws<UserInfoException>(() => WithPath(dir, () => RcodesignTools.Create(logger, "a.p12", "pw.txt")));
+        Assert.Contains($"is rcodesign 0.27.0, but vpk needs {RcodesignTools.MinimumVersion} or later", ex.Message);
+    }
+
+    [Fact]
+    public void FailingRcodesignVersionFailsWithItsOutput()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "a fake rcodesign.exe cannot be a script");
+        using var logger = output.BuildLoggerFor<RcodesignToolsCreateTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        RcodesignToolsTests.WriteFakeRcodesignScript(Path.Combine(dir, "rcodesign"), Path.Combine(dir, "args.txt"), 3, null,
+            "error: missing shared library");
+
+        var ex = Assert.Throws<UserInfoException>(() => WithPath(dir, () => RcodesignTools.Create(logger, "a.p12", "pw.txt")));
+        Assert.Contains("--version' exited with code 3", ex.Message);
+        Assert.Contains("error: missing shared library", ex.Message);
+    }
+
+    /// <summary>Runs <paramref name="fn"/> with PATH set to <paramref name="path"/> alone, restoring it afterwards.</summary>
+    private static T WithPath<T>(string path, Func<T> fn)
+    {
+        var original = Environment.GetEnvironmentVariable("PATH");
+        Environment.SetEnvironmentVariable("PATH", path);
+        try {
+            return fn();
+        } finally {
+            Environment.SetEnvironmentVariable("PATH", original);
+        }
     }
 }

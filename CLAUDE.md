@@ -47,7 +47,17 @@ dotnet test --project test/Velopack.Tests -- --filter-method "*TestMethodName*"
 
 # Rust tests
 cargo test
+
+# .NET code coverage (as CI's vpk / vpk-deployment jobs collect it; writes a cobertura xml)
+dotnet test --project test/Velopack.Packaging.Tests -- --coverage --coverage-output-format cobertura \
+    --coverage-settings test/codecoverage.settings.xml --coverage-output "$PWD/test/coverage/coverage.local.xml"
 ```
+
+**Coverage runs on Microsoft.Testing.Platform**: `Microsoft.Testing.Extensions.CodeCoverage` is referenced by every
+test project (`test/Directory.Build.props`) and only collects when `--coverage` is passed. coverlet does not work under
+MTP (it only hooks VSTest), so don't reintroduce it. Pass `--coverage-output` an absolute path (a relative one lands in
+the test results dir); CI writes `test/coverage/coverage.<os>.<project>.xml`, which the codecov upload picks up.
+`test/codecoverage.settings.xml` keeps the shared test helpers out of the report, and `codecov.yml` ignores `test/**`.
 
 **Run tests locally in Debug (the default), never `-c Release`.** In Debug, `HelperFile` and
 `PathHelper.GetRustBuildOutputDir()` resolve unsuffixed rust binaries from `target/debug`, so a plain
