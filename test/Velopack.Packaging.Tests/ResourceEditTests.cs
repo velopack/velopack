@@ -122,15 +122,17 @@ public class ResourceEditTests
         Assert.Equal(7, afterIcon.Groups.ToList()[0].Icons.Count());
     }
 
-    [Fact]
-    public void SetIconWritesEveryFrameFieldIntoTheIconGroup()
+    [Theory]
+    [InlineData("clowd.ico")]
+    [InlineData("icon-no-and-mask.ico")]
+    public void SetIconWritesEveryFrameFieldIntoTheIconGroup(string iconFixture)
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
 
         using var _1 = TempUtil.GetTempFileName(out var tempFile);
         File.Copy(PathHelper.GetFixture("atom.exe"), tempFile);
 
-        var icon = PathHelper.GetFixture("clowd.ico");
+        var icon = PathHelper.GetFixture(iconFixture);
         var edit = new ResourceEdit(tempFile, logger);
         edit.SetExeIcon(icon);
         edit.Commit();

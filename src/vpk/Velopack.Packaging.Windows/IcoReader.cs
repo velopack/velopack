@@ -323,7 +323,7 @@ public static class IcoReader
         // size. Only uncompressed pixel data has a predictable length; the compressed encodings
         // are let through unchecked.
         if ((compression is BI_RGB or BI_BITFIELDS)
-            && DeclaredDibSize(headerSize, compression, isCoreHeader, width, height, bitsPerPixel, paletteEntries) > payload.Length) {
+            && MinimumDibSize(headerSize, compression, isCoreHeader, width, height, bitsPerPixel, paletteEntries) > payload.Length) {
             return null;
         }
 
@@ -332,10 +332,11 @@ public static class IcoReader
 
     /// <summary>
     /// The smallest a DIB icon payload can be given what its header declares: the header itself,
-    /// any colour masks, the palette, then the XOR image and the 1bpp AND mask, each of whose rows
-    /// is padded to a 4 byte boundary.
+    /// any colour masks, the palette, then the XOR image, whose rows are padded to a 4 byte
+    /// boundary. The 1bpp AND mask that normally follows is not counted: icon editors leave it
+    /// out, and Windows loads such frames at every bit depth (velopack#1120).
     /// </summary>
-    private static long DeclaredDibSize(
+    private static long MinimumDibSize(
         uint headerSize, uint compression, bool isCoreHeader, int width, int height, ushort bitsPerPixel, uint paletteEntries)
     {
         var paletteBytes = 0L;
@@ -350,7 +351,7 @@ public static class IcoReader
         // header versions have fields of their own for them, already counted in headerSize.
         var colorMaskBytes = compression == BI_BITFIELDS && headerSize == 40 ? 12L : 0L;
 
-        return headerSize + colorMaskBytes + paletteBytes + ((RowSize(width, bitsPerPixel) + RowSize(width, 1)) * height);
+        return headerSize + colorMaskBytes + paletteBytes + (RowSize(width, bitsPerPixel) * height);
     }
 
     /// <summary>The length of one bottom-up bitmap row, padded to a 4 byte boundary.</summary>
