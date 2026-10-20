@@ -55,7 +55,6 @@ public class IcoReaderTests
     }
 
     [Theory]
-    [InlineData(1)]
     [InlineData(4)]
     [InlineData(8)]
     [InlineData(16)]
@@ -65,14 +64,43 @@ public class IcoReaderTests
     {
         using var logger = _output.BuildLoggerFor<IcoReaderTests>();
         // Windows loads a DIB icon frame whether or not the AND mask follows its colour pixels,
-        // at every bit depth, so a missing mask must not make the frame look truncated.
-        var payload = Dib(32, 32, bitsPerPixel, includeAndMask: false);
+        // so a missing mask must not make the frame look truncated. The palette is black and
+        // white, as a real icon's would be.
+        var payload = Dib(32, 32, bitsPerPixel, includeAndMask: false, blackAndWhitePalette: true);
 
         var frame = Assert.Single(ReadIco(logger, Entry(32, 32, (ushort) bitsPerPixel, payload)));
         Assert.Equal(32, frame.PixelWidth);
         Assert.Equal(32, frame.PixelHeight);
         Assert.Equal(bitsPerPixel, frame.BitsPerPixel);
         Assert.Equal(payload, frame.PixelData);
+        AssertWindowsCanLoad(frame);
+    }
+
+    [Fact]
+    public void SkipsMonochromeDibWithoutAndMask()
+    {
+        using var logger = _output.BuildLoggerFor<IcoReaderTests>();
+        // Windows reads a 1bpp frame with a black and white palette as a monochrome icon, whose
+        // AND mask is not optional, so without it the frame cannot be drawn.
+        var payload = Dib(32, 32, 1, includeAndMask: false, blackAndWhitePalette: true);
+
+        var frames = ReadIco(logger, Entry(16, 16, 32, Dib(16, 16, 32)), Entry(32, 32, 1, payload));
+        Assert.Equal(16, Assert.Single(frames).PixelWidth);
+
+        if (OperatingSystem.IsWindows()) {
+            var icon = CreateIconFromResourceEx(payload, (uint) payload.Length, true, 0x00030000, 32, 32, 0);
+            Assert.Equal(IntPtr.Zero, icon);
+        }
+    }
+
+    [Fact]
+    public void ReadsMonochromeDibWithAndMask()
+    {
+        using var logger = _output.BuildLoggerFor<IcoReaderTests>();
+        var payload = Dib(32, 32, 1, blackAndWhitePalette: true);
+
+        var frame = Assert.Single(ReadIco(logger, Entry(32, 32, 1, payload)));
+        Assert.Equal(1, frame.BitsPerPixel);
         AssertWindowsCanLoad(frame);
     }
 
@@ -578,10 +606,17 @@ public class IcoReaderTests
 
     /// <summary>
     /// A DIB icon payload: a header of the requested version followed by enough bytes to stand in
-    /// for the XOR image and, unless left out, the AND mask. Only the header is ever parsed.
+    /// for the XOR image and, unless left out, the AND mask. Only the header and, when asked for a
+    /// black and white one, the palette are filled in.
     /// </summary>
     private static byte[] Dib(
-        int width, int height, int bitsPerPixel, int headerSize = 40, bool negativeHeight = false, bool includeAndMask = true)
+        int width,
+        int height,
+        int bitsPerPixel,
+        int headerSize = 40,
+        bool negativeHeight = false,
+        bool includeAndMask = true,
+        bool blackAndWhitePalette = false)
     {
         // An icon DIB stacks the XOR image and the AND mask, so it records twice the height.
         var storedHeight = negativeHeight ? -(height * 2) : height * 2;
@@ -603,6 +638,12 @@ public class IcoReaderTests
             BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(8, 4), storedHeight);
             BinaryPrimitives.WriteUInt16LittleEndian(payload.AsSpan(12, 2), 1); // planes
             BinaryPrimitives.WriteUInt16LittleEndian(payload.AsSpan(14, 2), (ushort) bitsPerPixel);
+        }
+
+        if (blackAndWhitePalette && paletteBytes > 0) {
+            // Entry 0 stays black; entry 1 becomes white.
+            var entrySize = headerSize == 12 ? 3 : 4;
+            payload.AsSpan(headerSize + entrySize, 3).Fill(0xFF);
         }
 
         return payload;
