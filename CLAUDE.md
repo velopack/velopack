@@ -47,13 +47,30 @@ dotnet test --project test/Velopack.Tests -- --filter-method "*TestMethodName*"
 
 # Rust tests
 cargo test
+
+# .NET code coverage (as CI's vpk / vpk-deployment jobs collect it; writes a cobertura xml)
+dotnet test --project test/Velopack.Packaging.Tests -- --coverage --coverage-output-format cobertura \
+    --coverage-settings test/codecoverage.settings.xml --coverage-output "$PWD/test/coverage/coverage.local.xml"
 ```
+
+**Coverage runs on Microsoft.Testing.Platform**: `Microsoft.Testing.Extensions.CodeCoverage` is referenced by every
+test project (`test/Directory.Build.props`) and only collects when `--coverage` is passed. coverlet does not work under
+MTP (it only hooks VSTest), so don't reintroduce it. Pass `--coverage-output` an absolute path (a relative one lands in
+the test results dir); CI writes `test/coverage/coverage.<os>.<project>.xml`, which the codecov upload picks up.
+`test/codecoverage.settings.xml` keeps the shared test helpers out of the report, and `codecov.yml` ignores `test/**`.
 
 **Run tests locally in Debug (the default), never `-c Release`.** In Debug, `HelperFile` and
 `PathHelper.GetRustBuildOutputDir()` resolve unsuffixed rust binaries from `target/debug`, so a plain
 `cargo build` (add `--features windows` on Windows) is all the setup needed. Release-mode tests
 expect CI's arch-suffixed vendored binaries (`update_x64.exe` etc.) — do not fake those locally by
 copying files into `target/release`.
+
+Packing for macOS (`vpk [osx] pack`, `osx-*` targets) off macOS in Debug needs a Mach-O `UpdateMac`: a local
+build only has the host's own update binary, so copy a prebuilt `UpdateMac` (e.g. from the `vpk` NuGet package's
+`vendor/`) into `vendor/`, or those tests skip. On Windows they also need symlinks, since vpk links the bundle's
+`Contents/MacOS/sq.version` (Developer Mode or an elevated prompt); without them, every test that creates symlinks
+skips locally (CI runs elevated, so there they fail instead) — use `TestHelper.SkipUnlessSymlinksCanBeCreated()` /
+`TestHelper.SkipLocallyFailInCI()` in new tests.
 
 ## Repository Structure
 
@@ -109,17 +126,20 @@ samples/                         # Example apps (C#, C++, Node.js, Python, Rust)
 
 ### Packaging Flow
 
-The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platform-specific command runners:
+The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platform-specific command runners. macOS targets
+(`vpk [osx] pack`) can be packed on any host: off macOS, Apple's tools are unavailable, so the Apple-tool options
+(`--signAppIdentity`, `--notaryProfile`, `--keychain`, `--inst*`, `--noInst`, `--noPortable`) are not registered and no `.pkg` is built.
 
 1. **Preprocessing**: Locates the main executable, detects CPU architecture from the binary, copies files to a staging directory. On Windows: embeds icon in Update.exe, removes ClickOnce manifests, creates execution stubs. On Linux: builds an AppDir with `AppRun` script, `.desktop` file, and icon hierarchy. On macOS: creates or validates `.app` bundle structure.
 
-2. **Code signing** (signtool `--signParams` on Windows only; `--signTemplate` and Azure Trusted Signing of Windows packages on all OSes; `codesign` on macOS): Signs all PE/Mach-O binaries. Supports `signtool.exe` (`--signParams`), custom sign templates, Azure Trusted Signing, and `codesign` with optional notarization (macOS).
+2. **Code signing** (signtool `--signParams` on Windows only; `--signTemplate` and Azure Trusted Signing of Windows packages on all OSes; `codesign` or `rcodesign` for macOS targets): Signs all PE/Mach-O binaries. Supports `signtool.exe` (`--signParams`), custom sign templates, Azure Trusted Signing, and for macOS targets either `codesign` + `notarytool` (macOS host only, keychain identity) or `rcodesign` on any host (`--signP12File`/`--signP12PasswordFile`, notarized with `--notaryApiKeyFile`, an App Store Connect key in rcodesign's JSON form; `RcodesignTools`).
    - **Azure Trusted Signing** (`--azureTrustedSignFile`, all OSes) does not use signtool: `Velopack.Packaging.Windows/Signing/` is a managed Authenticode signer (PE digest/embed + `SignedCms`, RFC3161 timestamp from `timestamp.acs.microsoft.com`) whose RSA key calls `Azure.CodeSigning.Sdk`. MSI files (Windows only) are signed via the `AzureSign.Core` package. Already-signed files are skipped: on Windows only if the signature is trusted (`CodeSign.ShouldSign`), on Linux/macOS if the PE has any certificate table. One `AzureTrustedSigner` is reused for the whole pack so the credential and certificate chain are fetched once; if the profile certificate rotates mid-pack (service reports another cert, or the signature does not verify with the cached one) the chain is refetched once and the file retried, for PE and MSI alike. Unlisted `ExcludeCredentials` are force-enabled only on Windows (Dlib parity); elsewhere SDK defaults apply, keeping SharedTokenCache/InteractiveBrowser off. After signing an MSI only signature integrity + signer certificate are checked, not trust (Private Trust profiles chain to roots Windows does not trust).
+   - **rcodesign** cannot seal non-Mach-O files in `Contents/MacOS` (a normal .NET publish's .dll/.json/.pdb), so before signing vpk moves them into `Contents/Resources/MacOS/` (same relative path; a subdirectory with no Mach-O in it is moved whole) and leaves relative symlinks in their place (`RcodesignTools.RelocateNonMachOFiles`); the links ride through the nupkg, delta and portable zip and the update binary restores them. Mach-O files, existing links and nested bundles stay put; a file already at a destination fails the pack. The codesign route is unchanged.
 
 3. **Package creation** (parallel): Builds multiple outputs simultaneously:
-   - **Release package** (`.nupkg`): ZIP with `lib/app/` containing all app files + update binary + `sq.version` manifest, plus a `.nuspec` with metadata. This is the canonical package format.
-   - **Portable package**: On Windows: ZIP with `Update.exe`, `current/` dir, execution stub, and `.portable` marker. On Linux: AppImage (squashfs appended to runtime binary). On macOS: ditto ZIP of `.app` bundle.
-   - **Setup installer**: On Windows: `setup.exe` template with the `.nupkg` appended as a bundle (offset+length header + signature). Optional MSI via WiX 5 compilation from Handlebars templates. On macOS: `.pkg` via `pkgbuild`.
+   - **Release package** (`.nupkg`): ZIP with `lib/app/` containing all app files + update binary + `sq.version` manifest, plus a `.nuspec` with metadata. This is the canonical package format. For macOS targets the bundle's internal symlinks stay symlinks (`PackageBuilder.CopyFiles`), on every host.
+   - **Portable package**: On Windows: ZIP with `Update.exe`, `current/` dir, execution stub, and `.portable` marker. On Linux: AppImage (squashfs appended to runtime binary). On macOS: ZIP of the `.app` bundle, by `ditto` on a macOS host and the managed `OsxPortableZip` elsewhere (keeps Unix modes and symlinks).
+   - **Setup installer**: On Windows: `setup.exe` template with the `.nupkg` appended as a bundle (offset+length header + signature). Optional MSI via WiX 5 compilation from Handlebars templates. On macOS: `.pkg` via `pkgbuild` (macOS host only; signed and notarized with Apple's tools even when the app uses rcodesign).
    - **Delta package** (`.delta.nupkg`): Created if a previous release exists. Compares files between old and new releases — unchanged files get zero-length `.diff` markers, changed files get zstd patches (`.zsdiff`), new files included as-is. zstd is the only supported patch format (creation and apply); zstd being unavailable fails delta creation. Legacy `.bsdiff`/msdelta patches are rejected with an "Unsupported patch format" error on apply. vpk shells out to `zstd` once per changed file (`Zstd.cs`); on Windows `zstd.exe` mangles non-ASCII argument characters (facebook/zstd#3882), so when any path is non-ASCII the files are moved into a temp dir under ASCII names and zstd runs there with relative paths.
 
 4. **Post-processing**: Writes `releases.<channel>.json` (asset feed for update clients) and legacy `RELEASES` file.

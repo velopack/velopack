@@ -7,3 +7,4 @@ ignore:
   - "**/*.g.cs"
   - "src/lib-nodejs/src/types.ts"
   - "src/bins/src/testapp.rs"
+  - "test/**"

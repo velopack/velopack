@@ -6,7 +6,7 @@ using Velopack.Util;
 
 namespace Velopack.TestCommon;
 
-public static class TestHelper
+public static partial class TestHelper
 {
     /// <summary>
     /// Repeatedly runs assertion until it stops throwing or timeoutMs elapses (the last attempt's

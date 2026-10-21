@@ -16,8 +16,12 @@ namespace Velopack.Util
         private const uint IO_REPARSE_TAG_SYMLINK = 0xA000000C;
         private const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
         private const int ERROR_NOT_A_REPARSE_POINT = 4390;
+        private const int ERROR_INVALID_PARAMETER = 87;
+        private const int ERROR_PRIVILEGE_NOT_HELD = 1314;
+        private const int HRESULT_PRIVILEGE_NOT_HELD = unchecked((int) 0x80070522); // HRESULT_FROM_WIN32(ERROR_PRIVILEGE_NOT_HELD)
         private const int MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 16 * 1024;
         private const uint SYMLINK_FLAG_RELATIVE = 1;
+        private const uint SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2;
 
         private const uint GENERIC_READ = 0x80000000;
         private const uint FILE_SHARE_READ = 0x00000001;
@@ -62,7 +66,7 @@ namespace Velopack.Util
             [In]
             string lpTargetFileName,
             [In]
-            SymbolicLinkFlag dwFlags);
+            uint dwFlags);
 
         [DllImport(Kernel32, SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern SafeFileHandle CreateFile(
@@ -199,12 +203,36 @@ namespace Velopack.Util
             return path;
         }
 
+        /// <summary>
+        /// Explains how to allow symlink creation on Windows, which fails with ERROR_PRIVILEGE_NOT_HELD unless the process
+        /// holds SeCreateSymbolicLinkPrivilege.
+        /// </summary>
+        private const string WindowsPrivilegeNotHeldMessage =
+            "Windows only allows creating symlinks with Developer Mode enabled (Settings > For developers), " +
+            "from an elevated prompt, or with the 'Create symbolic links' user right.";
+
+        private static UnauthorizedAccessException CreatePrivilegeNotHeldException(string linkPath, Exception innerException)
+        {
+            return new UnauthorizedAccessException($"Could not create symlink '{linkPath}'. {WindowsPrivilegeNotHeldMessage}", innerException);
+        }
+
         [SupportedOSPlatform("windows")]
         private static void WindowsCreateSymlink(string target, string linkPath, SymbolicLinkFlag mode)
         {
-            if (!PInvokeWindowsCreateSymlink(linkPath, target, mode)) {
+            // Developer Mode only lets an unelevated process create symlinks when it passes ALLOW_UNPRIVILEGED_CREATE, as .NET's
+            // own File.CreateSymbolicLink does. Windows older than 10 1703 rejects the flag, so retry without it there.
+            var created = PInvokeWindowsCreateSymlink(linkPath, target, (uint) mode | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE);
+            if (!created && Marshal.GetLastWin32Error() == ERROR_INVALID_PARAMETER) {
+                created = PInvokeWindowsCreateSymlink(linkPath, target, (uint) mode);
+            }
+
+            if (!created) {
                 var errorCode = Marshal.GetLastWin32Error();
-                throw new InvalidOperationException($"Error creating symlink: {errorCode}", new Win32Exception());
+                if (errorCode == ERROR_PRIVILEGE_NOT_HELD) {
+                    throw CreatePrivilegeNotHeldException(linkPath, new Win32Exception(errorCode));
+                }
+
+                throw new InvalidOperationException($"Error creating symlink: {errorCode}", new Win32Exception(errorCode));
             }
         }
     }

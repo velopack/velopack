@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MTP code coverage settings (Microsoft.Testing.Extensions.CodeCoverage), passed to `dotnet test` as the value of its
+     coverage-settings option (see CLAUDE.md): measure product code only, not the shared test helpers. -->
+<Configuration>
+  <CodeCoverage>
+    <ModulePaths>
+      <Exclude>
+        <ModulePath>.*[\/]Velopack\.TestCommon\.dll$</ModulePath>
+        <ModulePath>.*\.Tests\.dll$</ModulePath>
+      </Exclude>
+    </ModulePaths>
+  </CodeCoverage>
+</Configuration>
