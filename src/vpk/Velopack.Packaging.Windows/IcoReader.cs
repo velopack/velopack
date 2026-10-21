@@ -323,7 +323,7 @@ public static class IcoReader
         // size. Only uncompressed pixel data has a predictable length; the compressed encodings
         // are let through unchecked.
         if ((compression is BI_RGB or BI_BITFIELDS)
-            && DeclaredDibSize(headerSize, compression, isCoreHeader, width, height, bitsPerPixel, paletteEntries) > payload.Length) {
+            && MinimumDibSize(headerSize, compression, isCoreHeader, width, height, bitsPerPixel, paletteEntries) > payload.Length) {
             return null;
         }
 
@@ -333,9 +333,11 @@ public static class IcoReader
     /// <summary>
     /// The smallest a DIB icon payload can be given what its header declares: the header itself,
     /// any colour masks, the palette, then the XOR image and the 1bpp AND mask, each of whose rows
-    /// is padded to a 4 byte boundary.
+    /// is padded to a 4 byte boundary. Icon editors leave the AND mask out, and Windows loads such
+    /// frames (velopack#1120), except at 1bpp: there it treats a black and white palette as a
+    /// monochrome icon and needs the mask, so for 1bpp it is still counted.
     /// </summary>
-    private static long DeclaredDibSize(
+    private static long MinimumDibSize(
         uint headerSize, uint compression, bool isCoreHeader, int width, int height, ushort bitsPerPixel, uint paletteEntries)
     {
         var paletteBytes = 0L;
@@ -350,7 +352,9 @@ public static class IcoReader
         // header versions have fields of their own for them, already counted in headerSize.
         var colorMaskBytes = compression == BI_BITFIELDS && headerSize == 40 ? 12L : 0L;
 
-        return headerSize + colorMaskBytes + paletteBytes + ((RowSize(width, bitsPerPixel) + RowSize(width, 1)) * height);
+        var maskBytes = bitsPerPixel == 1 ? RowSize(width, 1) * height : 0L;
+
+        return headerSize + colorMaskBytes + paletteBytes + ((RowSize(width, bitsPerPixel) * height) + maskBytes);
     }
 
     /// <summary>The length of one bottom-up bitmap row, padded to a 4 byte boundary.</summary>
