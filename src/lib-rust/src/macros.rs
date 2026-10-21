@@ -38,6 +38,8 @@ macro_rules! maybe_pub_os {
 
 /// Defines a struct with case-insensitive JSON deserialization.
 /// All incoming JSON keys are lowercased before matching against field names.
+/// A JSON `null` leaves the field at its default, so a third-party feed emitting
+/// `"ChunkIndexSHA256": null` does not fail the whole feed.
 /// All field types must implement `serde::de::DeserializeOwned` and `Default`.
 /// Adapted from the serde-aux crate's `deserialize_struct_case_insensitive`.
 macro_rules! define_struct_case_insensitive {
@@ -70,7 +72,9 @@ macro_rules! define_struct_case_insensitive {
                 let mut result = $name::default();
                 $(
                     if let Some(v) = lower.get(&stringify!($field).to_lowercase()) {
-                        result.$field = serde_json::from_value(v.clone()).map_err(serde::de::Error::custom)?;
+                        if !v.is_null() {
+                            result.$field = serde_json::from_value(v.clone()).map_err(serde::de::Error::custom)?;
+                        }
                     }
                 )*
                 Ok(result)

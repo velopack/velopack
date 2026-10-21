@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Velopack.Chunks;
 using Velopack.Locators;
 using Velopack.Logging;
 using Velopack.Util;
@@ -237,34 +238,77 @@ namespace Velopack
             Environment.SetEnvironmentVariable("VELOPACK_FIRSTRUN", null);
             Environment.SetEnvironmentVariable("VELOPACK_RESTART", null);
 
+            // a staged chunk update (assembled tree) counts as a local update too; the highest version wins
+            var readyStaged = StagedUpdate.FindReadyStaged(locator);
+            var pending = latestLocal;
+            if (readyStaged != null && (pending == null || readyStaged.Asset.Version >= pending.Version)) {
+                pending = readyStaged.Asset;
+            } else {
+                readyStaged = null;
+            }
+
             // if we've not just been restarted via Velopack apply, and there is a local update available,
             // we should install it first.
-            if (latestLocal != null && latestLocal.Version > myVersion) {
-                log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
+            if (pending != null && pending.Version > myVersion) {
+                log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {pending.Version}");
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
-                    UpdateExe.Apply(locator, latestLocal, false, locator.Process.GetCurrentProcessId(), true, args);
-                    locator.Process.Exit(0);
+                    bool launched = true;
+                    if (readyStaged != null) {
+                        try {
+                            UpdateExe.ApplyStaged(locator, readyStaged.Dir, false, locator.Process.GetCurrentProcessId(), true, args);
+                        } catch (InvalidDataException ex) {
+                            // the tree itself is invalid (bad ready.json, its updater does not match the marker): discard it
+                            // so we never loop on it, and carry on starting the app
+                            log.Error(ex, "The staged update is invalid; discarding it.");
+                            StagedUpdate.DeleteDir(log, readyStaged.Dir);
+                            launched = false;
+                        } catch (Exception ex) {
+                            // a transient failure (Update.exe locked by AV or still exiting, the launch failed): keep the
+                            // assembled tree, which is still valid, and try again on the next launch (as the Rust library does)
+                            log.Error(ex, "Failed to launch the updater for the staged update; will retry on the next launch.");
+                            launched = false;
+                        }
+                    } else {
+                        UpdateExe.Apply(locator, pending, false, locator.Process.GetCurrentProcessId(), true, args);
+                    }
+                    if (launched) {
+                        locator.Process.Exit(0);
+                    }
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
             }
 
-            // clean up old versions of the app
+            // clean up old versions of the app, but only when no other process is downloading an update
             var pkgPath = locator.PackagesDir;
             if (pkgPath != null) {
-                foreach (var package in localPackages) {
-                    if (package.Type == VelopackAssetType.Full && (package.Version == latestLocal?.Version || package.Version == myVersion)) {
-                        continue;
-                    }
+                LockFile? packagesLock = null;
+                try {
+                    packagesLock = new LockFile(Path.Combine(pkgPath, ".velopack_lock"));
+                    if (!packagesLock.TryLock()) {
+                        log.Info("The packages directory is locked by another process, skipping cleanup.");
+                    } else {
+                        foreach (var package in localPackages) {
+                            if (package.Type == VelopackAssetType.Full && (package.Version == latestLocal?.Version || package.Version == myVersion)) {
+                                continue;
+                            }
 
-                    try {
-                        log.Info("Removing old package: " + package.FileName);
-                        var p = Path.Combine(pkgPath, package.FileName);
-                        File.Delete(p);
-                    } catch (Exception ex) {
-                        log.Error(ex, $"Failed to remove old package '{package.FileName}'");
+                            try {
+                                log.Info("Removing old package: " + package.FileName);
+                                var p = Path.Combine(pkgPath, package.FileName);
+                                File.Delete(p);
+                            } catch (Exception ex) {
+                                log.Error(ex, $"Failed to remove old package '{package.FileName}'");
+                            }
+                        }
+
+                        StagedUpdate.CleanupOnStartup(locator);
                     }
+                } catch (Exception ex) {
+                    log.Warn(ex, "Failed to clean up the packages directory.");
+                } finally {
+                    packagesLock?.Dispose();
                 }
             }
 

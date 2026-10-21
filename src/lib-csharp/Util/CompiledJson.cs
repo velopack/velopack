@@ -17,6 +17,8 @@ namespace Velopack.Util
     [JsonSerializable(typeof(List<GitlabRelease>))]
     [JsonSerializable(typeof(List<GiteaRelease>))]
     [JsonSerializable(typeof(VelopackAssetFeed))]
+    [JsonSerializable(typeof(VelopackAsset))]
+    [JsonSerializable(typeof(StagedReadyMarker))]
     [JsonSerializable(typeof(VelopackFlowReleaseAsset[]))]
     [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
     internal partial class CompiledJsonSourceGenerationContext : JsonSerializerContext
@@ -61,6 +63,26 @@ namespace Velopack.Util
         public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
         {
             return JsonSerializer.Deserialize(json, Context.VelopackAssetFeed);
+        }
+
+        public static VelopackAsset? DeserializeVelopackAsset(string json)
+        {
+            return JsonSerializer.Deserialize(json, Context.VelopackAsset);
+        }
+
+        public static string SerializeVelopackAsset(VelopackAsset asset)
+        {
+            return JsonSerializer.Serialize(asset, Context.VelopackAsset);
+        }
+
+        public static StagedReadyMarker? DeserializeStagedReadyMarker(string json)
+        {
+            return JsonSerializer.Deserialize(json, Context.StagedReadyMarker);
+        }
+
+        public static string SerializeStagedReadyMarker(StagedReadyMarker marker)
+        {
+            return JsonSerializer.Serialize(marker, Context.StagedReadyMarker);
         }
     }
 
@@ -109,6 +131,26 @@ namespace Velopack.Util
         public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
         {
             return JsonConvert.DeserializeObject<VelopackAssetFeed>(json, Options);
+        }
+
+        public static VelopackAsset? DeserializeVelopackAsset(string json)
+        {
+            return JsonConvert.DeserializeObject<VelopackAsset>(json, Options);
+        }
+
+        public static string SerializeVelopackAsset(VelopackAsset asset)
+        {
+            return JsonConvert.SerializeObject(asset, Formatting.Indented, Options);
+        }
+
+        public static StagedReadyMarker? DeserializeStagedReadyMarker(string json)
+        {
+            return JsonConvert.DeserializeObject<StagedReadyMarker>(json, Options);
+        }
+
+        public static string SerializeStagedReadyMarker(StagedReadyMarker marker)
+        {
+            return JsonConvert.SerializeObject(marker, Formatting.Indented, Options);
         }
     }
 

@@ -102,12 +102,7 @@ public class OsxPackTests
         // pack v3
         await PackTestAppVariant(variant, id, "3.0.0", "version 3 test", releaseDir, logger);
 
-        // corrupt the v3 full package, so the update can only succeed via the v2 -> v3
-        // delta (based on the v2 full downloaded above) - a fallback to a full update
-        // will fail its checksum
-        TestHelper.CorruptFullPackagesToForceDelta(releaseDir, id, ["3.0.0"]);
-
-        // delta update to v3
+        // update to v3
         var chk3check = TestHelper.RunNoCoverage(appExe, ["check", releaseDir], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "update: 3.0.0", chk3check);
         TestHelper.RunNoCoverage(appExe, ["download", releaseDir], installDir, logger);

@@ -119,6 +119,18 @@ typedef struct vpkc_asset_t {
    * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
    */
   char *NotesHtml;
+  /**
+   * The byte offset of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+   */
+  uint64_t ChunkIndexOffset;
+  /**
+   * The byte length of the chunk index trailer inside the package, or 0 if the package has no chunk index.
+   */
+  uint64_t ChunkIndexLength;
+  /**
+   * The SHA256 checksum (uppercase hex) of the chunk index trailer, or an empty string if the package has no chunk index.
+   */
+  char *ChunkIndexSHA256;
 } vpkc_asset_t;
 
 /**
@@ -154,10 +166,9 @@ typedef struct vpkc_update_options_t {
    */
   char *ExplicitChannel;
   /**
-   * Sets the maximum number of deltas to consider before falling back to a full update.
-   * The default is 10. Set to a negative number (eg. -1) to disable deltas.
+   * Disables chunk-based updates, so the full update package is always downloaded.
    */
-  int32_t MaximumDeltasBeforeFallback;
+  bool DisableChunkedUpdates;
 } vpkc_update_options_t;
 
 /**
@@ -204,21 +215,8 @@ typedef struct vpkc_update_info_t {
    */
   struct vpkc_asset_t *TargetFullRelease;
   /**
-   * The base release that this update is based on. This is only available if the update is a delta update.
-   */
-  struct vpkc_asset_t *BaseRelease;
-  /**
-   * The list of delta updates that can be applied to the base version to get to the target version.
-   */
-  struct vpkc_asset_t **DeltasToTarget;
-  /**
-   * The number of elements in the DeltasToTarget array.
-   */
-  size_t DeltasToTargetCount;
-  /**
    * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-   * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-   * deleted.
+   * In this case, any local packages on disk newer than the downloaded version will be deleted.
    */
   bool IsDowngrade;
 } vpkc_update_info_t;
@@ -441,7 +439,7 @@ bool vpkc_update_pending_restart(vpkc_update_manager_t *p_manager, struct vpkc_a
 
 /**
  * Checks for updates. If there are updates available, this method will return an
- * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+ * UpdateInfo object containing the latest available release.
  * @param p_manager The update manager instance.
  * @param p_update A pointer to where the new vpkc_update_info_t* instance will be stored if an update is available.
  * @returns A `vpkc_update_check_t` value indicating the result of the check. If an update is available, the value will be `HasUpdate` and `p_update` will be populated.
@@ -452,10 +450,6 @@ vpkc_update_check_t vpkc_check_for_updates(vpkc_update_manager_t *p_manager,
 /**
  * Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional callback.
  * This function will acquire a global update lock so may fail if there is already another update operation in progress.
- * - If the update contains delta packages and the delta feature is enabled
- *   this method will attempt to unpack and prepare them.
- * - If there is no delta update available, or there is an error preparing delta
- *   packages, this method will fall back to downloading the full version of the update.
  * @param p_manager The update manager instance.
  * @param p_update The update info object from `vpkc_check_for_updates`.
  * @param cb_progress An optional callback to report download progress (0-100).

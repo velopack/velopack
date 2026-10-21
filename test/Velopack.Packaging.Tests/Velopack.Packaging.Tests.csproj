@@ -1,8 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0</TargetFrameworks>
+    <!-- net10.0 runs the chunk-aligned writer on zlib-ng, as vpk's net9/net10 builds ship it -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <!-- both test processes would share TempUtil's temp.N names and the TestApp publish output: run them in turn -->
+    <TestTfmsInParallel>false</TestTfmsInParallel>
   </PropertyGroup>
+
+  <!-- only the chunking tests depend on the runtime's zlib; everything else runs once, on net8.0 -->
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net10.0' ">
+    <Compile Remove="*.cs;Signing\**\*.cs" />
+    <Compile Include="Init.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Velopack.TestCommon\Velopack.TestCommon.csproj" />
@@ -13,6 +22,9 @@
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="WixToolset.Dtf.WindowsInstaller" Version="5.0.2" />
+    <!-- third-party readers the chunk-aligned nupkg writer must stay compatible with -->
+    <PackageReference Include="SharpCompress" Version="1.0.0" />
+    <PackageReference Include="System.IO.Packaging" Version="10.0.13" />
   </ItemGroup>
 
 </Project>

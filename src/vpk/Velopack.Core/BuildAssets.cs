@@ -18,7 +18,7 @@ public class BuildAssets(string outputDir, string channel)
     public async Task<List<VelopackAsset>> GetReleaseEntriesAsync()
     {
         var entries = new List<VelopackAsset>();
-        foreach (var x in GetAssets().Where(x => x.Type is VelopackAssetType.Delta or VelopackAssetType.Full)) {
+        foreach (var x in GetAssets().Where(x => x.Type is VelopackAssetType.Full)) {
             entries.Add(await VelopackAsset.FromNupkgGenerateChecksumAsync(x.Path).ConfigureAwait(false));
         }
         return entries;
@@ -71,8 +71,10 @@ public class BuildAssets(string outputDir, string channel)
                 $"If you've just created a Velopack release, verify you're calling this command with the same '--channel' as you did with 'pack'.");
         }
 
+        // assets files written by older versions of vpk may list legacy delta packages, which are no longer deployed.
+        var assets = SimpleJson.DeserializeObject<List<Asset>>(File.ReadAllText(path)) ?? [];
         var me = new BuildAssets(outputDir, channel) {
-            Assets = SimpleJson.DeserializeObject<ConcurrentBag<Asset>>(File.ReadAllText(path)) ?? []
+            Assets = new ConcurrentBag<Asset>(assets.Where(x => x.Type != VelopackAssetType.Delta))
         };
         return me;
     }

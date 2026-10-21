@@ -6,7 +6,6 @@ built with [Avalonia UI](https://avaloniaui.net/).
 ## Features
 
 - Automatic update checking on startup
-- Delta updates for *fast, bandwidth-efficient* patching
 - Cross-platform support for Windows, macOS, and Linux
 
 ## System Requirements

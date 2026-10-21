@@ -167,10 +167,15 @@ impl VelopackLocator {
                     error!("Unable to create fallback packages directory: {}", e);
                 }
 
-                // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install),
-                // copy it from the root directory so UpdateExePath always points to an existing file.
+                // Keep the fallback Update.exe in step with the root one: copy it when it does not exist yet
+                // (e.g. first launch after MSI install), or when the two differ (an MSI/IT upgrade or another
+                // user's elevated apply replaced the root updater) and no downloaded update is pending: a
+                // download puts the target's newer updater in the fallback path on purpose, and apply then
+                // syncs it to the root, so it must not be reverted before that.
                 let root_update_exe = root.join("Update.exe");
-                if !paths.UpdateExePath.exists() && root_update_exe.exists() {
+                if root_update_exe.exists()
+                    && fallback_updater_needs_refresh(&root_update_exe, &paths.UpdateExePath, &paths.PackagesDir, &manifest.version)
+                {
                     match std::fs::copy(&root_update_exe, &paths.UpdateExePath) {
                         Ok(_) => info!("Copied Update.exe from root to fallback: {}", paths.UpdateExePath.display()),
                         Err(e) => error!("Failed to copy Update.exe to fallback path: {}", e),
@@ -200,6 +205,16 @@ impl VelopackLocator {
         let id = id.unwrap_or(&self.manifest.id);
         let version = version.unwrap_or(self.manifest.version.clone());
         self.paths.PackagesDir.join(format!("{}-{}-full.nupkg", id, version))
+    }
+
+    /// Returns the directory holding staged (pre-assembled) chunk updates: `{PackagesDir}/staged`.
+    pub fn get_staged_root_dir(&self) -> PathBuf {
+        crate::chunks::StagedLayout::root(&self.paths.PackagesDir)
+    }
+
+    /// Returns the staged directory of a chunk update with the given staged id.
+    pub fn get_staged_dir(&self, staged_id: &str) -> PathBuf {
+        self.get_staged_root_dir().join(staged_id)
     }
 
     /// Returns the path to the current app temporary directory.
@@ -353,6 +368,14 @@ impl VelopackLocator {
         let lock_file_path = packages_dir.join(".velopack_lock");
         let lock_file = LockFile::try_acquire_lock(&lock_file_path)?;
         Ok(lock_file)
+    }
+
+    /// Like [`Self::try_get_exclusive_lock`], but makes a single attempt: fails at once (without the
+    /// ~2 s of retries) when another process holds the lock.
+    pub fn try_get_exclusive_lock_once(&self) -> Result<LockFile, Error> {
+        let packages_dir = self.get_packages_dir();
+        std::fs::create_dir_all(&packages_dir)?;
+        Ok(LockFile::try_acquire_lock_once(packages_dir.join(".velopack_lock"))?)
     }
 
     fn get_or_create_staged_user_id(&self) -> String {
@@ -627,6 +650,133 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     };
 
     Ok(VelopackLocator::new_with_manifest(config, app))
+}
+
+/// True when the fallback updater is missing, or differs from the root one in length or last-write time while
+/// no downloaded update (a full package or a ready staged tree above `current_version`) is pending in
+/// `packages_dir`. A pending download may have put a newer updater in the fallback path on purpose (classic
+/// download: extracted from the package; chunk download: the staged sidecar), which apply runs and syncs to root.
+#[cfg(windows)]
+fn fallback_updater_needs_refresh(root_update_exe: &Path, fallback_update_exe: &Path, packages_dir: &Path, current_version: &Version) -> bool {
+    let root_md = match root_update_exe.metadata() {
+        Ok(md) => md,
+        Err(_) => return false,
+    };
+    let fallback_md = match fallback_update_exe.metadata() {
+        Ok(md) => md,
+        Err(_) => return true,
+    };
+    if fallback_md.len() == root_md.len() && fallback_md.modified().ok() == root_md.modified().ok() {
+        return false;
+    }
+    if let Some((version, _)) = crate::manager::find_pending_update(packages_dir, current_version) {
+        info!("Keeping the fallback Update.exe, which may belong to the pending update {}", version);
+        return false;
+    }
+    true
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+    use crate::chunks::{self, staging, StagedLayout, StagedReadyMarker};
+    use std::fs;
+    use std::io::Write;
+
+    struct Fallback {
+        _dir: tempfile::TempDir,
+        root_exe: PathBuf,
+        fallback_exe: PathBuf,
+        packages: PathBuf,
+    }
+
+    fn fallback() -> Fallback {
+        let dir = tempfile::tempdir().unwrap();
+        let root_exe = dir.path().join("root").join("Update.exe");
+        let fallback_exe = dir.path().join("fallback").join("Update.exe");
+        let packages = dir.path().join("fallback").join("packages");
+        fs::create_dir_all(root_exe.parent().unwrap()).unwrap();
+        fs::create_dir_all(&packages).unwrap();
+        fs::write(&root_exe, b"old updater").unwrap();
+        Fallback {
+            _dir: dir,
+            root_exe,
+            fallback_exe,
+            packages,
+        }
+    }
+
+    fn needs_refresh(f: &Fallback) -> bool {
+        fallback_updater_needs_refresh(&f.root_exe, &f.fallback_exe, &f.packages, &Version::parse("1.0.0").unwrap())
+    }
+
+    fn write_nupkg(packages: &Path, version: &str) {
+        let mut zip = zip::ZipWriter::new(fs::File::create(packages.join(format!("App-{}-full.nupkg", version))).unwrap());
+        zip.start_file("App.nuspec", zip::write::SimpleFileOptions::default()).unwrap();
+        let nuspec = format!(
+            "<?xml version=\"1.0\"?><package><metadata><id>App</id><version>{}</version><title>App</title>             <authors>a</authors><description>d</description><mainExe>App.exe</mainExe></metadata></package>",
+            version
+        );
+        zip.write_all(nuspec.as_bytes()).unwrap();
+        zip.finish().unwrap();
+    }
+
+    fn write_ready_staged(packages: &Path, version: &str) {
+        let digest = "ab".repeat(32);
+        let id = chunks::staged_id(&digest).unwrap();
+        let layout = StagedLayout::new(packages, &id);
+        fs::create_dir_all(&layout.dir).unwrap();
+        let marker = StagedReadyMarker {
+            Format: chunks::READY_MARKER_FORMAT,
+            StagedId: id,
+            IndexSHA256: digest,
+            Asset: crate::VelopackAsset {
+                Version: version.to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        staging::write_ready_marker(&layout, &marker).unwrap();
+    }
+
+    #[test]
+    fn fallback_updater_copied_when_missing_or_changed() {
+        let f = fallback();
+        assert!(needs_refresh(&f), "a missing fallback is copied");
+        fs::copy(&f.root_exe, &f.fallback_exe).unwrap();
+        assert!(!needs_refresh(&f), "a plain copy of the root updater is current");
+        // same length, another last-write time (an upgrade to an updater of the same size)
+        let modified = fs::metadata(&f.fallback_exe).unwrap().modified().unwrap();
+        let root = fs::File::options().write(true).open(&f.root_exe).unwrap();
+        root.set_modified(modified + std::time::Duration::from_secs(300)).unwrap();
+        drop(root);
+        assert!(needs_refresh(&f), "a different last-write time is a different updater");
+        // an MSI/IT upgrade replaced the root updater
+        fs::copy(&f.root_exe, &f.fallback_exe).unwrap();
+        fs::write(&f.root_exe, b"root updater from an MSI upgrade").unwrap();
+        assert!(needs_refresh(&f));
+    }
+
+    #[test]
+    fn fallback_updater_kept_while_a_downloaded_update_is_pending() {
+        // a classic download extracted the target's updater into the fallback path
+        let f = fallback();
+        fs::write(&f.fallback_exe, b"new updater from the downloaded package").unwrap();
+        write_nupkg(&f.packages, "2.0.0");
+        assert!(!needs_refresh(&f), "the pending package's updater must not be reverted");
+
+        // a package at or below the installed version is not pending
+        let f = fallback();
+        fs::write(&f.fallback_exe, b"new updater from the downloaded package").unwrap();
+        write_nupkg(&f.packages, "1.0.0");
+        assert!(needs_refresh(&f));
+
+        // a chunk download copied the staged sidecar into the fallback path
+        let f = fallback();
+        fs::write(&f.fallback_exe, b"new updater from the staged tree").unwrap();
+        write_ready_staged(&f.packages, "2.0.0");
+        assert!(!needs_refresh(&f), "the staged tree's updater must not be reverted");
+    }
 }
 
 fn read_current_manifest(nuspec_path: &Path) -> Result<Manifest, Error> {

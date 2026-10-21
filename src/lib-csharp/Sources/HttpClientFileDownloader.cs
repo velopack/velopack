@@ -6,11 +6,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Velopack.Chunks;
 
 namespace Velopack.Sources
 {
     /// <inheritdoc cref="IFileDownloader"/>
-    public class HttpClientFileDownloader : IFileDownloader
+    public class HttpClientFileDownloader : IFileDownloader, IRangeFileDownloader
     {
         /// <summary>
         /// The User-Agent sent with requests
@@ -45,6 +46,24 @@ namespace Velopack.Sources
         {
             using var client = CreateHttpClient(headers, timeout);
             return await TryDownloadThenLowercase(client.GetStringAsync, url).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public virtual IRangeReader OpenRangeReader(string url, IDictionary<string, string>? headers, double timeoutMinutes)
+        {
+            var handler = CreateHttpClientHandler();
+            handler.AutomaticDecompression = DecompressionMethods.None;
+            handler.AllowAutoRedirect = false;
+            try {
+                handler.MaxConnectionsPerServer = 8;
+            } catch (PlatformNotSupportedException) {
+                // not supported on some runtimes (eg. Mono / Unity); the default pool size is used
+            }
+
+            var client = new HttpClient(handler);
+            client.DefaultRequestHeaders.UserAgent.Add(UserAgent);
+            client.Timeout = Timeout.InfiniteTimeSpan;
+            return new HttpRangeReader(client, url, headers, timeoutMinutes);
         }
 
         /// <summary>

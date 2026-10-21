@@ -12,33 +12,36 @@ pub struct LockFile {
 }
 
 impl LockFile {
-    /// Creates a new `FileLock` with the given file path.
+    /// Creates a new `FileLock` with the given file path, retrying for about 2 seconds while another
+    /// process holds the lock.
     pub fn try_acquire_lock<P: Into<PathBuf>>(path: P) -> Result<Self> {
         let path: PathBuf = path.into();
+        crate::misc::retry_io(|| Self::try_acquire_lock_once(&path))
+    }
 
-        crate::misc::retry_io(|| {
-            #[cfg(windows)]
-            {
-                let file = Self::windows_exclusive_lock(&path)?;
-                let lock = LockFile {
-                    file_path: path.clone(),
-                    file: Some(file),
-                    file_descriptor: None,
-                };
-                Ok(lock)
-            }
+    /// Creates a new `FileLock` with the given file path, failing at once if another process holds it.
+    pub fn try_acquire_lock_once<P: Into<PathBuf>>(path: P) -> Result<Self> {
+        let path: PathBuf = path.into();
 
-            #[cfg(unix)]
-            {
-                let fd = unsafe { Self::unix_exclusive_lock(&path)? };
-                let lock = LockFile {
-                    file_path: path.clone(),
-                    file: None,
-                    file_descriptor: Some(fd),
-                };
-                Ok(lock)
-            }
-        })
+        #[cfg(windows)]
+        {
+            let file = Self::windows_exclusive_lock(&path)?;
+            Ok(LockFile {
+                file_path: path,
+                file: Some(file),
+                file_descriptor: None,
+            })
+        }
+
+        #[cfg(unix)]
+        {
+            let fd = unsafe { Self::unix_exclusive_lock(&path)? };
+            Ok(LockFile {
+                file_path: path,
+                file: None,
+                file_descriptor: Some(fd),
+            })
+        }
     }
 
     /// Releases the lock and closes the file.
@@ -128,5 +131,25 @@ impl LockFile {
 impl Drop for LockFile {
     fn drop(&mut self) {
         self.dispose();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    // POSIX record locks belong to the process, so a second lock from the same process succeeds on unix.
+    #[cfg(windows)]
+    #[test]
+    fn try_acquire_lock_once_fails_without_waiting() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".velopack_lock");
+        let held = LockFile::try_acquire_lock_once(&path).unwrap();
+        let started = Instant::now();
+        assert!(LockFile::try_acquire_lock_once(&path).is_err());
+        assert!(started.elapsed() < Duration::from_millis(300), "took {:?}", started.elapsed());
+        drop(held);
+        assert!(LockFile::try_acquire_lock_once(&path).is_ok());
     }
 }

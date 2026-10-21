@@ -1,6 +1,5 @@
 ﻿
 using Velopack.Packaging;
-using Velopack.Packaging.Compression;
 
 namespace Velopack.Vpk.Commands.Packaging;
 
@@ -37,10 +36,6 @@ public abstract class PackCommand : PlatformCommand
     public string ReleaseNotes { get; private set; }
 
     protected Option<FileInfo> ReleaseNotesOption { get; private set; }
-
-    public DeltaMode DeltaMode { get; private set; }
-
-    protected Option<DeltaMode> DeltaModeOption { get; private set; }
 
     public string Exclude { get; private set; }
 
@@ -85,11 +80,6 @@ public abstract class PackCommand : PlatformCommand
         ReleaseNotesOption = AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), ["--releaseNotes"])
             .SetDescription("File with markdown-formatted notes for this version.")
             .SetArgumentHelpName("PATH");
-
-        DeltaModeOption = AddOption<DeltaMode>((v) => DeltaMode = v, ["--delta"])
-            .SetDefault(DeltaMode.BestSpeed)
-            .SetDescription("Disable or set the delta generation mode.")
-            .SetArgumentHelpName("MODE");
 
         IconOption = AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), ["-i", "--icon"])
             .SetDescription($"Path to icon file for package.")

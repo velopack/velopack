@@ -38,6 +38,21 @@ fn root_command() -> Command {
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..).value_parser(value_parser!(OsString)))
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
     )
+    .subcommand(Command::new("assemble")
+        .about("Assembles a staged update from local files and downloaded chunks")
+        .hide(true)
+        .arg(arg!(--staged <DIR> "The staged update directory").value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--parentPid <PID> "Exit as soon as the specified process exits").value_parser(value_parser!(u32)))
+    )
+    .subcommand(Command::new("apply-staged")
+        .about("Applies a staged update that was assembled by a previous download")
+        .arg(arg!(--staged <DIR> "The staged update directory").value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--norestart "Do not restart the application after the update"))
+        .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update").hide(true))
+        .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
+        .arg(arg!(--elevatedChild "Internal: this process is the elevated child of apply-staged").hide(true))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..).value_parser(value_parser!(OsString)))
+    )
     .subcommand(Command::new("patch")
         .about("Applies a series of delta bundles to a base file")
         .arg(arg!(--old <FILE> "Base / old file to apply the patch to").required(true).value_parser(value_parser!(PathBuf)))
@@ -207,7 +222,16 @@ fn main_inner() -> Result<()> {
         .subcommand()
         .ok_or_else(|| anyhow!("No known subcommand was used. Try `--help` for more information."))?;
 
+    let elevation_flags = commands::ElevationFlags {
+        silent,
+        verbose,
+        log: log_file.cloned(),
+        elevated_child: false,
+    };
+
     let result = match subcommand {
+        "assemble" => assemble(location_context, subcommand_matches),
+        "apply-staged" => apply_staged(location_context, subcommand_matches, &elevation_flags).map_err(|e| anyhow!("Apply-staged error: {}", e)),
         #[cfg(target_os = "windows")]
         "uninstall" => uninstall(location_context, subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
         #[cfg(target_os = "windows")]
@@ -284,6 +308,54 @@ fn apply(context: LocationContext, matches: &ArgMatches) -> Result<()> {
     // AFTER the self-elevation check, to avoid deadlock when the non-elevated
     // parent spawns an elevated child (both would try to lock the same file).
     let _ = commands::apply(&locator, restart, wait, package, exe_args, commands::HookRunMode::All)?;
+    Ok(())
+}
+
+fn get_assemble_args(matches: &ArgMatches) -> (Option<&PathBuf>, Option<u32>) {
+    let staged = matches.get_one::<PathBuf>("staged");
+    let parent_pid = matches.try_get_one::<u32>("parentPid").unwrap_or(None).copied();
+    (staged, parent_pid)
+}
+
+fn assemble(context: LocationContext, matches: &ArgMatches) -> Result<()> {
+    let (staged, parent_pid) = get_assemble_args(matches);
+    info!("Command: Assemble");
+    info!("    Staged: {:?}", staged);
+    info!("    Parent Pid: {:?}", parent_pid);
+
+    // The exit code is the protocol (0/2/3/4), so it is set here rather than through main's ok/err mapping.
+    let code = commands::assemble_cli(context, staged.map(|p| p.as_path()), parent_pid);
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+fn get_apply_staged_args(matches: &ArgMatches) -> (OperationWait, bool, Option<&PathBuf>, Option<Vec<OsString>>) {
+    let restart = !get_flag_or_false(matches, "norestart");
+    let staged = matches.get_one::<PathBuf>("staged");
+    let exe_args = get_exe_args(matches);
+    let wait = get_op_wait(matches);
+    (wait, restart, staged, exe_args)
+}
+
+fn apply_staged(context: LocationContext, matches: &ArgMatches, flags: &commands::ElevationFlags) -> Result<()> {
+    let (wait, restart, staged, exe_args) = get_apply_staged_args(matches);
+    info!("Command: Apply-staged");
+    info!("    Restart: {:?}", restart);
+    info!("    Wait: {:?}", wait);
+    info!("    Staged: {:?}", staged);
+    info!("    Exe Args: {:?}", exe_args);
+
+    let staged = staged.ok_or_else(|| anyhow!("Missing required argument --staged."))?;
+    let flags = commands::ElevationFlags {
+        elevated_child: get_flag_or_false(matches, "elevatedChild"),
+        ..flags.clone()
+    };
+    info!("    Elevated child: {:?}", flags.elevated_child);
+    let locator = auto_locate_app_manifest(context)?;
+    // The lock is acquired inside apply_staged_impl, after the self-elevation check (see `apply`).
+    let _ = commands::apply_staged(&locator, staged, restart, wait, exe_args, commands::HookRunMode::All, &flags)?;
     Ok(())
 }
 
@@ -502,5 +574,95 @@ fn test_start_command_supports_legacy_commands() {
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
     assert_eq!(exe_name, None);
     assert_eq!(legacy_args, Some(&"-- -c \" asda --aasd".into()));
+    assert_eq!(exe_args, None);
+}
+
+#[test]
+fn test_cli_parse_assemble_with_global_flags() {
+    let command = vec![
+        "Update.exe",
+        "--silent",
+        "assemble",
+        "--staged",
+        "C:\\App\\packages\\staged\\0123456789abcdef0123456789abcdef",
+        "--parentPid",
+        "4321",
+        "--rootDir",
+        "C:\\App",
+        "--packageDir",
+        "C:\\App\\packages",
+    ];
+    let matches = root_command().try_get_matches_from(command).unwrap();
+    assert!(get_flag_or_false(&matches, "silent"));
+    assert_eq!(matches.get_one::<PathBuf>("rootDir"), Some(&PathBuf::from("C:\\App")));
+    assert_eq!(matches.get_one::<PathBuf>("packageDir"), Some(&PathBuf::from("C:\\App\\packages")));
+    let (name, sub) = matches.subcommand().unwrap();
+    assert_eq!(name, "assemble");
+    let (staged, parent_pid) = get_assemble_args(sub);
+    assert_eq!(
+        staged,
+        Some(&PathBuf::from("C:\\App\\packages\\staged\\0123456789abcdef0123456789abcdef"))
+    );
+    assert_eq!(parent_pid, Some(4321));
+
+    // both arguments are validated by the handler, not by clap (ignore_errors)
+    let matches = root_command()
+        .try_get_matches_from(vec!["Update.exe", "assemble", "--staged", "C:\\x"])
+        .unwrap();
+    let (staged, parent_pid) = get_assemble_args(matches.subcommand_matches("assemble").unwrap());
+    assert_eq!(staged, Some(&PathBuf::from("C:\\x")));
+    assert_eq!(parent_pid, None);
+}
+
+#[test]
+fn test_cli_parse_apply_staged_with_forwarded_flags() {
+    let command = vec![
+        "Update.exe",
+        "apply-staged",
+        "--staged",
+        "C:\\App\\packages\\staged\\abc",
+        "--waitPid",
+        "77",
+        "--norestart",
+        "--silent",
+        "--verbose",
+        "--log",
+        "C:\\logs\\update.log",
+        "--rootDir",
+        "C:\\App",
+        "--",
+        "--restarted",
+        "value",
+    ];
+    let matches = root_command().try_get_matches_from(command).unwrap();
+    assert!(get_flag_or_false(&matches, "silent"));
+    assert!(get_flag_or_false(&matches, "verbose"));
+    assert_eq!(matches.get_one::<PathBuf>("log"), Some(&PathBuf::from("C:\\logs\\update.log")));
+    assert_eq!(matches.get_one::<PathBuf>("rootDir"), Some(&PathBuf::from("C:\\App")));
+    let (wait, restart, staged, exe_args) = get_apply_staged_args(matches.subcommand_matches("apply-staged").unwrap());
+    assert_eq!(wait, OperationWait::WaitPid(77));
+    assert!(!restart);
+    assert_eq!(staged, Some(&PathBuf::from("C:\\App\\packages\\staged\\abc")));
+    assert_eq!(exe_args, Some(vec!["--restarted".into(), "value".into()]));
+
+    let flags = commands::ElevationFlags {
+        silent: true,
+        verbose: true,
+        log: Some(PathBuf::from("C:\\logs\\update.log")),
+        elevated_child: false,
+    };
+    let forwarded: Vec<OsString> = vec!["--silent".into(), "--verbose".into(), "--log".into(), "C:\\logs\\update.log".into()];
+    assert_eq!(flags.to_args(), forwarded);
+    assert!(!get_flag_or_false(matches.subcommand_matches("apply-staged").unwrap(), "elevatedChild"));
+
+    let command = vec!["Update.exe", "apply-staged", "--staged", "C:\\x", "--elevatedChild", "--norestart"];
+    let matches = root_command().try_get_matches_from(command).unwrap();
+    assert!(get_flag_or_false(matches.subcommand_matches("apply-staged").unwrap(), "elevatedChild"));
+
+    let command = vec!["Update.exe", "apply-staged", "--staged", "C:\\x", "--wait"];
+    let matches = root_command().try_get_matches_from(command).unwrap();
+    let (wait, restart, _, exe_args) = get_apply_staged_args(matches.subcommand_matches("apply-staged").unwrap());
+    assert_eq!(wait, OperationWait::WaitParent);
+    assert!(restart);
     assert_eq!(exe_args, None);
 }

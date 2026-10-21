@@ -183,17 +183,6 @@
 //        }
 
 //        [Fact]
-//        public void NoDelta_BareOption_SetsFlag()
-//        {
-//            var command = new PackCommand();
-
-//            string cli = GetRequiredDefaultOptions() + "--noDelta";
-//            ParseResult parseResult = command.Parse(cli);
-
-//            Assert.True(command.NoDelta);
-//        }
-
-//        [Fact]
 //        public void NoPackage_BareOption_SetsFlag()
 //        {
 //            var command = new PackCommand();

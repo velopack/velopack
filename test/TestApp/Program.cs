@@ -122,9 +122,29 @@ try {
                 return -1;
             }
 
+#if LEGACY_VELOPACK_API
             um.DownloadUpdates(info);
+#else
+            // printed so tests can assert the reported progress (it must never decrease)
+            um.DownloadUpdates(info, p => Console.WriteLine("progress: " + p));
+#endif
             return 0;
         }
+
+#if !LEGACY_VELOPACK_API
+        if (args[0] == "pending") {
+            var um = new UpdateManager(args[1], null, locator);
+            var pending = um.UpdatePendingRestart;
+            if (pending == null) {
+                Console.WriteLine("no pending");
+                return 0;
+            }
+
+            var chunkIndex = String.IsNullOrEmpty(pending.ChunkIndexSHA256) ? "-" : pending.ChunkIndexSHA256;
+            Console.WriteLine($"pending: {pending.Version} {pending.FileName} {chunkIndex}");
+            return 0;
+        }
+#endif
 
         if (args[0] == "apply") {
 #if LEGACY_VELOPACK_API

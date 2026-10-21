@@ -5187,6 +5187,7 @@ version = "0.0.0-local"
 dependencies = [
  "anyhow",
  "bitflags 2.13.2",
+ "flate2",
  "glob",
  "lazy_static",
  "libc",

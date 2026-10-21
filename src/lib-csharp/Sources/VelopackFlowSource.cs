@@ -11,7 +11,7 @@ namespace Velopack.Sources
     /// <summary>
     /// Retrieves updates from the hosted Velopack service.
     /// </summary>
-    public sealed class VelopackFlowSource : IUpdateSource
+    public sealed class VelopackFlowSource : IUpdateSource, IRangeReadableUpdateSource
     {
         /// <inheritdoc cref="SimpleWebSource" />
         public VelopackFlowSource(
@@ -83,12 +83,34 @@ namespace Velopack.Sources
 
             if (localFile is null) throw new ArgumentNullException(nameof(localFile));
 
-            Uri sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
-
-            Uri downloadUri = new(sourceBaseUri, $"v1.0/download/{velopackRelease.Id}");
-
+            Uri downloadUri = GetDownloadUri(velopackRelease);
             logger.LogInformation($"Downloading '{releaseEntry.FileName}' from '{downloadUri}'.");
             await Downloader.DownloadFile(downloadUri.AbsoluteUri, localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public Task<IRangeReader?> OpenRangeReaderAsync(IVelopackLogger logger, VelopackAsset asset, CancellationToken cancelToken)
+        {
+            if (asset is null) throw new ArgumentNullException(nameof(asset));
+            if (asset is not VelopackFlowReleaseAsset velopackRelease) {
+                logger.Debug($"Asset is not a {nameof(VelopackFlowReleaseAsset)}, ranged reads are not available.");
+                return Task.FromResult<IRangeReader?>(null);
+            }
+
+            if (Downloader is not IRangeFileDownloader rangeDownloader) {
+                logger.Debug("The downloader does not support ranged reads.");
+                return Task.FromResult<IRangeReader?>(null);
+            }
+
+            Uri downloadUri = GetDownloadUri(velopackRelease);
+            logger.LogInformation($"Opening ranged reader for '{asset.FileName}' at '{downloadUri}'.");
+            return Task.FromResult<IRangeReader?>(rangeDownloader.OpenRangeReader(downloadUri.AbsoluteUri, null, 30));
+        }
+
+        private Uri GetDownloadUri(VelopackFlowReleaseAsset velopackRelease)
+        {
+            Uri sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
+            return new(sourceBaseUri, $"v1.0/download/{velopackRelease.Id}");
         }
     }
 

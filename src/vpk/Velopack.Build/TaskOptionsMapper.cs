@@ -2,7 +2,6 @@
 using System.IO;
 using Riok.Mapperly.Abstractions;
 using Velopack.Packaging;
-using Velopack.Packaging.Compression;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 
@@ -25,6 +24,4 @@ public static partial class TaskOptionsMapper
     }
 
     private static RID StringToRid(string t) => RID.Parse(t);
-
-    private static DeltaMode StringToDeltaMode(string t) => (DeltaMode) Enum.Parse(typeof(DeltaMode), t, true);
 }

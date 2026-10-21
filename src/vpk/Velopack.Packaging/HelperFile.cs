@@ -63,14 +63,6 @@ public static class HelperFile
 #endif
     }
 
-    public static string GetZstdPath()
-    {
-        if (VelopackRuntimeInfo.IsWindows)
-            return FindHelperFile("zstd.exe");
-        Exe.AssertSystemBinaryExists("zstd", "sudo apt install zstd", "brew install zstd");
-        return "zstd";
-    }
-
     public static string GetMkSquashFsPath()
     {
         if (VelopackRuntimeInfo.IsWindows)

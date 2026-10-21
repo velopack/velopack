@@ -1,0 +1,37 @@
+{
+  "Assets": [
+    {
+      "PackageId": "NullPointerApp",
+      "Version": "1.0.0",
+      "Type": "Full",
+      "FileName": "NullPointerApp-1.0.0-full.nupkg",
+      "SHA1": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+      "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "Size": 1000,
+      "ChunkIndexOffset": null,
+      "ChunkIndexLength": null,
+      "ChunkIndexSHA256": null
+    },
+    {
+      "PackageId": "NullPointerApp",
+      "Version": "1.1.0",
+      "Type": "Full",
+      "FileName": "NullPointerApp-1.1.0-full.nupkg",
+      "SHA1": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+      "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "Size": 2000,
+      "ChunkIndexOffset": 1500,
+      "ChunkIndexLength": 400,
+      "ChunkIndexSHA256": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+    },
+    {
+      "PackageId": "NullPointerApp",
+      "Version": "0.9.0",
+      "Type": "Full",
+      "FileName": "NullPointerApp-0.9.0-full.nupkg",
+      "SHA1": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+      "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "Size": 900
+    }
+  ]
+}

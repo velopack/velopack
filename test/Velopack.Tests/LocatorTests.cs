@@ -106,4 +106,55 @@ public class LocatorTests
         public void StartProcess(string exePath, IEnumerable<string> args, string workDir, bool showWindow) => throw new NotSupportedException();
         public void Exit(int exitCode) => throw new NotSupportedException();
     }
+
+    [Fact]
+    public void FallbackUpdateExeRefreshFollowsRootWhenNothingIsPending()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var _ = TempUtil.GetTempDirectory(out var dir);
+        var root = Path.Combine(dir, "root-Update.exe");
+        var fallback = Path.Combine(dir, "fallback-Update.exe");
+        File.WriteAllBytes(root, new byte[] { 1, 2, 3, 4 });
+        Func<SemanticVersion> nothingPending = () => null;
+
+        // missing: copied
+        Assert.True(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, nothingPending));
+        // a plain copy keeps the last-write time: current
+        File.Copy(root, fallback);
+        Assert.False(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, nothingPending));
+        // same length, another last-write time (an MSI upgrade with an updater of the same size): refreshed
+        File.SetLastWriteTimeUtc(root, File.GetLastWriteTimeUtc(fallback) + TimeSpan.FromMinutes(5));
+        Assert.True(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, nothingPending));
+        // another length: refreshed
+        File.Copy(root, fallback, true);
+        Assert.False(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, nothingPending));
+        File.WriteAllBytes(root, new byte[] { 1, 2, 3, 4, 5 });
+        Assert.True(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, nothingPending));
+    }
+
+    [Fact]
+    public void FallbackUpdateExeKeptWhileADownloadedUpdateIsPending()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var _ = TempUtil.GetTempDirectory(out var dir);
+        var root = Path.Combine(dir, "root-Update.exe");
+        var fallback = Path.Combine(dir, "fallback-Update.exe");
+        File.WriteAllBytes(root, new byte[] { 1, 2, 3 });
+        // a download put the target's (newer) updater in the fallback path
+        File.WriteAllBytes(fallback, new byte[] { 9, 9, 9, 9, 9 });
+        int queries = 0;
+        Func<SemanticVersion> pending = () => {
+            queries++;
+            return SemanticVersion.Parse("2.0.0");
+        };
+
+        Assert.False(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, pending));
+        Assert.Equal(1, queries);
+        // a missing fallback is always copied, and identical files never look for a pending update
+        File.Delete(fallback);
+        Assert.True(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, pending));
+        File.Copy(root, fallback);
+        Assert.False(WindowsVelopackLocator.FallbackUpdateExeNeedsRefresh(root, fallback, pending));
+        Assert.Equal(1, queries);
+    }
 }

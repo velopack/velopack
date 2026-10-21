@@ -52,6 +52,33 @@ namespace Velopack.Util
             }
         }
 
+        /// <summary>
+        /// Tries to acquire the lock once, without retrying. Returns false when another process holds it.
+        /// </summary>
+        public bool TryLock()
+        {
+            if (IsLocked) {
+                return true;
+            }
+
+            _semaphore.Wait();
+            try {
+                if (VelopackRuntimeInfo.IsWindows) {
+                    WindowsExclusiveLock();
+                } else if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
+                    UnixExclusiveLock();
+                }
+
+                IsLocked = true;
+                return true;
+            } catch (Exception) {
+                DisposeInternal();
+                return false;
+            } finally {
+                _semaphore.Release();
+            }
+        }
+
         [SupportedOSPlatform("linux")]
         [SupportedOSPlatform("macos")]
         [DllImport("libc", SetLastError = true)]

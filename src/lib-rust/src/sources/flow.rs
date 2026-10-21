@@ -7,6 +7,7 @@ use std::{
 use serde::Deserialize;
 
 use crate::bundle::Manifest;
+use crate::chunks::RangeReader;
 use crate::*;
 
 use super::UpdateSource;
@@ -106,5 +107,19 @@ impl UpdateSource for VelopackFlowSource {
             }
         })?;
         Ok(())
+    }
+
+    fn open_range_reader(&self, asset: &VelopackAsset) -> Result<Option<Box<dyn RangeReader>>, Error> {
+        let ids = self.asset_ids.lock().unwrap();
+        let release_id = ids.get(&asset.FileName).ok_or_else(|| {
+            Error::Other(format!(
+                "Could not find release ID for asset '{}'. Make sure to call get_release_feed first.",
+                asset.FileName
+            ))
+        })?;
+        let download_url = format!("{}v1.0/download/{}", self.base_uri, release_id);
+        info!("Opening ranged access to '{}' at '{}'.", asset.FileName, download_url);
+        let reader = download::HttpRangeReader::open(download::create_range_agent(), &download_url, &[]).map_err(|e| Error::Other(e.to_string()))?;
+        Ok(Some(Box::new(reader)))
     }
 }

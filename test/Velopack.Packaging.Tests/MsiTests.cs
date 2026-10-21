@@ -1,8 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Win32;
 using Velopack.Core;
-using Velopack.Packaging.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
 using Velopack.Vpk;
@@ -168,6 +169,52 @@ public class MsiTests
             var runner = WindowsTestHelper.GetPackRunner(logger);
             await runner.Run(options);
         }
+    }
+
+    /// <summary>A download through the chunk path leaves a ready staged tree (packages/staged/&lt;id&gt;/ready.json).</summary>
+    private static bool HasReadyStagedUpdate(string packagesDir)
+    {
+        var staged = Path.Combine(packagesDir, "staged");
+        return Directory.Exists(staged) && Directory.EnumerateFiles(staged, "ready.json", SearchOption.AllDirectories).Any();
+    }
+
+    private static string Icacls(string path, ILogger logger)
+    {
+        var psi = new ProcessStartInfo("icacls", $"\"{path}\"") {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        using var p = Process.Start(psi)!;
+        var output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+        p.WaitForExit();
+        logger.Info($"TEST: icacls {path}{Environment.NewLine}{output.Trim()}");
+        return output;
+    }
+
+    /// <summary>
+    /// ACL problems of a tree in a protected location: any ACE which is not inherited from the parent, and any ACE (inherited
+    /// or not) granted to the interactive user. A tree created under the user's profile and then moved (not copied) into
+    /// Program Files would keep the profile's explicit user ACEs (§7.2 copy-under-root).
+    /// </summary>
+    private static List<string> FindAclProblems(string root)
+    {
+        var user = WindowsIdentity.GetCurrent().User;
+        var problems = new List<string>();
+        var rootDir = new DirectoryInfo(root);
+        var entries = new FileSystemInfo[] { rootDir }.Concat(rootDir.EnumerateFileSystemInfos("*", SearchOption.AllDirectories));
+        foreach (var entry in entries) {
+            FileSystemSecurity security = entry is DirectoryInfo dir ? dir.GetAccessControl() : ((FileInfo) entry).GetAccessControl();
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(true, true, typeof(SecurityIdentifier))) {
+                if (!rule.IsInherited) {
+                    problems.Add($"{entry.FullName}: explicit {rule.AccessControlType} {rule.FileSystemRights} for {rule.IdentityReference}");
+                } else if (user != null && rule.IdentityReference.Equals(user)) {
+                    problems.Add($"{entry.FullName}: {rule.AccessControlType} {rule.FileSystemRights} for the interactive user {user}");
+                }
+            }
+        }
+        return problems;
     }
 
     private static (bool found, string displayVersion) FindUninstallEntry(RegistryKey root, string appId)
@@ -762,14 +809,12 @@ public class MsiTests
             Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
             logger.Info("TEST: found v2 update");
 
-            // download update (this puts the nupkg in the locator's packages dir)
+            // download update (v1 carries sq.chunks, so this stages a chunk-assembled tree in the locator's packages dir)
             WindowsTestHelper.RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
 
-            // verify nupkg ended up in the correct packages dir
-            var nupkgFileName = $"{id}-2.0.0-full.nupkg";
-            Assert.True(File.Exists(Path.Combine(packagesPath, nupkgFileName)),
-                $"Downloaded nupkg not found in expected packages dir: {packagesPath}");
-            logger.Info("TEST: nupkg downloaded to correct packages dir");
+            // verify the staged update ended up in the correct packages dir
+            Assert.True(HasReadyStagedUpdate(packagesPath), $"Ready staged update not found in expected packages dir: {packagesPath}");
+            logger.Info("TEST: update staged in correct packages dir");
 
             // apply update; update.exe swaps the app in a separate process, so poll for the new version
             WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
@@ -1071,6 +1116,12 @@ public class MsiTests
             Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
             logger.Info("TEST: v1 installed and verified");
 
+            // ACL baseline: what msiexec laid down (everything inherited from the Program Files parent)
+            var currentDir = Path.Combine(installDir, "current");
+            Icacls(installDir, logger);
+            Icacls(currentDir, logger);
+            logger.Info("TEST: msi install ACL problems: " + string.Join(Environment.NewLine, FindAclProblems(currentDir)));
+
             // verify uninstall registry is in HKLM for per-machine install
             var (hklmFound, hklmVersion) = FindUninstallEntry(Registry.LocalMachine, id);
             Assert.True(hklmFound, "Uninstall entry should exist in HKLM for per-machine MSI install");
@@ -1093,17 +1144,16 @@ public class MsiTests
             Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
             logger.Info("TEST: found v2 update (de-elevated)");
 
-            // download update as de-elevated user (nupkg should go to fallback packages dir,
-            // and Update.exe should be extracted to the fallback dir)
+            // download update as de-elevated user (the staged tree should go to the fallback packages dir,
+            // and Update.exe should be refreshed in the fallback dir)
             RunCoveredDotnetDeelevated(appPath, ["download", releaseDir], installDir, logger);
 
-            // verify nupkg ended up in the fallback packages dir (NOT Program Files)
-            var nupkgFileName = $"{id}-2.0.0-full.nupkg";
-            Assert.True(File.Exists(Path.Combine(fallbackPackagesPath, nupkgFileName)),
-                $"Downloaded nupkg not found in fallback packages dir: {fallbackPackagesPath}");
-            Assert.False(File.Exists(Path.Combine(installDir, "packages", nupkgFileName)),
-                "Nupkg should NOT be in Program Files packages dir when running as standard user");
-            logger.Info("TEST: nupkg downloaded to correct fallback packages dir");
+            // verify the staged update ended up in the fallback packages dir (NOT Program Files)
+            Assert.True(HasReadyStagedUpdate(fallbackPackagesPath),
+                $"Ready staged update not found in fallback packages dir: {fallbackPackagesPath}");
+            Assert.False(Directory.Exists(Path.Combine(installDir, "packages", "staged")),
+                "Nothing should be staged in the Program Files packages dir when running as standard user");
+            logger.Info("TEST: update staged in correct fallback packages dir");
 
             // verify Update.exe was extracted to the fallback dir (not Program Files)
             var fallbackUpdateExe = Path.Combine(fallbackDir, "Update.exe");
@@ -1126,6 +1176,35 @@ public class MsiTests
             Assert.True(hklmFound2, "Uninstall entry should still exist in HKLM after update");
             Assert.Equal("2.0.0", hklmVersion2);
             logger.Info("TEST: registry entry verified in HKLM with version 2.0.0");
+
+            // the chunk update staged its tree under %LocalAppData% (the user's profile) and apply-staged copied it under the
+            // root, so current\ must carry only ACEs inherited from Program Files and nothing granted to the interactive user
+            Icacls(currentDir, logger);
+            var chunkAclProblems = FindAclProblems(currentDir);
+            Assert.True(
+                chunkAclProblems.Count == 0,
+                @"current\ after the chunk update has ACEs not inherited from Program Files:" + Environment.NewLine +
+                string.Join(Environment.NewLine, chunkAclProblems));
+            logger.Info("TEST: chunk update ACLs verified (inherited only)");
+
+            // classic-apply baseline, recorded for comparison only: without current\sq.chunks the next update downloads and
+            // applies the full package
+            File.Delete(Path.Combine(currentDir, "sq.chunks"));
+            await PackTestAppWithMsi(id, "3.0.0", "version 3 test", releaseDir, logger, InstallLocation.Either);
+            RunCoveredDotnetDeelevated(appPath, ["download", releaseDir], installDir, logger);
+            Assert.True(
+                File.Exists(Path.Combine(fallbackPackagesPath, $"{id}-3.0.0-full.nupkg")),
+                "the classic baseline update did not download the full package");
+            RunCoveredDotnetDeelevated(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
+            TestHelper.WaitUntil(() => {
+                var chk3version = RunCoveredDotnetDeelevated(appPath, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
+            }, timeoutMs: 90_000, pollDelayMs: 2000);
+            Icacls(currentDir, logger);
+            var classicAclProblems = FindAclProblems(currentDir);
+            logger.Info(
+                $"TEST: classic apply baseline: {classicAclProblems.Count} ACL problems" + Environment.NewLine +
+                string.Join(Environment.NewLine, classicAclProblems));
 
             // uninstall: must remove the Program Files install dir, the HKLM ARP entry, AND the
             // per-user fallback dir in %LocalAppData% which holds packages + Update.exe (#989)

@@ -67,7 +67,6 @@
       EntryExecutableName="$(VelopackEntryExecutableName)"
       Icon="$(VelopackIcon)"
       ReleaseNotes="$(VelopackReleaseNotes)"
-      DeltaMode="$(VelopackDeltaMode)"
       Channel="$(VelopackChannel)"
       Exclude="$(VelopackExclude)"
       NoPortable="$(VelopackNoPortable)"

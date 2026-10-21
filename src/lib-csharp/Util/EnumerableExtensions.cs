@@ -1,11 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace Velopack.Util
 {
@@ -130,23 +128,6 @@ namespace Velopack.Util
             }
 
             return result;
-        }
-
-        public static Task ForEachAsync<T>(this IEnumerable<T> source, Action<T> body, int degreeOfParallelism = 4)
-        {
-            return ForEachAsync(source, x => Task.Run(() => body(x)), degreeOfParallelism);
-        }
-
-        public static Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int degreeOfParallelism = 4)
-        {
-            return Task.WhenAll(
-                from partition in Partitioner.Create(source).GetPartitions(degreeOfParallelism)
-                select Task.Run(
-                    async () => {
-                        using (partition)
-                            while (partition.MoveNext())
-                                await body(partition.Current).ConfigureAwait(false);
-                    }));
         }
     }
 }

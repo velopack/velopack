@@ -1,6 +1,7 @@
 use std::{path::Path, sync::mpsc::Sender};
 
 use crate::bundle::Manifest;
+use crate::chunks::RangeReader;
 use crate::download::HttpOptions;
 use crate::*;
 
@@ -63,5 +64,16 @@ impl UpdateSource for HttpSource {
             }
         })?;
         Ok(())
+    }
+
+    fn open_range_reader(&self, asset: &VelopackAsset) -> Result<Option<Box<dyn RangeReader>>, Error> {
+        let path = self.url.trim_end_matches('/').to_owned() + "/";
+        let url = url::Url::parse(&path)?;
+        let asset_url = url.join(&asset.FileName)?;
+        let headers: Vec<HttpHeader> = self.options.as_ref().map(|o| o.Headers.clone()).unwrap_or_default();
+        info!("Opening ranged access to URL '{}'", asset_url);
+        let reader =
+            download::HttpRangeReader::open(download::create_range_agent(), asset_url.as_str(), &headers).map_err(|e| Error::Other(e.to_string()))?;
+        Ok(Some(Box::new(reader)))
     }
 }

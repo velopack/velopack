@@ -13,7 +13,6 @@ using Velopack.Core.Validation;
 using Velopack.Deployment;
 using Velopack.Flow;
 using Velopack.Flow.Commands;
-using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
@@ -163,11 +162,6 @@ public class Program
         uploadCommand.AddCommand<AzureUploadCommand, AzureUploadCommandRunner, AzureUploadOptions>(provider);
         uploadCommand.AddCommand<LocalUploadCommand, LocalUploadCommandRunner, LocalUploadOptions>(provider);
         rootCommand.Add(uploadCommand);
-
-        var deltaCommand = new Command("delta", "Utilities for creating or applying delta packages.");
-        deltaCommand.AddCommand<DeltaGenCommand, DeltaGenCommandRunner, DeltaGenOptions>(provider);
-        deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
-        rootCommand.Add(deltaCommand);
 
         rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider);
         rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider);

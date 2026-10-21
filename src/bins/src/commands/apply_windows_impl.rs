@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
+use velopack::{bundle::load_bundle_from_file, chunks, constants, locator::VelopackLocator, lockfile::LockFile, process};
 
 fn remove_temp_dir_timed(path: &Path) {
     if !path.exists() {
@@ -122,6 +122,10 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
     // the non-elevated parent would hold the lock while waiting for the elevated child,
     // which would also try to acquire the lock — causing a deadlock.
     let _mutex = old_locator.try_get_exclusive_lock()?;
+    // Like apply-staged, hold the swap lock while `current` may be missing (between the two renames), so the
+    // recovery that `start` runs cannot restore a stale `current.old-*` backup in the meantime.
+    let swap_lock =
+        LockFile::try_acquire_lock(root_path.join(chunks::SWAP_LOCK_NAME)).context("Another update is swapping the application directory")?;
 
     let old_version = old_locator.get_manifest_version();
     let new_version = new_locator.get_manifest_version();
@@ -194,6 +198,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         // to update the shortcut to point at the temp/renamed location
         remove_temp_dir_timed(&temp_path_new);
         remove_temp_dir_timed(&temp_path_old);
+        drop(swap_lock);
 
         if !old_locator.get_is_portable() {
             crate::windows::create_or_update_manifest_lnks(&new_locator, Some(old_locator));

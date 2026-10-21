@@ -161,12 +161,8 @@ impl<'a> VelopackApp<'a> {
         let my_version = manager.get_current_version();
         let packages_dir = manager.get_locator().get_packages_dir();
 
-        // Load all local packages once — used for both auto-apply and cleanup.
-        let local_packages = locator::find_local_full_packages(&packages_dir);
-        let latest_full = local_packages
-            .iter()
-            .filter(|(_, m)| m.version > my_version)
-            .max_by(|(_, a), (_, b)| a.version.cmp(&b.version));
+        // The highest pending update: a ready staged (chunk) tree or a downloaded full package.
+        let pending = manager::find_pending_update(&packages_dir, &my_version);
 
         let firstrun = env::var(HOOK_ENV_FIRSTRUN).is_ok();
         env::remove_var(HOOK_ENV_FIRSTRUN);
@@ -175,12 +171,10 @@ impl<'a> VelopackApp<'a> {
         env::remove_var(HOOK_ENV_RESTART);
 
         // if auto apply is true and we haven't just been restarted via Velopack apply,
-        // we should check for a local package downloaded with a version greater than ours.
+        // we should check for a local update with a version greater than ours.
         // If it exists, we should quit and apply it now.
-        let pending_version = if let Some((path, manifest)) = latest_full {
-            let pending_ver = manifest.version.clone();
+        let pending_version = if let Some((pending_ver, asset)) = pending {
             if self.auto_apply && !restarted {
-                let asset = manager::local_path_to_asset(manifest, path);
                 if let Err(e) = manager.apply_updates_and_restart_with_args(&asset, &args) {
                     error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
                 }
@@ -190,8 +184,18 @@ impl<'a> VelopackApp<'a> {
             None
         };
 
-        // clean up old packages
-        cleanup_old_packages_from_list(local_packages, &my_version, pending_version.as_ref());
+        // clean up old packages and staged trees, but only when no other process is downloading
+        // (taking the lock would create the packages directory, so skip when there is nothing to clean)
+        if packages_dir.is_dir() {
+            match manager.get_locator().try_get_exclusive_lock_once() {
+                Ok(_lock) => {
+                    let local_packages = locator::find_local_full_packages(&packages_dir);
+                    cleanup_old_packages_from_list(local_packages, &my_version, pending_version.as_ref());
+                    crate::chunks::gc_staged_for_run(&packages_dir, &my_version);
+                }
+                Err(e) => info!("VelopackApp: Skipping package cleanup, the packages directory is locked: {}", e),
+            }
+        }
 
         if firstrun {
             Self::call_hook(&mut self.firstrun_hook, &my_version);
@@ -256,7 +260,14 @@ mod tests {
         let path = dir.join(&filename);
         let file = std::fs::File::create(&path).unwrap();
         let mut zip = zip::ZipWriter::new(file);
-        let nuspec = format!(
+        zip.start_file(format!("{}.nuspec", id), SimpleFileOptions::default()).unwrap();
+        zip.write_all(test_nuspec(id, version).as_bytes()).unwrap();
+        zip.finish().unwrap();
+        path
+    }
+
+    fn test_nuspec(id: &str, version: &str) -> String {
+        format!(
             r#"<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
@@ -269,11 +280,48 @@ mod tests {
   </metadata>
 </package>"#,
             id, version, id
-        );
-        zip.start_file(format!("{}.nuspec", id), SimpleFileOptions::default()).unwrap();
-        zip.write_all(nuspec.as_bytes()).unwrap();
-        zip.finish().unwrap();
-        path
+        )
+    }
+
+    // POSIX record locks belong to the process, so the lock can only be "held by another process" on Windows here.
+    #[cfg(windows)]
+    #[test]
+    fn run_skips_cleanup_at_once_when_the_packages_lock_is_held() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let root = tmp_dir.path().join("app");
+        let current = root.join("current");
+        let packages = root.join("packages");
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::create_dir_all(&packages).unwrap();
+        std::fs::write(root.join("Update.exe"), b"updater").unwrap();
+        std::fs::write(current.join("sq.version"), test_nuspec("TestApp", "2.0.0")).unwrap();
+        let old_pkg = create_test_nupkg(&packages, "TestApp", "1.0.0");
+        // an abandoned in-progress staged tree (no data files): the cleanup would delete it
+        let staged = packages.join("staged").join("0123456789abcdef0123456789abcdef");
+        std::fs::create_dir_all(&staged).unwrap();
+        let config = VelopackLocatorConfig {
+            RootAppDir: root.clone(),
+            UpdateExePath: root.join("Update.exe"),
+            PackagesDir: packages.clone(),
+            ManifestPath: current.join("sq.version"),
+            CurrentBinaryDir: current.clone(),
+            IsPortable: true,
+        };
+        let run = || VelopackApp::build().set_args(Vec::new()).set_locator(config.clone()).run();
+
+        // another process (e.g. a download) holds the lock: run must not wait for it
+        let held = crate::lockfile::LockFile::try_acquire_lock_once(packages.join(".velopack_lock")).unwrap();
+        let started = std::time::Instant::now();
+        run();
+        let elapsed = started.elapsed();
+        assert!(elapsed < std::time::Duration::from_secs(1), "run waited {:?} for the lock", elapsed);
+        assert!(old_pkg.exists(), "cleanup is skipped while the lock is held");
+        assert!(staged.exists(), "staged trees are not collected while the lock is held");
+
+        drop(held);
+        run();
+        assert!(!old_pkg.exists(), "cleanup runs once the lock is free");
+        assert!(!staged.exists(), "staged trees are collected once the lock is free");
     }
 
     #[test]

@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using Velopack.Chunks;
 using Velopack.Locators;
 using Velopack.Logging;
+using Velopack.Util;
 
 namespace Velopack
 {
@@ -100,6 +103,76 @@ namespace Velopack
             var workingDir = Path.GetDirectoryName(updatePath)!;
             locator.Process.StartProcess(updatePath!, args, workingDir, false);
             locator.Log.Info("Update.exe [apply] executed successfully.");
+        }
+
+        /// <summary>
+        /// Runs Update.exe to swap in a staged update tree (assembled by a chunk-based download), optionally
+        /// restarting the application. The staged tree's own updater is installed over <see cref="IVelopackLocator.UpdateExePath"/>
+        /// first, so the swap is always performed by the updater shipped with the target release.
+        /// </summary>
+        /// <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
+        /// <param name="stagedDir">The staged update directory (containing a valid ready.json).</param>
+        /// <param name="silent">If true, no dialogs will be shown during the update process.</param>
+        /// <param name="waitPid">Optionally wait for the specified process to exit before continuing.</param>
+        /// <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
+        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        public static void ApplyStaged(IVelopackLocator? locator, string stagedDir, bool silent, uint waitPid, bool restart,
+            string[]? restartArgs = null)
+        {
+            locator ??= VelopackLocator.Current;
+            if (string.IsNullOrEmpty(stagedDir) || !Directory.Exists(stagedDir)) {
+                throw new DirectoryNotFoundException($"The staged update directory '{stagedDir}' does not exist.");
+            }
+
+            var ready = StagedUpdate.TryReadReady(stagedDir);
+            if (ready == null) {
+                throw new InvalidDataException($"The staged update directory '{stagedDir}' has no valid ready.json.");
+            }
+
+            var sidecar = Path.Combine(stagedDir, StagedUpdate.UpdaterFileName);
+            var expectedUpdater = Hash256.Parse(ready.Marker.UpdaterSHA256);
+            if (!File.Exists(sidecar) || ChunkInflate.Sha256File(sidecar) != expectedUpdater) {
+                throw new InvalidDataException($"The staged Update.exe in '{stagedDir}' does not match the ready marker.");
+            }
+
+            var updatePath = locator.UpdateExePath;
+            if (string.IsNullOrEmpty(updatePath)) {
+                throw new FileNotFoundException("Cannot find Update.exe to apply updates.", updatePath);
+            }
+
+            if (!File.Exists(updatePath) || ChunkInflate.Sha256File(updatePath!) != expectedUpdater) {
+                locator.Log.Info($"Installing the target release's Update.exe to '{updatePath}' before applying the staged update.");
+                IoUtil.Retry(() => File.Copy(sidecar, updatePath!, true), logger: locator.Log);
+            }
+
+            var args = new List<string>();
+            if (silent) args.Add("--silent");
+            args.Add("apply-staged");
+            args.Add("--staged");
+            args.Add(stagedDir);
+
+            if (waitPid > 0) {
+                args.Add("--waitPid");
+                args.Add(waitPid.ToString());
+            }
+
+            if (!restart) args.Add("--norestart");
+
+            args.Add("--rootDir");
+            args.Add(locator.RootAppDir!);
+            args.Add("--packageDir");
+            args.Add(locator.PackagesDir!);
+
+            if (restart && restartArgs != null && restartArgs.Length > 0) {
+                args.Add("--");
+                foreach (var a in restartArgs) {
+                    args.Add(a);
+                }
+            }
+
+            var workingDir = Path.GetDirectoryName(updatePath)!;
+            locator.Process.StartProcess(updatePath!, args, workingDir, false);
+            locator.Log.Info("Update.exe [apply-staged] executed successfully.");
         }
     }
 }
