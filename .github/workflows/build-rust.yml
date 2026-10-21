@@ -74,12 +74,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x64, arm64]
+        target: [x64, arm64, arm]
         include:
           - target: x64
             rust_target: x86_64-unknown-linux-musl
           - target: arm64
             rust_target: aarch64-unknown-linux-musl
+          - target: arm
+            rust_target: armv7-unknown-linux-musleabihf
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
