@@ -11,9 +11,9 @@ public class BaseCommand : Command
 {
     public RuntimeOs TargetOs { get; private set; }
 
-    private readonly Dictionary<CliOption, Action<ParseResult, IConfiguration>> _setters = [];
+    private readonly Dictionary<Option, Action<ParseResult, IConfiguration>> _setters = [];
 
-    private readonly Dictionary<CliOption, string> _envHelp = [];
+    private readonly Dictionary<Option, string> _envHelp = [];
 
     private readonly Dictionary<Option, string> _targetProperties = new();
 
@@ -48,6 +48,18 @@ public class BaseCommand : Command
         }
 
         return opt;
+    }
+
+    protected Option<T> AddOption<T>(Action<T> setValue, string alias,
+        [CallerArgumentExpression(nameof(setValue))] string setterExpression = null)
+    {
+        return AddOption(setValue, [alias], setterExpression);
+    }
+
+    protected Option<T> AddOption<T>(Action<T> setValue, string alias, string alias2,
+        [CallerArgumentExpression(nameof(setValue))] string setterExpression = null)
+    {
+        return AddOption(setValue, [alias, alias2], setterExpression);
     }
 
     private Option<T> AddOption<T>(Action<T> setValue, Option<T> opt)

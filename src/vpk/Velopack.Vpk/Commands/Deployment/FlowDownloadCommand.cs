@@ -17,8 +17,7 @@ public class FlowDownloadCommand : OutputCommand
 
         AddOption<string>(v => PackageId = v, "--packageId", "-p")
             .SetDescription("The package ID of the application to download.")
-            .SetArgumentHelpName("ID")
-            .SetRequired();
+            .SetArgumentHelpName("ID");
 
         AddOption<double>((v) => Timeout = v, "--timeout")
             .SetDescription("Network timeout in minutes.")

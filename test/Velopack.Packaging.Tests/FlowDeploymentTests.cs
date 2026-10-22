@@ -36,7 +36,7 @@ public class FlowDeploymentTests
         };
 
         // download latest version
-        await repo.DownloadLatestFullPackageAsync(options);
+        await repo.Run(options);
 
         // verify that a file was downloaded
         var downloadedFiles = Directory.GetFiles(releaseDir, "*.nupkg");

@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Sources;
@@ -12,7 +13,16 @@ public class FlowDownloadOptions : RepositoryOptions
     public string? PackageId { get; set; }
 }
 
-public class FlowRepository(ILogger logger) : DownRepository<FlowDownloadOptions>(logger)
+public sealed class FlowDownloadOptionsValidator : RepositoryOptionsValidator<FlowDownloadOptions>
+{
+    public FlowDownloadOptionsValidator()
+    {
+        RuleFor(x => x.PackageId).NotEmpty();
+    }
+}
+
+public class FlowRepository(ILogger logger)
+    : DownloadCommandRunner<FlowDownloadOptions, FlowDownloadOptionsValidator>(logger)
 {
     public static VelopackFlowSource CreateSource(FlowDownloadOptions options)
     {
