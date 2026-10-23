@@ -1,38 +1,29 @@
-﻿using System;
-using System.IO;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Build.Framework;
-using Velopack.Core;
-using Velopack.Packaging;
-using Velopack.Packaging.Unix.Commands;
-using Velopack.Packaging.Windows.Commands;
 
 namespace Velopack.Build;
 
-public class PackTask : MSBuildAsyncTask
+public class PackTask : VpkTask
 {
-    public bool SelfContained { get; set; }
-
     public string? TargetRuntime { get; set; }
 
     [Required]
-    public string TargetFramework { get; set; } = null!;
+    [NotNull]
+    public string? PackVersion { get; set; }
 
     [Required]
-    public string PackVersion { get; set; } = "";
+    [NotNull]
+    public string? PackId { get; set; }
 
     [Required]
-    public string PackId { get; set; } = "";
+    [NotNull]
+    public string? PackDirectory { get; set; }
 
     [Required]
-    public string PackDirectory { get; set; } = null!;
+    [NotNull]
+    public string? ReleaseDir { get; set; }
 
-    [Required]
-    public string ReleaseDir { get; set; } = null!;
-
-    public string Runtimes { get; set; } = "";
+    public string? Runtimes { get; set; }
 
     public string? PackAuthors { get; set; }
 
@@ -44,7 +35,7 @@ public class PackTask : MSBuildAsyncTask
 
     public string? ReleaseNotes { get; set; }
 
-    public string? DeltaMode { get; set; } = "BestSpeed";
+    public string? DeltaMode { get; set; }
 
     public string? Channel { get; set; }
 
@@ -52,9 +43,9 @@ public class PackTask : MSBuildAsyncTask
 
     public bool NoDefaultExclude { get; set; }
 
-    public bool NoPortable { get; private set; }
+    public bool NoPortable { get; set; }
 
-    public bool NoInst { get; private set; }
+    public bool NoInst { get; set; }
 
     public string? InstWelcome { get; set; }
 
@@ -65,7 +56,7 @@ public class PackTask : MSBuildAsyncTask
 
     public string? InstConclusion { get; set; }
 
-    public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
+    //public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
 
     public string? MsiTopBanner { get; set; }
     public string? MsiDialogBackground { get; set; }
@@ -75,7 +66,7 @@ public class PackTask : MSBuildAsyncTask
     public string? SignInstallIdentity { get; set; }
 
     public string? SignEntitlements { get; set; }
-    
+
     public bool SignDisableDeep { get; set; }
 
     public string? NotaryProfile { get; set; }
@@ -93,76 +84,136 @@ public class PackTask : MSBuildAsyncTask
     public bool SkipVelopackAppCheck { get; set; }
 
     public string? SignParameters { get; set; }
-    
+
     public string? AzureTrustedSignFile { get; set; }
 
     public string? SignExclude { get; set; }
 
-    public int SignParallel { get; set; } = 10;
+    public int? SignParallel { get; set; }
 
     public string? SignTemplate { get; set; }
 
     public string? Categories { get; set; }
 
     public string? Shortcuts { get; set; }
-    
+
     public string? Compression { get; set; }
 
     public bool BuildMsi { get; set; }
 
     public string? MsiVersionOverride { get; set; }
 
-    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
+    public string? VelopackBaseUrl { get; set; }
+
+    public double Timeout { get; set; } = 30d;
+
+    protected override async Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
     {
-        //System.Diagnostics.Debugger.Launch();
-        try {
-            var console = new LoggerConsole(Logger);
-            HelperFile.ClearSearchPaths();
-            var searchPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "..", "..", "vendor"));
-            HelperFile.AddSearchPath(searchPath);
-
-            if (VelopackRuntimeInfo.IsWindows) {
-                var options = this.ToWinPackOptions();
-
-                // we can auto-compute the requires runtimes on Windows from the TFM/RID
-                if (!SelfContained && String.IsNullOrEmpty(options.Runtimes)) {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    if (TargetFramework.Contains("-")) {
-                        TargetFramework = TargetFramework.Substring(0, TargetFramework.IndexOf('-'));
-                    }
-                    var runtime = Windows.Runtimes.GetRuntimeByName(TargetFramework);
-                    if (runtime is Windows.Runtimes.FrameworkInfo) {
-                        options.Runtimes = runtime.Id;
-                        Log.LogMessage(MessageImportance.High, $"Setup.exe will automatically bootstrap {runtime.DisplayName}.");
-                    } else if (!SelfContained && runtime is Windows.Runtimes.DotnetInfo dni && options.TargetRuntime?.HasArchitecture == true) {
-                        var rt = new Windows.Runtimes.DotnetInfo(dni.MinVersion.Version, options.TargetRuntime.Architecture);
-                        options.Runtimes = rt.Id;
-                        Log.LogMessage(MessageImportance.High, $"Setup.exe will automatically bootstrap {rt.DisplayName}.");
-                    } else {
-                        Log.LogWarning($"No runtime specified and no default runtime found for TFM '{TargetFramework}', please specify runtimes via VelopackRuntimes property in your csproj.");
-                    }
-#pragma warning restore CS0618 // Type or member is obsolete
-                }
-
-                var runner = new WindowsPackCommandRunner(Logger, console);
-                await runner.Run(options).ConfigureAwait(false);
-            } else if (VelopackRuntimeInfo.IsOSX) {
-                var options = this.ToOsxPackOptions();
-                var runner = new OsxPackCommandRunner(Logger, console);
-                await runner.Run(options).ConfigureAwait(false);
-            } else if (VelopackRuntimeInfo.IsLinux) {
-                var options = this.ToLinuxPackOptions();
-                var runner = new LinuxPackCommandRunner(Logger, console);
-                await runner.Run(options).ConfigureAwait(false);
-            } else {
-                throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());
-            }
-
-            Log.LogMessage(MessageImportance.High, $"{PackId} ({PackVersion}) created in {Path.GetFullPath(ReleaseDir)}");
+        if (DeltaMode == nameof(Packaging.Compression.DeltaMode.None)) {
             return true;
-        } catch (Exception ex) {
-            Log.LogErrorFromException(ex, true, true, null);
-            return false;
+        }
+
+        Log.LogMessage(MessageImportance.High, "DeltaMode is enabled, downloading latest release from Velopack Flow...");
+
+        var options = new Dictionary<string, object?> {
+            ["PackageId"] = PackId,
+            ["ReleaseDir"] = ReleaseDir,
+            ["Timeout"] = Timeout,
+        };
+        AddIfNotEmpty(options, "Channel", Channel);
+        AddIfNotEmpty(options, "VelopackBaseUrl", VelopackBaseUrl);
+
+        Log.LogMessage(MessageImportance.High, "Downloading latest release from Velopack Flow using JSON options...");
+
+        var exitCode = await toolRunner.RunVpkJson(
+            ["download", "flow"], options, [], cancellationToken).ConfigureAwait(false);
+
+        if (exitCode != 0) {
+            Log.LogWarning($"Failed to download latest release from Velopack Flow (exit code {exitCode}). Delta generation may not work correctly.");
+        }
+
+        return true;
+    }
+
+    protected override string GetSuccesMessage()
+        => $"{PackId} ({PackVersion}) created in {ReleaseDir}";
+
+    protected override string CommandName => "pack";
+
+    protected override Dictionary<string, object?> BuildJsonOptions()
+    {
+        var options = new Dictionary<string, object?>();
+        AddIfNotEmpty(options, "PackId", PackId);
+        AddIfNotEmpty(options, "PackVersion", PackVersion);
+        AddIfNotEmpty(options, "PackDirectory", PackDirectory);
+        AddIfNotEmpty(options, "ReleaseDir", ReleaseDir);
+        AddIfNotEmpty(options, "PackAuthors", PackAuthors);
+        AddIfNotEmpty(options, "PackTitle", PackTitle);
+        AddIfNotEmpty(options, "EntryExecutableName", EntryExecutableName);
+        AddIfNotEmpty(options, "Icon", Icon);
+        AddIfNotEmpty(options, "ReleaseNotes", ReleaseNotes);
+        AddIfNotEmpty(options, "DeltaMode", DeltaMode);
+        AddIfNotEmpty(options, "Channel", Channel);
+        AddIfNotEmpty(options, "Exclude", Exclude);
+        AddIfNotEmpty(options, "TargetRuntime", TargetRuntime);
+
+        AddIfTrue(options, "NoDefaultExclude", NoDefaultExclude);
+        AddIfTrue(options, "NoPortable", NoPortable);
+        AddIfTrue(options, "NoInst", NoInst);
+
+        if (OperatingSystem.IsWindows()) {
+            AddIfNotEmpty(options, "Runtimes", Runtimes);
+            AddIfNotEmpty(options, "SplashImage", SplashImage);
+            AddIfNotEmpty(options, "SplashProgressColor", SplashProgressColor);
+            AddIfNotEmpty(options, "SignParameters", SignParameters);
+            AddIfNotEmpty(options, "SignExclude", SignExclude);
+            AddIfNotEmpty(options, "SignTemplate", SignTemplate);
+            AddIfNotEmpty(options, "AzureTrustedSignFile", AzureTrustedSignFile);
+            AddIfNotEmpty(options, "Shortcuts", Shortcuts);
+            AddIfNotEmpty(options, "InstWelcome", InstWelcome);
+            AddIfNotEmpty(options, "InstReadme", InstReadme);
+            AddIfNotEmpty(options, "InstLicense", InstLicense);
+            AddIfNotEmpty(options, "InstConclusion", InstConclusion);
+            AddIfNotEmpty(options, "MsiTopBanner", MsiTopBanner);
+            AddIfNotEmpty(options, "MsiDialogBackground", MsiDialogBackground);
+            AddIfNotEmpty(options, "MsiVersionOverride", MsiVersionOverride);
+            AddIfTrue(options, "SkipVelopackAppCheck", SkipVelopackAppCheck);
+            AddIfTrue(options, "BuildMsi", BuildMsi);
+            if (SignParallel is { } signParallel) {
+                options["SignParallel"] = signParallel;
+            }
+        } else if (OperatingSystem.IsMacOS()) {
+            AddIfNotEmpty(options, "BundleId", BundleId);
+            AddIfNotEmpty(options, "InfoPlistPath", InfoPlistPath);
+            AddIfNotEmpty(options, "InstWelcome", InstWelcome);
+            AddIfNotEmpty(options, "InstReadme", InstReadme);
+            AddIfNotEmpty(options, "InstLicense", InstLicense);
+            AddIfNotEmpty(options, "InstConclusion", InstConclusion);
+            AddIfNotEmpty(options, "SignAppIdentity", SignAppIdentity);
+            AddIfNotEmpty(options, "SignInstallIdentity", SignInstallIdentity);
+            AddIfNotEmpty(options, "SignEntitlements", SignEntitlements);
+            AddIfNotEmpty(options, "NotaryProfile", NotaryProfile);
+            AddIfNotEmpty(options, "Keychain", Keychain);
+            AddIfTrue(options, "SignDisableDeep", SignDisableDeep);
+        } else if (OperatingSystem.IsLinux()) {
+            AddIfNotEmpty(options, "Categories", Categories);
+            AddIfNotEmpty(options, "Compression", Compression);
+        }
+
+        return options;
+    }
+
+    private static void AddIfNotEmpty(Dictionary<string, object?> options, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) {
+            options[name] = value;
+        }
+    }
+
+    private static void AddIfTrue(Dictionary<string, object?> options, string name, bool value)
+    {
+        if (value) {
+            options[name] = true;
         }
     }
 }
