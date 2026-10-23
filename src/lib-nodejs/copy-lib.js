@@ -16,12 +16,14 @@ function makeCopies(input) {
   fs.copyFileSync(input, "./lib/native/velopack_nodeffi_osx.node");
   fs.copyFileSync(input, "./lib/native/velopack_nodeffi_linux_x64_gnu.node");
   fs.copyFileSync(input, "./lib/native/velopack_nodeffi_linux_arm64_gnu.node");
+  fs.copyFileSync(input, "./lib/native/velopack_nodeffi_linux_armhf_gnu.node");
   fs.copyFileSync(input, "./src/native/velopack_nodeffi_win_x86_msvc.node");
   fs.copyFileSync(input, "./src/native/velopack_nodeffi_win_x64_msvc.node");
   fs.copyFileSync(input, "./src/native/velopack_nodeffi_win_arm64_msvc.node");
   fs.copyFileSync(input, "./src/native/velopack_nodeffi_osx.node");
   fs.copyFileSync(input, "./src/native/velopack_nodeffi_linux_x64_gnu.node");
   fs.copyFileSync(input, "./src/native/velopack_nodeffi_linux_arm64_gnu.node");
+  fs.copyFileSync(input, "./src/native/velopack_nodeffi_linux_armhf_gnu.node");
 }
 
 if (platform == "win32") {
