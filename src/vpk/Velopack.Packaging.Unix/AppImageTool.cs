@@ -16,6 +16,7 @@ public class AppImageTool
             RuntimeCpu.x86 => HelperFile.AppImageRuntimeX86,
             RuntimeCpu.x64 => HelperFile.AppImageRuntimeX64,
             RuntimeCpu.arm64 => HelperFile.AppImageRuntimeArm64,
+            RuntimeCpu.arm => HelperFile.AppImageRuntimeArm,
             _ => throw new ArgumentOutOfRangeException(nameof(machine), machine, null)
         };
 
