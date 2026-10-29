@@ -16,6 +16,7 @@ public static class ProxyExtensions
         services.AddSingleton<ArtifactCache>();
         services.AddSingleton<PackageCatalog>();
         services.AddSingleton<PackageCache>();
+        services.AddHostedService<CatalogWarmupService>();
         services.AddProblemDetails();
         return services;
     }

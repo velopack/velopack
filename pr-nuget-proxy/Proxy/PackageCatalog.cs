@@ -9,7 +9,11 @@ namespace PrNuGetProxy;
 public sealed record BuildEntry(
     long RunId, int Attempt, int PullRequest, string HeadSha, string OriginalVersion, string Version,
     Artifact Packages, Artifact VersionArtifact);
-public sealed record CatalogFile(string Repository, string[] PackageIds, List<BuildEntry> Builds);
+public sealed record CatalogFile(string Repository, List<BuildEntry> Builds);
+public sealed record PublishedPackage(string Id, BuildEntry Build);
+public sealed record RunArtifacts(
+    long RunId, int Attempt, int PullRequest, string HeadSha, Artifact Packages, Artifact VersionArtifact);
+public sealed record RunArtifactsFile(string Repository, string Workflow, List<RunArtifacts> Runs);
 
 public sealed class PackageCatalog
 {
@@ -18,12 +22,15 @@ public sealed class PackageCatalog
     private readonly ILogger<PackageCatalog> _logger;
     private readonly IMemoryCache _memoryCache;
     private readonly ArtifactCache _artifacts;
+    private readonly PackageCache _packages;
     private readonly object _cacheKey = new();
     private readonly SemaphoreSlim _gate = new(1);
     private readonly string _file;
+    private readonly string _runsFile;
+    private List<RunArtifacts> _runs;
     private List<BuildEntry> _builds;
 
-    public PackageCatalog(ProxyOptions options, IGitHubClient github, IMemoryCache memoryCache, ArtifactCache artifacts,
+    public PackageCatalog(ProxyOptions options, IGitHubClient github, IMemoryCache memoryCache, ArtifactCache artifacts, PackageCache packages,
         ILogger<PackageCatalog>? logger = null)
     {
         _options = options;
@@ -31,23 +38,77 @@ public sealed class PackageCatalog
         _logger = logger ?? NullLogger<PackageCatalog>.Instance;
         _memoryCache = memoryCache;
         _artifacts = artifacts;
+        _packages = packages;
         _file = Path.Combine(options.CacheDirectory, "catalog.json");
         Directory.CreateDirectory(options.CacheDirectory);
         var saved = File.Exists(_file)
             ? JsonSerializer.Deserialize<CatalogFile>(File.ReadAllText(_file), JsonSettings.Options)
                 ?? throw new InvalidDataException("Invalid saved catalog.")
             : null;
-        if (saved is not null && (saved.Repository != options.Repository
-            || !saved.PackageIds.SequenceEqual(options.PackageIds, StringComparer.OrdinalIgnoreCase)))
-            throw new InvalidDataException("This cache belongs to another repository/package selection. Use a different CacheDirectory.");
+        if (saved is not null && saved.Repository != options.Repository)
+            throw new InvalidDataException("This cache belongs to another repository. Use a different CacheDirectory.");
         _builds = saved?.Builds ?? [];
+        _runsFile = Path.Combine(options.CacheDirectory, "runs.json");
+        var savedRuns = File.Exists(_runsFile)
+            ? JsonSerializer.Deserialize<RunArtifactsFile>(File.ReadAllText(_runsFile), JsonSettings.Options)
+                ?? throw new InvalidDataException("Invalid saved run metadata.")
+            : null;
+        if (savedRuns is not null && (savedRuns.Repository != options.Repository || savedRuns.Workflow != options.Workflow))
+            throw new InvalidDataException("This run cache belongs to another repository/workflow. Use a different CacheDirectory.");
+        _runs = savedRuns?.Runs ?? _builds
+            .Where(x => x.VersionArtifact is not null)
+            .Select(x => new RunArtifacts(x.RunId, x.Attempt, x.PullRequest, x.HeadSha, x.Packages, x.VersionArtifact))
+            .ToList();
     }
 
-    public bool Supports(string id) => _options.PackageIds.Contains(id, StringComparer.OrdinalIgnoreCase);
+    public async Task<PublishedPackage[]> GetPackagesAsync(CancellationToken cancellationToken)
+    {
+        var result = new List<PublishedPackage>();
+        foreach (var build in await GetBuildsAsync(cancellationToken))
+        {
+            foreach (var package in await _packages.GetPackagesAsync(build, cancellationToken))
+                result.Add(new PublishedPackage(package.Id, build with
+                {
+                    OriginalVersion = package.OriginalVersion,
+                    Version = package.Version
+                }));
+        }
+        return result.OrderBy(x => NuGetVersion.Parse(x.Build.Version), VersionComparer.VersionRelease).ToArray();
+    }
 
     public async Task<BuildEntry[]> GetBuildsAsync(CancellationToken cancellationToken)
     {
-        if (_memoryCache.TryGetValue(_cacheKey, out BuildEntry[]? cached) && cached is not null) return cached;
+        var runs = await GetRunArtifactsAsync(cancellationToken);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var next = new List<BuildEntry>(_builds);
+            foreach (var run in runs)
+            {
+                if (next.Any(x => x.RunId == run.RunId && x.Attempt == run.Attempt && x.PullRequest == run.PullRequest)) continue;
+                var original = await ReadVersionAsync(run.VersionArtifact, cancellationToken);
+                next.Add(new BuildEntry(run.RunId, run.Attempt, run.PullRequest, run.HeadSha, original,
+                    PackageRewriter.VersionFor(original, run.PullRequest, run.RunId, run.Attempt, run.Packages.Id),
+                    run.Packages, run.VersionArtifact));
+            }
+            if (next.Count != _builds.Count)
+            {
+                await JsonSettings.WriteAtomicAsync(_file, new CatalogFile(_options.Repository, next), cancellationToken);
+                _builds = next;
+            }
+            var visible = runs.Select(x => (x.RunId, x.Attempt, x.PullRequest)).ToHashSet();
+            return _builds.Where(x => visible.Contains((x.RunId, x.Attempt, x.PullRequest)))
+                .OrderBy(x => NuGetVersion.Parse(x.Version), VersionComparer.VersionRelease).ToArray();
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<RunArtifacts[]> GetRunArtifactsAsync(CancellationToken cancellationToken)
+    {
+        if (_memoryCache.TryGetValue(_cacheKey, out RunArtifacts[]? cached) && cached is not null) return cached;
         await _gate.WaitAsync(cancellationToken);
         try
         {
@@ -65,7 +126,7 @@ public sealed class PackageCatalog
                 .DistinctBy(x => (x.Run.Id, x.Run.Attempt, x.PullRequest));
             // Keep immutable completed-run and artifact metadata on disk even while a PR is closed.
             // Open-PR membership is volatile and is applied only to the response below.
-            var next = new List<BuildEntry>(_builds);
+            var next = new List<RunArtifacts>(_runs);
             foreach (var (run, pr) in runs)
             {
                 // Completed immutable builds already known locally need no artifact API/download request.
@@ -87,9 +148,7 @@ public sealed class PackageCatalog
                     _logger.LogWarning("Skipping run {RunId}: expired artifacts are not cached locally.", run.Id);
                     continue;
                 }
-                var original = await ReadVersionAsync(version, cancellationToken);
-                next.Add(new BuildEntry(run.Id, run.Attempt, pr, run.HeadSha, original,
-                    PackageRewriter.VersionFor(original, pr, run.Id, run.Attempt, packages.Id), packages, version));
+                next.Add(new RunArtifacts(run.Id, run.Attempt, pr, run.HeadSha, packages, version));
             }
             foreach (var id in _options.RunIds)
             {
@@ -97,12 +156,12 @@ public sealed class PackageCatalog
                     && !next.Any(x => x.RunId == id))
                     throw new InvalidDataException($"Run {id} is not an available successful build of an open pull request.");
             }
-            await JsonSettings.WriteAtomicAsync(_file, new CatalogFile(_options.Repository, _options.PackageIds, next), cancellationToken);
-            _builds = next;
+            await JsonSettings.WriteAtomicAsync(_runsFile, new RunArtifactsFile(_options.Repository, _options.Workflow, next), cancellationToken);
+            _runs = next;
             var result = next.Where(x => openPullRequests.Contains(x.PullRequest))
                 .Where(x => _options.PullRequests.Length == 0 || _options.PullRequests.Contains(x.PullRequest)
                     || _options.RunIds.Contains(x.RunId))
-                .OrderBy(x => NuGetVersion.Parse(x.Version), VersionComparer.VersionRelease).ToArray();
+                .OrderBy(x => x.RunId).ThenBy(x => x.Attempt).ToArray();
             return _memoryCache.Set(_cacheKey, result, TimeSpan.FromSeconds(_options.RefreshSeconds));
         }
         finally

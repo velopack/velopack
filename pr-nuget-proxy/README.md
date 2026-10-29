@@ -85,8 +85,9 @@ Invoke-RestMethod http://localhost:55631/builds
     -StateDirectory C:\MyTools\pr-vpk-state
 ```
 
-The install script supports `vpk` specifically. The feed itself supports configured
-package IDs. Use one state directory per independently managed tool/configuration
+The install script supports `vpk` specifically. The feed automatically discovers
+all packages in the configured pipeline artifact; no package list is needed.
+Use one state directory per independently managed tool/configuration
 pair; clean up before changing its proxy URL, configuration path, or tool scope.
 Do not edit or delete the state directory until cleanup succeeds.
 
@@ -156,9 +157,8 @@ The following settings belong under the `Proxy` section:
 - `Repository`: GitHub `owner/repository`.
 - `Workflow`: workflow filename, for example `build.yml`.
 - `PackagesArtifact`: artifact containing `.nupkg` files, optionally in subfolders.
-- `VersionArtifact`: artifact containing a root `version.txt` with the original
-  package version. All configured packages must use that version.
-- `PackageIds`: package allowlist. Defaults to `Velopack` and `vpk`.
+- `VersionArtifact`: artifact containing a root `version.txt` with the build version
+  used by `/builds`. Individual package versions are read from their own manifests.
 - `PullRequests`: optional restriction on open PRs. An empty array considers all
   open PRs with runs in the scan.
 - `RunIds`: additionally pin specific successful `pull_request` runs, including
@@ -180,8 +180,12 @@ versions of open PRs are retained as new ones appear. Closed/merged PRs disappea
 from all feed endpoints on the next discovery refresh, even if their packages
 remain on disk. The `/builds` endpoint shows provenance.
 `IMemoryCache` controls when GitHub is checked again; concurrent requests share
-one refresh. Discovery is request-driven, with no polling while idle and no custom
-timestamp-based refresh logic. Failed refreshes are not cached.
+one refresh. On startup, a hosted service queries open PRs, completed runs, and
+artifact listings, and persists the immutable run/artifact metadata in `runs.json`.
+Startup does not download any artifact contents, including the version artifact.
+The host waits for this warm-up before accepting requests; discovery failures
+fail startup explicitly. Subsequent refreshes are request-driven, with no polling
+while idle or custom timestamp-based refresh logic. Failed refreshes are not cached.
 
 Local files are always checked first. Known completed builds reuse the persisted
 catalog without querying their artifact lists again. Both version artifacts and
@@ -189,9 +193,12 @@ package artifacts are kept as SHA256-verified ZIPs on disk, keyed by artifact ID
 Restarts and rebuilding rewritten packages reuse those ZIPs rather than
 downloading them again. Expired artifacts can still be read if already cached.
 
-An uncached version artifact is fetched during discovery. The larger packages
-artifact is downloaded on first package/registration/search access and rewritten
-once for all configured package IDs. GitHub
+An uncached version artifact is fetched only when a feed request needs package
+versions (including `/builds`), never by startup metadata discovery. The larger packages
+artifact is downloaded on first package-list/package/registration/search access.
+All `.nupkg` files are discovered from their embedded manifests, rewritten, and
+cached together with a per-build package inventory. Each feed endpoint advertises
+only packages and versions actually present in that build. GitHub
 downloads the entire artifact ZIP, not just a requested `.nupkg`; the example is
 about 145 MB. Searches requiring package metadata can therefore take time initially.
 Missing artifacts and expired artifacts without local copies are skipped for
@@ -206,7 +213,10 @@ expiration or restart so a saved catalog cannot expose now-closed PRs. There is 
 offline discovery bypass; local packages are served without downloads while the
 discovery entry is valid.
 The app refuses simultaneous instances sharing a cache and refuses reusing a cache
-for another repository/package selection.
+for another repository/workflow. Existing allowlist-era catalogs and original
+artifact ZIPs can be reused without clearing the cache. Old rewritten package
+directories are left untouched; complete discovered inventories use a separate
+cache layout. Old `PackageIds` configuration entries are no longer used.
 
 ## Package identity
 
@@ -225,9 +235,11 @@ reruns/replaced artifacts. Never publish different bytes under an existing ident
 Assemblies, native binaries, and tool settings remain unchanged; the tool's own help
 still displays its original compiled version. ZIP timestamps and file attributes
 are preserved. Signed NuGet packages are rejected rather than silently losing their
-signature. Symbol packages are not served. This initial implementation assumes
-configured packages do not depend on each other; coordinated dependency rewriting
-and symbol-server support are not included.
+signature. Symbol packages are not served. Dependencies on other packages in the
+same artifact are pinned to their corresponding proxy versions so restores stay
+within that PR build; external dependency ranges remain unchanged. Packages may
+have different original versions, but duplicate IDs within one artifact are
+rejected. Symbol-server support is not included.
 
 ## Development and verification
 

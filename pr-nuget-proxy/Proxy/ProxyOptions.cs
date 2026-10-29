@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using NuGet.Packaging;
 
 namespace PrNuGetProxy;
 
@@ -10,7 +9,6 @@ public sealed class ProxyOptions
     public string Workflow { get; set; } = "build.yml";
     public string PackagesArtifact { get; set; } = "packages";
     public string VersionArtifact { get; set; } = "build-version";
-    public string[] PackageIds { get; set; } = [];
     public int[] PullRequests { get; set; } = [];
     public long[] RunIds { get; set; } = [];
     public string BaseUrl { get; set; } = "http://localhost:55631";
@@ -28,8 +26,6 @@ public sealed class ProxyOptions
             && !BaseUrl.EndsWith('/') && RefreshSeconds >= 10 && RunLimit is >= 1 and <= 500
             && PullRequests is not null && PullRequests.All(x => x > 0)
             && RunIds is not null && RunIds.All(x => x > 0)
-            && PackageIds is { Length: > 0 } && PackageIds.All(PackageIdValidator.IsValidPackageId)
-            && PackageIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() == PackageIds.Length
             && !string.IsNullOrWhiteSpace(CacheDirectory)
             && !string.IsNullOrWhiteSpace(PackagesArtifact) && !string.IsNullOrWhiteSpace(VersionArtifact);
     }

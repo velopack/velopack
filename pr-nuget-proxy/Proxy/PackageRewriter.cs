@@ -15,7 +15,8 @@ public static class PackageRewriter
         return $"{numeric}-pr.{pr}.run.{run}.attempt.{attempt}.artifact.{artifact}";
     }
 
-    public static void Rewrite(string source, string destination, string id, string originalVersion, string version)
+    public static void Rewrite(string source, string destination, string id, string originalVersion, string version,
+        IReadOnlyDictionary<string, string>? packageVersions = null)
     {
         using var archive = ZipFile.OpenRead(source);
         if (archive.Entries.Any(x => x.FullName.Equals(".signature.p7s", StringComparison.OrdinalIgnoreCase)))
@@ -33,6 +34,15 @@ public static class PackageRewriter
             || NuGetVersion.Parse(versionElement.Value) != NuGetVersion.Parse(originalVersion))
             throw new InvalidDataException($"Package identity does not match expected {id} {originalVersion}.");
         versionElement.Value = version;
+        if (packageVersions is not null)
+        {
+            foreach (var dependency in metadata.Elements().Where(x => x.Name.LocalName == "dependencies")
+                .Descendants().Where(x => x.Name.LocalName == "dependency"))
+            {
+                if (dependency.Attribute("id") is { } dependencyId && packageVersions.TryGetValue(dependencyId.Value, out var dependencyVersion))
+                    dependency.SetAttributeValue("version", $"[{dependencyVersion}]");
+            }
+        }
 
         using var target = ZipFile.Open(destination, ZipArchiveMode.Create);
         foreach (var entry in archive.Entries)

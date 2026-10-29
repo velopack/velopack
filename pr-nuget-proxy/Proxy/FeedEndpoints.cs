@@ -12,8 +12,7 @@ public static class FeedEndpoints
     {
         app.MapMethods("/flat/{id}/index.json", ["GET", "HEAD"], async (string id, PackageCatalog catalog, CancellationToken ct) =>
         {
-            if (!catalog.Supports(id)) return Results.NotFound();
-            var builds = await catalog.GetBuildsAsync(ct);
+            var builds = BuildsFor(await catalog.GetPackagesAsync(ct), id);
             return builds.Length == 0 ? Results.NotFound() : Results.Json(new { versions = builds.Select(x => x.Version) });
         });
         app.MapMethods("/flat/{id}/{version}/{file}", ["GET", "HEAD"],
@@ -33,8 +32,7 @@ public static class FeedEndpoints
         app.MapMethods("/registration/{id}/index.json", ["GET", "HEAD"],
             async (string id, ProxyOptions options, PackageCatalog catalog, PackageCache cache, CancellationToken ct) =>
             {
-                if (!catalog.Supports(id)) return Results.NotFound();
-                var builds = await catalog.GetBuildsAsync(ct);
+                var builds = BuildsFor(await catalog.GetPackagesAsync(ct), id);
                 if (builds.Length == 0) return Results.NotFound();
                 var leaves = new List<object>();
                 foreach (var build in builds) leaves.Add(await LeafAsync(options, cache, id, build, ct));
@@ -65,17 +63,17 @@ public static class FeedEndpoints
         app.MapMethods("/query", ["GET", "HEAD"], async (HttpRequest request, ProxyOptions options, PackageCatalog catalog,
             PackageCache cache, CancellationToken ct) =>
         {
-            var builds = await catalog.GetBuildsAsync(ct);
+            var packages = IncludesBuilds(request) ? await catalog.GetPackagesAsync(ct) : [];
             var query = request.Query["q"].ToString();
-            var ids = options.PackageIds.Where(x => x.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (!IncludesBuilds(request) || builds.Length == 0) ids = [];
+            var ids = PackageIds(packages).Where(x => x.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
             var types = new Dictionary<string, string>();
-            foreach (var id in ids) types[id] = await PackageTypeAsync(cache, id, builds[^1], ct);
+            foreach (var id in ids) types[id] = await PackageTypeAsync(cache, id, BuildsFor(packages, id)[^1], ct);
             var type = request.Query["packageType"].ToString();
             if (type.Length > 0) ids = ids.Where(x => types[x].Equals(type, StringComparison.OrdinalIgnoreCase)).ToArray();
             var data = new List<object>();
             foreach (var id in ids.Skip(Number(request, "skip", 0)).Take(Number(request, "take", 20)))
             {
+                var builds = BuildsFor(packages, id);
                 var latest = builds[^1];
                 data.Add(new
                 {
@@ -97,22 +95,22 @@ public static class FeedEndpoints
             }
             return Results.Json(new { totalHits = ids.Length, data });
         });
-        app.MapMethods("/autocomplete", ["GET", "HEAD"], async (HttpRequest request, ProxyOptions options, PackageCatalog catalog,
+        app.MapMethods("/autocomplete", ["GET", "HEAD"], async (HttpRequest request, PackageCatalog catalog,
             PackageCache cache, CancellationToken ct) =>
         {
-            var builds = await catalog.GetBuildsAsync(ct);
+            var packages = IncludesBuilds(request) ? await catalog.GetPackagesAsync(ct) : [];
             var id = request.Query["id"].ToString();
             var query = request.Query["q"].ToString();
-            IEnumerable<string> values = !IncludesBuilds(request) || builds.Length == 0 ? []
-                : id.Length > 0 ? (catalog.Supports(id) ? builds.Select(x => x.Version) : [])
-                : options.PackageIds.Where(x => x.Contains(query, StringComparison.OrdinalIgnoreCase));
+            IEnumerable<string> values = id.Length > 0 ? BuildsFor(packages, id).Select(x => x.Version)
+                : PackageIds(packages).Where(x => x.Contains(query, StringComparison.OrdinalIgnoreCase));
             var type = request.Query["packageType"].ToString();
             if (id.Length == 0 && type.Length > 0)
             {
                 var filtered = new List<string>();
                 foreach (var candidate in values)
                 {
-                    if ((await PackageTypeAsync(cache, candidate, builds[^1], ct)).Equals(type, StringComparison.OrdinalIgnoreCase))
+                    if ((await PackageTypeAsync(cache, candidate, BuildsFor(packages, candidate)[^1], ct))
+                        .Equals(type, StringComparison.OrdinalIgnoreCase))
                         filtered.Add(candidate);
                 }
                 values = filtered;
@@ -126,6 +124,12 @@ public static class FeedEndpoints
         });
     }
 
+    private static string[] PackageIds(PublishedPackage[] packages) =>
+        packages.Select(x => x.Id).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+
+    private static BuildEntry[] BuildsFor(PublishedPackage[] packages, string id) =>
+        packages.Where(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase)).Select(x => x.Build).ToArray();
+
     private static int Number(HttpRequest request, string name, int fallback) =>
         int.TryParse(request.Query[name], NumberStyles.None, CultureInfo.InvariantCulture, out var value)
             ? (name == "take" ? Math.Min(value, 1000) : value) : fallback;
@@ -136,8 +140,8 @@ public static class FeedEndpoints
 
     private static async Task<BuildEntry?> FindAsync(PackageCatalog catalog, string id, string version, CancellationToken ct)
     {
-        if (!catalog.Supports(id) || !NuGetVersion.TryParse(version, out var parsed)) return null;
-        return (await catalog.GetBuildsAsync(ct)).SingleOrDefault(x => NuGetVersion.Parse(x.Version) == parsed);
+        if (!PackageIdValidator.IsValidPackageId(id) || !NuGetVersion.TryParse(version, out var parsed)) return null;
+        return BuildsFor(await catalog.GetPackagesAsync(ct), id).SingleOrDefault(x => NuGetVersion.Parse(x.Version) == parsed);
     }
 
     private static async Task<string> PackageTypeAsync(PackageCache cache, string id, BuildEntry build, CancellationToken ct)
