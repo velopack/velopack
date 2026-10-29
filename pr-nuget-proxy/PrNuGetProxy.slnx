@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="proxy.example.json" />
+    <File Path="scripts/Common.ps1" />
+    <File Path="scripts/Install-PrBuild.ps1" />
+    <File Path="scripts/Remove-PrBuild.ps1" />
+    <File Path="scripts/Start-Proxy.ps1" />
+  </Folder>
+  <Project Path="Proxy/Proxy.csproj" />
+  <Project Path="Tests/Tests.csproj" />
+</Solution>

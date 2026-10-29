@@ -1,0 +1,15 @@
+{
+  "Urls": "http://localhost:55631",
+  "Proxy": {
+    "Repository": "velopack/velopack",
+    "Workflow": "build.yml",
+    "PackagesArtifact": "packages",
+    "VersionArtifact": "build-version",
+    "PackageIds": [ "Velopack", "vpk" ],
+    "PullRequests": [],
+    "RunIds": [],
+    "BaseUrl": "http://localhost:55631",
+    "RefreshSeconds": 120,
+    "RunLimit": 100
+  }
+}

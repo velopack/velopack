@@ -1,0 +1,6 @@
+**/bin/
+**/obj/
+**/TestResults/
+out/
+proxy.local.json
+.state/

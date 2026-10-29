@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
+    <ProjectReference Include="..\Proxy\Proxy.csproj" />
+  </ItemGroup>
+</Project>
