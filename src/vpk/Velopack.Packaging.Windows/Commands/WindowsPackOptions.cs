@@ -2,7 +2,7 @@
 
 namespace Velopack.Packaging.Windows.Commands;
 
-public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IPackOptions
+public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IPackOptions, ILargeDeltaOptions
 {
     public string PackId { get; set; }
 

@@ -10,6 +10,8 @@ public class WindowsReleasifyOptions : WindowsSigningOptions
 
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
+    public bool AllowLargeFiles { get; set; }
+
     public string Runtimes { get; set; }
 
     public string SplashImage { get; set; }

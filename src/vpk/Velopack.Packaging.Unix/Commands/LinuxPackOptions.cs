@@ -3,7 +3,7 @@ using Velopack.Packaging.Compression;
 
 namespace Velopack.Packaging.Unix.Commands;
 
-public class LinuxPackOptions : IPackOptions
+public class LinuxPackOptions : IPackOptions, ILargeDeltaOptions
 {
     public DirectoryInfo ReleaseDir { get; set; }
 
@@ -26,6 +26,8 @@ public class LinuxPackOptions : IPackOptions
     public string ReleaseNotes { get; set; }
 
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
+
+    public bool AllowLargeFiles { get; set; }
 
     public string Channel { get; set; }
 

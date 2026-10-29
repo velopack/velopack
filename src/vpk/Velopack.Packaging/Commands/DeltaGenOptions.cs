@@ -7,6 +7,8 @@ public class DeltaGenOptions
 {
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
+    public bool AllowLargeFiles { get; set; }
+
     public string BasePackage { get; set; }
 
     public string NewPackage { get; set; }

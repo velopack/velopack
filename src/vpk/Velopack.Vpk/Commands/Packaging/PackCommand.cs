@@ -40,6 +40,10 @@ public abstract class PackCommand : PlatformCommand
 
     public DeltaMode DeltaMode { get; private set; }
 
+    public bool AllowLargeFiles { get; private set; }
+
+    protected Option<bool> AllowLargeFilesOption { get; private set; }
+
     protected Option<DeltaMode> DeltaModeOption { get; private set; }
 
     public string Exclude { get; private set; }
@@ -90,6 +94,9 @@ public abstract class PackCommand : PlatformCommand
             .SetDefault(DeltaMode.BestSpeed)
             .SetDescription("Disable or set the delta generation mode.")
             .SetArgumentHelpName("MODE");
+
+        AllowLargeFilesOption = AddOption<bool>((v) => AllowLargeFiles = v, ["--allow-large-files"])
+            .SetDescription("Allow base files smaller than 2 GiB; requires 64-bit update binaries in both base and new releases.");
 
         IconOption = AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), ["-i", "--icon"])
             .SetDescription($"Path to icon file for package.")

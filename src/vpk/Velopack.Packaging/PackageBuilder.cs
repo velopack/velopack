@@ -273,7 +273,7 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
 
     protected virtual Task<string> CreateDeltaPackage(Action<int> progress, string releasePkg, string prevReleasePkg, string outputPath, DeltaMode mode)
     {
-        var deltaBuilder = new DeltaPackageBuilder(Log);
+        var deltaBuilder = new DeltaPackageBuilder(Log, Options is ILargeDeltaOptions { AllowLargeFiles: true });
         var (dp, stats) = deltaBuilder.CreateDeltaPackage(new ReleasePackage(prevReleasePkg), new ReleasePackage(releasePkg), outputPath, mode, progress);
         return Task.FromResult(dp.PackageFile);
     }

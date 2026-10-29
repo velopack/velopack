@@ -8,10 +8,17 @@ namespace Velopack.Packaging;
 public class Zstd
 {
     private readonly string _zstdExe;
+    private readonly bool _allowLargeFiles;
 
     public Zstd(string zstdExe)
+        : this(zstdExe, false)
+    {
+    }
+
+    public Zstd(string zstdExe, bool allowLargeFiles)
     {
         _zstdExe = zstdExe;
+        _allowLargeFiles = allowLargeFiles;
     }
 
     public void CreatePatch(string oldFile, string newFile, string outputFile, DeltaMode mode)
@@ -19,11 +26,7 @@ public class Zstd
         if (mode == DeltaMode.None)
             throw new ArgumentException("DeltaMode.None is not supported.", nameof(mode));
 
-        var windowLog = FIO_highbit64(new FileInfo(oldFile).Length) + 1;
-        if (windowLog > 30) {
-            throw new UserInfoException(
-                $"The file '{Path.GetFileName(oldFile)}' is too large for delta compression. You can disable delta generation using '--delta none'.");
-        }
+        var windowLog = GetWindowLog(new FileInfo(oldFile).Length, _allowLargeFiles, Path.GetFileName(oldFile));
 
         Invoke(
             oldFile,
@@ -50,6 +53,18 @@ public class Zstd
 
                 return args;
             });
+    }
+
+    internal static int GetWindowLog(long fileSize, bool allowLargeFiles, string fileName)
+    {
+        var windowLog = FIO_highbit64(fileSize) + 1;
+        var maxWindowLog = allowLargeFiles ? 31 : 30;
+        if (windowLog > maxWindowLog) {
+            throw new UserInfoException(
+                $"The file '{fileName}' is too large for delta compression. You can disable delta generation using '--delta none'.");
+        }
+
+        return windowLog;
     }
 
     public void ApplyPatch(string baseFile, string patchFile, string outputFile)
@@ -113,7 +128,7 @@ public class Zstd
         return path.All(c => c < 128);
     }
 
-    private int FIO_highbit64(long v)
+    private static int FIO_highbit64(long v)
     {
         int count = 0;
         v >>= 1;

@@ -8,6 +8,8 @@ public class DeltaGenCommand : BaseCommand
 {
     public DeltaMode DeltaMode { get; set; }
 
+    public bool AllowLargeFiles { get; set; }
+
     public string BasePackage { get; set; }
 
     public string NewPackage { get; set; }
@@ -22,6 +24,9 @@ public class DeltaGenCommand : BaseCommand
             .SetDefault(DeltaMode.BestSpeed)
             .SetDescription("Set the delta generation mode.")
             .SetArgumentHelpName("MODE");
+
+        AddOption<bool>((v) => AllowLargeFiles = v, ["--allow-large-files"])
+            .SetDescription("Allow base files smaller than 2 GiB; requires 64-bit update binaries in both base and new releases.");
 
         AddOption<FileInfo>((v) => BasePackage = v.ToFullNameOrNull(), ["--base", "-b"])
             .SetDescription("The base package for the created patch.")

@@ -10,10 +10,17 @@ namespace Velopack.Packaging.Compression;
 public class DeltaPackageBuilder
 {
     private readonly ILogger _logger;
+    private readonly bool _allowLargeFiles;
 
     public DeltaPackageBuilder(ILogger logger)
+        : this(logger, false)
+    {
+    }
+
+    public DeltaPackageBuilder(ILogger logger, bool allowLargeFiles)
     {
         _logger = logger;
+        _allowLargeFiles = allowLargeFiles;
     }
 
     public class DeltaStats
@@ -33,7 +40,7 @@ public class DeltaPackageBuilder
         if (String.IsNullOrEmpty(outputFile) || File.Exists(outputFile))
             throw new ArgumentException("The output file is null or already exists", nameof(outputFile));
 
-        var zstd = new Zstd(HelperFile.GetZstdPath());
+        var zstd = new Zstd(HelperFile.GetZstdPath(), _allowLargeFiles);
 
         if (basePackage.Version >= newPackage.Version) {
             var message = String.Format(

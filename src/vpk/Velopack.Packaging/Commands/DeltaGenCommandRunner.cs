@@ -24,7 +24,7 @@ public class DeltaGenCommandRunner : ValidatedCommand<DeltaGenOptions, DeltaGenO
                 await ctx.RunTask(
                     $"Building delta {pold.Version} -> {pnew.Version}",
                     (progress) => {
-                        var delta = new DeltaPackageBuilder(_logger);
+                        var delta = new DeltaPackageBuilder(_logger, options.AllowLargeFiles);
                         delta.CreateDeltaPackage(pold, pnew, options.OutputFile, options.DeltaMode, progress);
                         progress(100);
                         return Task.CompletedTask;

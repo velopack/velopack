@@ -13,6 +13,7 @@ public class OsxBundleCommand : PackCommand
         RemoveOption(NoInstOption);
         RemoveOption(ReleaseNotesOption);
         RemoveOption(DeltaModeOption);
+        RemoveOption(AllowLargeFilesOption);
     }
 
     public OsxBundleCommand(string name, string description)

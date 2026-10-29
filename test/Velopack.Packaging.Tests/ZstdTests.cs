@@ -1,3 +1,4 @@
+using Velopack.Core;
 using Velopack.Packaging.Compression;
 using Velopack.Util;
 
@@ -38,5 +39,23 @@ public class ZstdTests
         // inputs must be left where they were
         Assert.Equal(oldBytes, File.ReadAllBytes(oldFile));
         Assert.Equal(newBytes, File.ReadAllBytes(newFile));
+    }
+
+    [Theory]
+    [InlineData(false, (1L << 30) - 1, 30)]
+    [InlineData(true, 1L << 30, 31)]
+    [InlineData(true, (1L << 31) - 1, 31)]
+    public void CreatePatchWindowLogAcceptsEligibleBaseFiles(bool allowLargeFiles, long fileSize, int expected)
+    {
+        Assert.Equal(expected, Zstd.GetWindowLog(fileSize, allowLargeFiles, "old.bin"));
+    }
+
+    [Theory]
+    [InlineData(false, 1L << 30)]
+    [InlineData(true, 1L << 31)]
+    public void CreatePatchWindowLogRejectsBaseFilesAboveLimit(bool allowLargeFiles, long fileSize)
+    {
+        var ex = Assert.Throws<UserInfoException>(() => Zstd.GetWindowLog(fileSize, allowLargeFiles, "old.bin"));
+        Assert.Contains("too large for delta compression", ex.Message);
     }
 }

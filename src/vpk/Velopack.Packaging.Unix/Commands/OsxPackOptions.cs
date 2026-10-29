@@ -3,13 +3,15 @@ using Velopack.Packaging.Compression;
 
 namespace Velopack.Packaging.Unix.Commands;
 
-public class OsxPackOptions : OsxBundleOptions, IPackOptions
+public class OsxPackOptions : OsxBundleOptions, IPackOptions, ILargeDeltaOptions
 {
     public RID TargetRuntime { get; set; }
 
     public string ReleaseNotes { get; set; }
 
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
+
+    public bool AllowLargeFiles { get; set; }
 
     public bool NoInst { get; set; }
 
