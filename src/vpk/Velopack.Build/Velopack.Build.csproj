@@ -31,31 +31,25 @@
     <PackageReference Include="Microsoft.IO.Redist" Version="6.1.3" Condition="'$(TargetFramework)' == 'net472'" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" PrivateAssets="All" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.IO.Redist" Version="6.1.3" Condition="'$(TargetFramework)' == 'net472'" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Velopack.Build.Tests" />
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
     <None Include="Velopack.Build.props" Pack="true" PackagePath="build/Velopack.Build.props" />
   </ItemGroup>
 
 
-  <Target Name="SetVelopackNuGetVersion" AfterTargets="GetBuildVersion">
+  <Target Name="IncludeTfmDependenciesInPackage" DependsOnTargets="ResolveReferences">
     <ItemGroup>
-      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
-        <_Parameter1>VelopackNugetVersion</_Parameter1>
-        <_Parameter2>$(NuGetPackageVersion)</_Parameter2>
-      </AssemblyAttribute>
-    </ItemGroup>
-  </Target>
-
-  <Target Name="IncludeTfmDependenciesInPackage">
-    <ItemGroup>
-      <!-- Exclude the publish folder, runtimes, and vpk files as vpk is packaged separately in tools folder -->
-      <TfmSpecificPackageFile Include="$(TargetDir)*.*">
+      <TfmSpecificPackageFile Include="$(TargetPath);$(ProjectDepsFilePath);$(TargetDir)$(TargetName).pdb">
         <PackagePath>build\$(TargetFramework)</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="@(ReferenceCopyLocalPaths)">
+        <PackagePath>build\$(TargetFramework)\%(ReferenceCopyLocalPaths.DestinationSubDirectory)</PackagePath>
       </TfmSpecificPackageFile>
     </ItemGroup>
   </Target>

@@ -12,6 +12,10 @@ namespace Velopack.Build;
 /// </summary>
 public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggingHelper log)
 {
+    public string ProjectDirectory { get; set; } = Directory.GetCurrentDirectory();
+
+    public string? NugetConfigFile { get; set; }
+
     private static readonly JsonSerializerOptions JsonOptions = new() {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
@@ -25,28 +29,11 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
         Dictionary<string, string>? environmentVariables,
         CancellationToken cancellationToken)
     {
-        //NB: dotnet tool exec, is the alias for dnx
-        string[] processArguments = ["tool", "exec", "vpk", "-y", "--version", vpkVersion];
-        
-        if (!string.IsNullOrWhiteSpace(vpkNugetSource)) {
-            processArguments = [.. processArguments, "--add-source", vpkNugetSource!];
-        }
-
-        processArguments = [.. processArguments, "--", .. arguments];
-
-        ProcessStartInfo startInfo = new() {
-            FileName = "dotnet",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-        startInfo.AppendArgumentListSafe(processArguments, out _);
+        var startInfo = CreateStartInfo(arguments);
         using var process = new Process {
             StartInfo = startInfo
         };
 
-        // Add environment variables
         if (environmentVariables != null) {
             foreach (var kvp in environmentVariables) {
                 process.StartInfo.Environment[kvp.Key] = kvp.Value;
@@ -81,7 +68,7 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
 #endif
 
         if (process.ExitCode != 0) {
-            log.LogWarning($"dotnet {string.Join(" ", processArguments)} exited with code {process.ExitCode}");
+            log.LogWarning($"dotnet {string.Join(" ", startInfo.ArgumentList)} exited with code {process.ExitCode}");
             if (output.Length > 0) {
                 log.LogWarning(output.ToString());
             }
@@ -91,6 +78,45 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
         }
 
         return process.ExitCode;
+    }
+
+    internal ProcessStartInfo CreateStartInfo(IEnumerable<string> arguments)
+    {
+        //NB: dotnet tool exec, is the alias for dnx
+        string[] processArguments = ["tool", "exec", "vpk", "-y", "--version", vpkVersion];
+
+        var configFile = NugetConfigFile;
+        if (string.IsNullOrWhiteSpace(configFile)) {
+            for (var directory = new DirectoryInfo(ProjectDirectory); directory != null; directory = directory.Parent) {
+                var config = directory.EnumerateFiles()
+                    .FirstOrDefault(file => file.Name.Equals("nuget.config", StringComparison.OrdinalIgnoreCase));
+                if (config != null) {
+                    configFile = config.FullName;
+                    break;
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(configFile)) {
+            processArguments = [.. processArguments, "--configfile", Path.GetFullPath(configFile, ProjectDirectory)];
+        }
+
+        if (!string.IsNullOrWhiteSpace(vpkNugetSource)) {
+            processArguments = [.. processArguments, "--source", vpkNugetSource!];
+        }
+
+        processArguments = [.. processArguments, "--", .. arguments];
+
+        ProcessStartInfo startInfo = new() {
+            FileName = "dotnet",
+            WorkingDirectory = ProjectDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        startInfo.AppendArgumentListSafe(processArguments, out _);
+        return startInfo;
     }
 
     public async Task<int> RunVpkJson(
