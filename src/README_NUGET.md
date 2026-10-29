@@ -18,7 +18,8 @@ Velopack is an installation and auto-update framework for cross-platform applica
 
 ## MSBuild integration
 
-Reference `Velopack.Build` alongside `Velopack` to create release packages during `dotnet publish`.
+Reference `Velopack.Build` to create release packages during `dotnet publish`. It includes the
+`Velopack` runtime library transitively, so a separate `Velopack` package reference is not required.
 The build task downloads and runs the exact `vpk` NuGet version resolved for the application's
 `Velopack` reference (including prerelease versions), using `dotnet tool exec` and JSON options.
 This requires the .NET 10 SDK or later.
