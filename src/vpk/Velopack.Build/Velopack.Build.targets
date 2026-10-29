@@ -11,10 +11,15 @@
   <UsingTask TaskName="Velopack.Build.PackTask" Architecture="x64" Runtime="NET" AssemblyFile="$(VelopackBuildDll)"/>
   <UsingTask TaskName="Velopack.Build.PublishTask" Architecture="x64" Runtime="NET" AssemblyFile="$(VelopackBuildDll)"/>
 
-  <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
+  <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease;VelopackPushRelease"
+          DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <_VelopackLibraryReference Include="@(ReferencePath)" Condition="'%(ReferencePath.NuGetPackageId)' == 'Velopack'" />
+    </ItemGroup>
     <PropertyGroup>
-      <_VelopackVpkVersion Condition="'$(VelopackVpkVersion)' == ''"></_VelopackVpkVersion>
-      <_VelopackVpkNugetSource Condition="'$(VelopackVpkNugetSource)' == ''"></_VelopackVpkNugetSource>
+      <_VelopackVpkVersion>@(_VelopackLibraryReference->'%(NuGetPackageVersion)')</_VelopackVpkVersion>
+      <_VelopackVpkVersion Condition="'$(VelopackVpkVersion)' != ''">$(VelopackVpkVersion)</_VelopackVpkVersion>
+      <_VelopackVpkNugetSource>$(VelopackVpkNugetSource)</_VelopackVpkNugetSource>
       
       <VelopackExeExtension Condition="'$(VelopackExeExtension)' == '' and ('$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe')">.exe</VelopackExeExtension>
       <VelopackPackVersion Condition="'$(VelopackPackVersion)' == ''">$(Version)</VelopackPackVersion>
@@ -52,6 +57,8 @@
   </Target>
 
   <Target Name="VelopackBuildRelease" AfterTargets="Publish" Condition="'$(VelopackPackOnPublish)' == 'true'">
+    <Error Condition="'$(_VelopackVpkVersion)' == ''"
+           Text="Cannot determine the VPK tool version. Reference the Velopack NuGet package or set VelopackVpkVersion explicitly." />
     <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsMacOS()) "
            Text="Only SelfContained=true releases are supported on MacOS. Please dotnet publish with the --self-contained option." />
     <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsLinux()) "
@@ -104,10 +111,14 @@
       VelopackBaseUrl="$(VelopackFlowServiceUrl)"
       VpkNugetSource="$(_VelopackVpkNugetSource)"
       VpkVersion="$(_VelopackVpkVersion)"
+      ProjectDirectory="$(MSBuildProjectDirectory)"
+      NugetConfigFile="$(RestoreConfigFile)"
     />
   </Target>
 
   <Target Name="VelopackPushRelease" AfterTargets="VelopackBuildRelease" Condition="'$(VelopackPushOnPublish)' == 'true'">
+    <Error Condition="'$(_VelopackVpkVersion)' == ''"
+           Text="Cannot determine the VPK tool version. Reference the Velopack NuGet package or set VelopackVpkVersion explicitly." />
     <Error Condition="'$(VelopackImplicitPackId)' == 'true'" Text="VelopackPackId must be set explictly before pushing a release to remote." />
     <PublishTask
       ReleaseDirectory="$(VelopackReleaseDirectory)"
@@ -117,6 +128,8 @@
       Timeout="$(VelopackHttpTimeout)"
       VpkNugetSource="$(_VelopackVpkNugetSource)"
       VpkVersion="$(_VelopackVpkVersion)"
+      ProjectDirectory="$(MSBuildProjectDirectory)"
+      NugetConfigFile="$(RestoreConfigFile)"
       WaitForLive="$(VelopackWaitForLive)"
     />
   </Target>

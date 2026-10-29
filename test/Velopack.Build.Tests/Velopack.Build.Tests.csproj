@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\..\src\vpk\Velopack.Build\Velopack.Build.targets" Link="Velopack.Build.targets" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\..\src\vpk\Velopack.Build\Velopack.Build.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
     </ProjectReference>
