@@ -263,7 +263,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           registry-url: 'https://registry.npmjs.org'
 
       - name: Publish NPM Package
