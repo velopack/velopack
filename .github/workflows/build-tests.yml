@@ -550,7 +550,7 @@ jobs:
       - name: Check Rust bans, licenses and sources (cargo-deny)
         run: cargo deny check bans licenses sources
 
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.0
       - name: Install pip-audit
         run: pip install pip-audit
 
