@@ -9,5 +9,6 @@ module.exports = proxy({
     "darwin-arm64": () => require("./native/velopack_nodeffi_osx.node"),
     "linux-x64-gnu": () => require("./native/velopack_nodeffi_linux_x64_gnu.node"),
     "linux-arm64-gnu": () => require("./native/velopack_nodeffi_linux_arm64_gnu.node"),
+    "linux-arm-gnueabihf": () => require("./native/velopack_nodeffi_linux_armhf_gnu.node"),
   },
 });

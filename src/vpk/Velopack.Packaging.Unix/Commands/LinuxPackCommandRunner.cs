@@ -125,6 +125,7 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions, LinuxPack
             Machine.AArch64 => RuntimeCpu.arm64,
             Machine.AMD64 => RuntimeCpu.x64,
             Machine.Intel386 => RuntimeCpu.x86,
+            Machine.ARM => RuntimeCpu.arm,
             _ => throw new Exception($"Unsupported ELF machine type '{elf.Machine}'.")
         };
 

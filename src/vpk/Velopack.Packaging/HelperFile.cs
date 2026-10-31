@@ -38,6 +38,7 @@ public static class HelperFile
             return target.Architecture switch {
                 RuntimeCpu.arm64 => FindHelperFile("UpdateNix_arm64"),
                 RuntimeCpu.x64 => FindHelperFile("UpdateNix_x64"),
+                RuntimeCpu.arm => FindHelperFile("UpdateNix_arm"),
                 _ => throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).")
             };
         case RuntimeOs.OSX:
@@ -87,6 +88,8 @@ public static class HelperFile
     public static string AppImageRuntimeX64 => FindHelperFile("appimagekit-runtime-x86_64");
 
     public static string AppImageRuntimeX86 => FindHelperFile("appimagekit-runtime-i686");
+
+    public static string AppImageRuntimeArm => FindHelperFile("appimagekit-runtime-armhf");
 
     public static string GetSetupPath(RID target, ILogger log)
     {
