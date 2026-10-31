@@ -20,6 +20,12 @@ public class OsxPackCommand : OsxBundleCommand
 
     public string NotaryProfile { get; private set; }
 
+    public string NotaryKey { get; private set; }
+
+    public string NotaryKeyId { get; private set; }
+
+    public string NotaryIssuer { get; private set; }
+
     public string Keychain { get; private set; }
 
     public OsxPackCommand()
@@ -59,6 +65,18 @@ public class OsxPackCommand : OsxBundleCommand
         AddOption<string>((v) => NotaryProfile = v, ["--notaryProfile"])
             .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
             .SetArgumentHelpName("NAME");
+
+        AddOption<FileInfo>((v) => NotaryKey = v.ToFullNameOrNull(), ["--notaryKey"])
+            .SetDescription("Path to an App Store Connect API private key (.p8).")
+            .SetArgumentHelpName("PATH");
+
+        AddOption<string>((v) => NotaryKeyId = v, ["--notaryKeyId"])
+            .SetDescription("The App Store Connect API key identifier.")
+            .SetArgumentHelpName("ID");
+
+        AddOption<string>((v) => NotaryIssuer = v, ["--notaryIssuer"])
+            .SetDescription("The App Store Connect API issuer identifier (team keys only).")
+            .SetArgumentHelpName("ID");
 
         AddOption<FileInfo>((v) => Keychain = v.ToFullNameOrNull(), ["--keychain"])
             .SetDescription("Path to keychain file to use for codesign and notarytool.")

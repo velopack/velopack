@@ -175,7 +175,7 @@ public class OsxBuildTools
         Log.Info("Installer created successfully");
     }
 
-    public void Notarize(string filePath, string keychainProfileName, string keychainPath)
+    public void Notarize(string filePath, OsxNotaryCredentials credentials)
     {
         Log.Info($"Preparing to Notarize. This will upload to Apple and usually takes minutes, [underline]but could take hours.[/]");
 
@@ -184,15 +184,15 @@ public class OsxBuildTools
             "submit",
             "-f", "json",
             "--wait",
-            "--keychain-profile", keychainProfileName,
         };
 
-        if (!String.IsNullOrEmpty(keychainPath)) {
-            Log.Info($"Using non-default keychain at '{keychainPath}'");
-            args.Add("--keychain");
-            args.Add(keychainPath);
+        if (credentials.ApiKeyPath != null) {
+            Log.Info($"Using App Store Connect API key '{credentials.ApiKeyId}'");
+        } else if (!String.IsNullOrEmpty(credentials.KeychainPath)) {
+            Log.Info($"Using non-default keychain at '{credentials.KeychainPath}'");
         }
 
+        credentials.AddArguments(args);
         args.Add(filePath);
 
         var ntresultjson = Exe.InvokeProcess("xcrun", args, null);
@@ -215,9 +215,9 @@ public class OsxBuildTools
                         "notarytool",
                         "log",
                         ntresult?.id,
-                        "--keychain-profile", keychainProfileName,
                     };
 
+                    credentials.AddArguments(logargs);
                     var result = Exe.InvokeProcess("xcrun", logargs, null);
                     Log.Warn(result.StdOutput);
                 }
@@ -295,5 +295,63 @@ public class OsxBuildTools
         }
 
         return appPaths.First();
+    }
+}
+
+/// <summary>
+/// Credentials for 'xcrun notarytool': either a keychain profile created with 'notarytool store-credentials',
+/// or an App Store Connect API key (.p8 file + key id, plus the issuer id for team keys).
+/// </summary>
+public sealed class OsxNotaryCredentials
+{
+    public string KeychainProfile { get; private init; }
+
+    public string KeychainPath { get; private init; }
+
+    public string ApiKeyPath { get; private init; }
+
+    public string ApiKeyId { get; private init; }
+
+    public string ApiIssuer { get; private init; }
+
+    private OsxNotaryCredentials()
+    {
+    }
+
+    public static OsxNotaryCredentials FromKeychainProfile(string profileName, string keychainPath)
+    {
+        if (String.IsNullOrEmpty(profileName)) throw new ArgumentException("A keychain profile name is required.", nameof(profileName));
+        return new OsxNotaryCredentials { KeychainProfile = profileName, KeychainPath = keychainPath };
+    }
+
+    public static OsxNotaryCredentials FromApiKey(string keyPath, string keyId, string issuer)
+    {
+        if (String.IsNullOrEmpty(keyPath)) throw new ArgumentException("An API key path is required.", nameof(keyPath));
+        if (String.IsNullOrEmpty(keyId)) throw new ArgumentException("An API key id is required.", nameof(keyId));
+        return new OsxNotaryCredentials { ApiKeyPath = keyPath, ApiKeyId = keyId, ApiIssuer = issuer };
+    }
+
+    /// <summary>
+    /// Appends the notarytool authentication arguments (shared by 'submit' and 'log').
+    /// </summary>
+    public void AddArguments(List<string> args)
+    {
+        if (ApiKeyPath != null) {
+            args.Add("--key");
+            args.Add(ApiKeyPath);
+            args.Add("--key-id");
+            args.Add(ApiKeyId);
+            if (!String.IsNullOrEmpty(ApiIssuer)) {
+                args.Add("--issuer");
+                args.Add(ApiIssuer);
+            }
+        } else {
+            args.Add("--keychain-profile");
+            args.Add(KeychainProfile);
+            if (!String.IsNullOrEmpty(KeychainPath)) {
+                args.Add("--keychain");
+                args.Add(KeychainPath);
+            }
+        }
     }
 }
