@@ -83,7 +83,7 @@ namespace Velopack
         /// <summary> Arm64 </summary>
         arm64 = 0xAA64,
 
-        /// <summary> Arm (32-bit, ARMv7) </summary>
+        /// <summary> Arm (32-bit, ARMv7 hard-float) </summary>
         arm = 0x01c4,
     }
 
@@ -306,6 +306,8 @@ namespace Velopack
                 InteropArchitecture.X86 => RuntimeCpu.x86,
                 InteropArchitecture.X64 => RuntimeCpu.x64,
                 InteropArchitecture.Arm64 => RuntimeCpu.arm64,
+                // only ARMv7 hard-float is supported; Armv6 (e.g. Raspberry Pi Zero / 1) stays Unknown
+                InteropArchitecture.Arm => RuntimeCpu.arm,
                 _ => RuntimeCpu.Unknown,
             };
         }
