@@ -12,6 +12,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Remove="Microsoft.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\src\vpk\Velopack.Build\Velopack.Build.targets" Link="Velopack.Build.targets" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\..\src\vpk\Velopack.Build\Velopack.Build.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
