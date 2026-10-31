@@ -5,6 +5,10 @@ all-features = false
 ignore = [
     # ttf-parser is unmaintained; pulled in transitively via xdialog -> cosmic-text -> fontdb, no replacement available
     { id = "RUSTSEC-2026-0192", reason = "unmaintained transitive dep via xdialog/cosmic-text, no drop-in replacement" },
+    # zvariant/zbus_names/zvariant_derive were merged into zbus 6; xdialog and accesskit_unix (Linux AT-SPI) still need zbus 5
+    { id = "RUSTSEC-2026-0370", reason = "unmaintained transitive dep via xdialog/accesskit_unix, awaiting zbus 6 upstream" },
+    { id = "RUSTSEC-2026-0371", reason = "unmaintained transitive dep via xdialog/accesskit_unix, awaiting zbus 6 upstream" },
+    { id = "RUSTSEC-2026-0372", reason = "unmaintained transitive dep via xdialog/accesskit_unix, awaiting zbus 6 upstream" },
 ]
 
 [licenses]
