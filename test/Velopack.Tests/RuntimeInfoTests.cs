@@ -37,4 +37,18 @@ public class RuntimeInfoTests
         }
 #endif
     }
+
+    [Theory]
+    [InlineData("linux-x64", RuntimeOs.Linux, RuntimeCpu.x64)]
+    [InlineData("linux-arm64", RuntimeOs.Linux, RuntimeCpu.arm64)]
+    [InlineData("linux-arm", RuntimeOs.Linux, RuntimeCpu.arm)]
+    [InlineData("win-x86", RuntimeOs.Windows, RuntimeCpu.x86)]
+    [InlineData("osx-arm64", RuntimeOs.OSX, RuntimeCpu.arm64)]
+    public void RidParsesArchitecture(string input, RuntimeOs os, RuntimeCpu cpu)
+    {
+        var rid = RID.Parse(input);
+        Assert.Equal(os, rid.BaseRID);
+        Assert.Equal(cpu, rid.Architecture);
+        Assert.Equal(input, rid.ToString());
+    }
 }

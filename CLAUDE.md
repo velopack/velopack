@@ -165,6 +165,14 @@ shims that use the real function when present and a Win7 fallback otherwise. Do 
   x86 testapp ships as `testapp_x86.exe`, and x86 runs under WOW64 on the x64 VM). Commands run through a scheduled
   task in the desktop session, since Win32-OpenSSH kills a session's child processes (e.g. Update.exe) on exit.
 
+## 32-bit ARM Linux
+
+32-bit ARM (`RuntimeCpu.arm`, RID `linux-arm`) means **ARMv7 hard-float only**, the same baseline as .NET's
+`linux-arm` and Node's armv7l builds. `UpdateNix_arm` and `testapp_linux_arm` are `armv7-unknown-linux-musleabihf`, the
+libs (`velopack_libc_linux_armhf_gnu.*`, `velopack_nodeffi_linux_armhf_gnu.node`) are `armv7-unknown-linux-gnueabihf`,
+and the AppImage runtime is type2-runtime's `runtime-armhf`. Soft-float (armel) and ARMv6 (Pi Zero / Pi 1) are not
+supported; C# maps only `Architecture.Arm` (not `Armv6`) to `RuntimeCpu.arm`.
+
 ## Locators
 
 Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-specific paths and app metadata. Both implementations follow the same logic and must stay in sync. All locators read app identity (ID, version, channel) from a `sq.version` manifest file.
