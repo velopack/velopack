@@ -22,10 +22,6 @@ public abstract class VpkTask : MSBuildAsyncTask
                 NugetConfigFile = NugetConfigFile,
             };
             
-            if (!await PreExecuteAsync(toolRunner, cancellationToken).ConfigureAwait(false)) {
-                return false;
-            }
-            
             var options = BuildJsonOptions();
 
             Log.LogMessage(MessageImportance.High, $"Executing: vpk [json] {CommandName} <config>");
@@ -44,11 +40,6 @@ public abstract class VpkTask : MSBuildAsyncTask
             Log.LogErrorFromException(ex, true, true, null);
             return false;
         }
-    }
-
-    protected virtual Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(true);
     }
 
     protected abstract string GetSuccesMessage();
