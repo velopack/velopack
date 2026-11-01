@@ -3,20 +3,30 @@
     <VelopackPackOnPublish Condition="$(VelopackPackOnPublish) == ''">true</VelopackPackOnPublish>
     <VelopackPushOnPublish Condition="$(VelopackPushOnPublish) == ''">false</VelopackPushOnPublish>
     <!-- https://learn.microsoft.com/visualstudio/msbuild/tutorial-custom-task-code-generation?view=vs-2022&WT.mc_id=DT-MVP-5003472#changes-required-to-multitarget -->
-    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</VelopackStronglyTyped_TFM>
-    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net6.0</VelopackStronglyTyped_TFM>
+    <VelopackStronglyTyped_TFM>netstandard2.0</VelopackStronglyTyped_TFM>
+    <VelopackMSBuildRuntime Condition="'$(MSBuildRuntimeType)' != 'Core'">CLR4</VelopackMSBuildRuntime>
+    <VelopackMSBuildRuntime Condition="'$(MSBuildRuntimeType)' == 'Core'">NET</VelopackMSBuildRuntime>
     <VelopackBuildDll>$(MSBuildThisFileDirectory)$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
   </PropertyGroup>
 
-  <UsingTask TaskName="Velopack.Build.PackTask" AssemblyFile="$(VelopackBuildDll)"/>
-  <UsingTask TaskName="Velopack.Build.PublishTask" AssemblyFile="$(VelopackBuildDll)"/>
+  <UsingTask TaskName="Velopack.Build.PackTask" Architecture="x64" Runtime="$(VelopackMSBuildRuntime)" AssemblyFile="$(VelopackBuildDll)"/>
+  <UsingTask TaskName="Velopack.Build.PublishTask" Architecture="x64" Runtime="$(VelopackMSBuildRuntime)" AssemblyFile="$(VelopackBuildDll)"/>
 
-  <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
+  <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease;VelopackPushRelease"
+          DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <_VelopackLibraryReference Include="@(ReferencePath)" Condition="'%(ReferencePath.NuGetPackageId)' == 'Velopack'" />
+    </ItemGroup>
     <PropertyGroup>
+      <_VelopackVpkVersion>@(_VelopackLibraryReference->'%(NuGetPackageVersion)')</_VelopackVpkVersion>
+      <_VelopackVpkVersion Condition="'$(VelopackVpkVersion)' != ''">$(VelopackVpkVersion)</_VelopackVpkVersion>
+      <_VelopackVpkNugetSource>$(VelopackVpkNugetSource)</_VelopackVpkNugetSource>
+      
+      <VelopackExeExtension Condition="'$(VelopackExeExtension)' == '' and ('$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe')">.exe</VelopackExeExtension>
       <VelopackPackVersion Condition="'$(VelopackPackVersion)' == ''">$(Version)</VelopackPackVersion>
       <VelopackImplicitPackId Condition="'$(VelopackPackId)' == ''">true</VelopackImplicitPackId>
       <VelopackPackId Condition="'$(VelopackPackId)' == ''">$(AssemblyName)</VelopackPackId>
-      <VelopackEntryExecutableName Condition="'$(VelopackEntryExecutableName)' == ''">$(AssemblyName)</VelopackEntryExecutableName>
+      <VelopackEntryExecutableName Condition="'$(VelopackEntryExecutableName)' == ''">$(AssemblyName)$(VelopackExeExtension)</VelopackEntryExecutableName>
       <VelopackPackDirectory Condition="'$(VelopackPackDirectory)' == ''">$(PublishDir)</VelopackPackDirectory>
       <VelopackReleaseDirectory Condition="'$(VelopackReleaseDirectory)' == ''">Releases</VelopackReleaseDirectory>
       <VelopackPackTitle Condition="'$(VelopackPackTitle)' == ''">$(Product)</VelopackPackTitle>
@@ -24,7 +34,7 @@
       <VelopackTargetRuntime Condition="'$(VelopackTargetRuntime)' == ''">$(RuntimeIdentifier)</VelopackTargetRuntime>
       <VelopackShortcuts Condition="'$(VelopackShortcuts)' == ''">Desktop,StartMenuRoot</VelopackShortcuts>
       <VelopackHttpTimeout Condition="'$(VelopackHttpTimeout)' == ''">30</VelopackHttpTimeout>
-      <VelopackWaitForLive Condition="'$(VelopackWaitForLive)' == ''">false</VelopackWaitForLive>
+      <VelopackWaitForLive Condition="'$(VelopackWaitForLive)' == ''">true</VelopackWaitForLive>
 
       <!-- Allows a cross platform app (eg. Avalonia) to specify all three via csproj and have them applied correctly -->
       <!-- TODO: this should probably switch based on the target RID and not the current OS, but we currently don't 
@@ -42,62 +52,72 @@
       <Output TaskParameter="AbsolutePaths" PropertyName="VelopackPackDirectory"/>
     </ConvertToAbsolutePath>
 
-    <ConvertToAbsolutePath Paths="$(VelopackIcon)">
+    <ConvertToAbsolutePath Paths="$(VelopackIcon)" Condition="'$(VelopackIcon)' != ''">
       <Output TaskParameter="AbsolutePaths" PropertyName="VelopackIcon"/>
     </ConvertToAbsolutePath>
   </Target>
 
   <Target Name="VelopackBuildRelease" AfterTargets="Publish" Condition="'$(VelopackPackOnPublish)' == 'true'">
+    <Error Condition="'$(_VelopackVpkVersion)' == ''"
+           Text="Cannot determine the VPK tool version. Reference the Velopack NuGet package or set VelopackVpkVersion explicitly." />
     <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsMacOS()) "
            Text="Only SelfContained=true releases are supported on MacOS. Please dotnet publish with the --self-contained option." />
     <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsLinux()) "
            Text="Only SelfContained=true releases are supported on Linux. Please dotnet publish with the --self-contained option." />
 
     <PackTask
-      SelfContained="$(SelfContained)"
-      TargetFramework="$(TargetFramework)"
-      TargetRuntime="$(VelopackTargetRuntime)"
-      PackVersion="$(VelopackPackVersion)"
-      Runtimes="$(VelopackRuntimes)"
-      PackId="$(VelopackPackId)"
-      PackDirectory="$(VelopackPackDirectory)"
-      ReleaseDir="$(VelopackReleaseDirectory)"
-      PackAuthors="$(VelopackPackAuthors)"
-      PackTitle="$(VelopackPackTitle)"
-      EntryExecutableName="$(VelopackEntryExecutableName)"
-      Icon="$(VelopackIcon)"
-      ReleaseNotes="$(VelopackReleaseNotes)"
-      DeltaMode="$(VelopackDeltaMode)"
-      Channel="$(VelopackChannel)"
-      Exclude="$(VelopackExclude)"
-      NoPortable="$(VelopackNoPortable)"
-      NoInst="$(VelopackNoInst)"
-      InstWelcome="$(VelopackInstWelcome)"
-      InstReadme="$(VelopackInstReadme)"
-      InstLicense="$(VelopackInstLicense)"
-      InstConclusion="$(VelopackInstConclusion)"
-      SignAppIdentity="$(VelopackSignAppIdentity)"
-      SignInstallIdentity="$(VelopackSignInstallIdentity)"
-      SignEntitlements="$(VelopackSignEntitlements)"
-      SignDisableDeep="$(VelopackSignDisableDeep)"
-      NotaryProfile="$(VelopackNotaryProfile)"
-      Keychain="$(VelopackKeychain)"
       BundleId="$(VelopackBundleId)"
-      InfoPlistPath="$(VelopackInfoPlistPath)"
-      SplashImage="$(VelopackSplashImage)"
-      SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
-      SignParameters="$(VelopackSignParameters)"
-      SignExclude="$(VelopackSignExclude)"
-      SignParallel="$(VelopackSignParallel)"
-      SignTemplate="$(VelopackSignTemplate)"
-      AzureTrustedSignFile="$(VelopackAzureTrustedSignFile)"
       Categories="$(VelopackCategories)"
-      Shortcuts="$(VelopackShortcuts)"
+      Channel="$(VelopackChannel)"
       Compression="$(VelopackAppImageCompression)"
+      BuildMsi="$(VelopackBuildMsi)"
+      EntryExecutableName="$(VelopackEntryExecutableName)"
+      Exclude="$(VelopackExclude)"
+      Icon="$(VelopackIcon)"
+      InfoPlistPath="$(VelopackInfoPlistPath)"
+      InstConclusion="$(VelopackInstConclusion)"
+      InstLicense="$(VelopackInstLicense)"
+      InstReadme="$(VelopackInstReadme)"
+      InstWelcome="$(VelopackInstWelcome)"
+      Keychain="$(VelopackKeychain)"
+      MsiDialogBackground="$(VelopackMsiDialogBackground)"
+      MsiTopBanner="$(VelopackMsiTopBanner)"
+      MsiVersionOverride="$(VelopackMsiVersionOverride)"
+      NoInst="$(VelopackNoInst)"
+      NoDefaultExclude="$(VelopackNoDefaultExclude)"
+      NoPortable="$(VelopackNoPortable)"
+      NotaryProfile="$(VelopackNotaryProfile)"
+      PackAuthors="$(VelopackPackAuthors)"
+      PackDirectory="$(VelopackPackDirectory)"
+      PackId="$(VelopackPackId)"
+      PackTitle="$(VelopackPackTitle)"
+      PackVersion="$(VelopackPackVersion)"
+      ReleaseDir="$(VelopackReleaseDirectory)"
+      ReleaseNotes="$(VelopackReleaseNotes)"
+      Runtimes="$(VelopackRuntimes)"
+      Shortcuts="$(VelopackShortcuts)"
+      SignAppIdentity="$(VelopackSignAppIdentity)"
+      SignDisableDeep="$(VelopackSignDisableDeep)"
+      SignEntitlements="$(VelopackSignEntitlements)"
+      SignExclude="$(VelopackSignExclude)"
+      SignInstallIdentity="$(VelopackSignInstallIdentity)"
+      SignParallel="$(VelopackSignParallel)"
+      SignParameters="$(VelopackSignParameters)"
+      SignTemplate="$(VelopackSignTemplate)"
+      SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
+      SplashImage="$(VelopackSplashImage)"
+      TargetRuntime="$(VelopackTargetRuntime)"
+      Timeout="$(VelopackHttpTimeout)"
+      VpkNugetSource="$(_VelopackVpkNugetSource)"
+      VpkVersion="$(_VelopackVpkVersion)"
+      ProjectDirectory="$(MSBuildProjectDirectory)"
+      NugetConfigFile="$(RestoreConfigFile)"
     />
   </Target>
 
   <Target Name="VelopackPushRelease" AfterTargets="VelopackBuildRelease" Condition="'$(VelopackPushOnPublish)' == 'true'">
+    <Error Condition="'$(_VelopackVpkVersion)' == ''"
+           Text="Cannot determine the VPK tool version. Reference the Velopack NuGet package or set VelopackVpkVersion explicitly." />
     <Error Condition="'$(VelopackImplicitPackId)' == 'true'" Text="VelopackPackId must be set explictly before pushing a release to remote." />
     <PublishTask
       ReleaseDirectory="$(VelopackReleaseDirectory)"
@@ -105,6 +125,10 @@
       ApiKey="$(VelopackFlowApiKey)"
       Channel="$(VelopackChannel)"
       Timeout="$(VelopackHttpTimeout)"
+      VpkNugetSource="$(_VelopackVpkNugetSource)"
+      VpkVersion="$(_VelopackVpkVersion)"
+      ProjectDirectory="$(MSBuildProjectDirectory)"
+      NugetConfigFile="$(RestoreConfigFile)"
       WaitForLive="$(VelopackWaitForLive)"
     />
   </Target>

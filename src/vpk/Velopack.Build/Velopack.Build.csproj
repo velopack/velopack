@@ -1,34 +1,53 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <Nullable>enable</Nullable>
-    <LangVersion>12</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14</LangVersion>
     <SignAssembly>false</SignAssembly>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <PropertyGroup>
     <VelopackPackageId>Velopack.Build</VelopackPackageId>
     <VelopackPackageVendorLibs>true</VelopackPackageVendorLibs>
-    <VelopackPackageSelfContained>true</VelopackPackageSelfContained>
-    <DevelopmentDependency>true</DevelopmentDependency>
+    <PackRustAssets>false</PackRustAssets>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <VelopackPackageSelfContained>false</VelopackPackageSelfContained>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.Flow\Velopack.Flow.csproj" />
-    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" />
-    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
+    <Compile Include="..\..\lib-csharp\Util\ProcessExtensions.Shared.cs" Link="ProcessExtensions.Shared.cs" />
+    <Compile
+      Include="..\Velopack.Packaging\InstallLocation.cs" Link="InstallLocation.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.11.0" />
-    <PackageReference Include="Microsoft.IO.Redist" Version="6.1.3" Condition="'$(TargetFramework)' == 'net472'" />
-    <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Text.Json" Version="10.0.13" PrivateAssets="All" />
+    <PackageReference Include="Riok.Mapperly" Version="4.3.1" PrivateAssets="All" />
+    <ProjectReference Include="..\..\lib-csharp\Velopack.csproj" Private="false" />
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Velopack.Build.Tests" />
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
+    <None Include="Velopack.Build.props" Pack="true" PackagePath="build/Velopack.Build.props" />
   </ItemGroup>
+
+
+  <Target Name="IncludeTfmDependenciesInPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath);$(ProjectDepsFilePath);$(TargetDir)$(TargetName).pdb">
+        <PackagePath>build\$(TargetFramework)</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="@(ReferenceCopyLocalPaths)">
+        <PackagePath>build\$(TargetFramework)\%(ReferenceCopyLocalPaths.DestinationSubDirectory)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
 
 </Project>

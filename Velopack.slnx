@@ -28,6 +28,7 @@
     <Project Path="test/Velopack.Tests/Velopack.Tests.csproj" />
   </Folder>
   <Project Path="src/lib-csharp/Velopack.csproj" />
+  <Project Path="src/vpk/Velopack.Build/Velopack.Build.csproj" />
   <Project Path="src/vpk/Velopack.Core/Velopack.Core.csproj" />
   <Project Path="src/vpk/Velopack.Deployment/Velopack.Deployment.csproj" />
   <Project Path="src/vpk/Velopack.Flow/Velopack.Flow.csproj" />
