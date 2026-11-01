@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
@@ -161,7 +162,7 @@ public class PackTask : VpkTask
         AddIfTrue(options, "NoPortable", NoPortable);
         AddIfTrue(options, "NoInst", NoInst);
 
-        if (OperatingSystem.IsWindows()) {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
             AddIfNotEmpty(options, "Runtimes", Runtimes);
             AddIfNotEmpty(options, "SplashImage", SplashImage);
             AddIfNotEmpty(options, "SplashProgressColor", SplashProgressColor);
@@ -182,7 +183,7 @@ public class PackTask : VpkTask
             if (SignParallel is { } signParallel) {
                 options["SignParallel"] = signParallel;
             }
-        } else if (OperatingSystem.IsMacOS()) {
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
             AddIfNotEmpty(options, "BundleId", BundleId);
             AddIfNotEmpty(options, "InfoPlistPath", InfoPlistPath);
             AddIfNotEmpty(options, "InstWelcome", InstWelcome);
@@ -195,7 +196,7 @@ public class PackTask : VpkTask
             AddIfNotEmpty(options, "NotaryProfile", NotaryProfile);
             AddIfNotEmpty(options, "Keychain", Keychain);
             AddIfTrue(options, "SignDisableDeep", SignDisableDeep);
-        } else if (OperatingSystem.IsLinux()) {
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
             AddIfNotEmpty(options, "Categories", Categories);
             AddIfNotEmpty(options, "Compression", Compression);
         }
