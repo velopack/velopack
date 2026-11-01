@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Build.Framework;
@@ -36,7 +38,7 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
 
         if (environmentVariables != null) {
             foreach (var kvp in environmentVariables) {
-                process.StartInfo.Environment[kvp.Key] = kvp.Value;
+                process.StartInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
             }
         }
 
@@ -64,11 +66,21 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
 #if NET8_0_OR_GREATER
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 #else
-        await System.Threading.Tasks.Task.Run(() => process.WaitForExit(), cancellationToken);
+        using (cancellationToken.Register(() => {
+            try {
+                process.Kill();
+            } catch (InvalidOperationException) {
+            } catch (Win32Exception ex) {
+                log.LogWarning($"Failed to stop VPK tool after cancellation: {ex.Message}");
+            }
+        })) {
+            await System.Threading.Tasks.Task.Run(() => process.WaitForExit()).ConfigureAwait(false);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
 #endif
 
         if (process.ExitCode != 0) {
-            log.LogWarning($"dotnet {string.Join(" ", startInfo.ArgumentList)} exited with code {process.ExitCode}");
+            log.LogWarning($"dotnet {startInfo.Arguments} exited with code {process.ExitCode}");
             if (output.Length > 0) {
                 log.LogWarning(output.ToString());
             }
@@ -98,7 +110,8 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
         }
 
         if (!string.IsNullOrWhiteSpace(configFile)) {
-            processArguments = [.. processArguments, "--configfile", Path.GetFullPath(configFile, ProjectDirectory)];
+            processArguments = [.. processArguments, "--configfile",
+                Path.GetFullPath(Path.IsPathRooted(configFile) ? configFile : Path.Combine(ProjectDirectory, configFile))];
         }
 
         if (!string.IsNullOrWhiteSpace(vpkNugetSource)) {
@@ -127,6 +140,16 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
     {
         string configPath = Path.Combine(Path.GetTempPath(), $"velopack-{Guid.NewGuid():N}.json");
         try {
+#if NETSTANDARD2_0
+            using (var stream = new FileStream(configPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, true)) {
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                    Chmod(configPath, OwnerReadWritePermissions) != 0) {
+                    throw new IOException($"Failed to restrict permissions on temporary VPK config '{configPath}'.",
+                        new Win32Exception(Marshal.GetLastWin32Error()));
+                }
+                await JsonSerializer.SerializeAsync(stream, options, JsonOptions, cancellationToken).ConfigureAwait(false);
+            }
+#else
             var fileOptions = new FileStreamOptions {
                 Mode = FileMode.CreateNew,
                 Access = FileAccess.Write,
@@ -140,6 +163,7 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
             using (var stream = new FileStream(configPath, fileOptions)) {
                 await JsonSerializer.SerializeAsync(stream, options, JsonOptions, cancellationToken).ConfigureAwait(false);
             }
+#endif
 
             string[] arguments = ["[json]", .. command, configPath];
             return await RunVpk(arguments, environmentVariables, cancellationToken).ConfigureAwait(false);
@@ -153,4 +177,11 @@ public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggin
             }
         }
     }
+
+#if NETSTANDARD2_0
+    private const uint OwnerReadWritePermissions = 0x180;
+
+    [DllImport("libc", EntryPoint = "chmod", SetLastError = true, CharSet = CharSet.Ansi)]
+    private static extern int Chmod(string path, uint mode);
+#endif
 }

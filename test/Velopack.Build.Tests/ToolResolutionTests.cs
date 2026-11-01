@@ -70,18 +70,19 @@ public class ToolResolutionTests
             var startInfo = runner.CreateStartInfo(["[json]", "pack", "config.json"]);
 
             Assert.Equal(projectDirectory, startInfo.WorkingDirectory);
-            Assert.Equal(new[] {
-                "tool", "exec", "vpk", "-y", "--version", "1.3.68-pr.755.run.123",
-                "--configfile", configPath, "--", "[json]", "pack", "config.json",
-            }, startInfo.ArgumentList);
+            Assert.StartsWith(
+                "tool exec vpk -y --version 1.3.68-pr.755.run.123 --configfile ",
+                startInfo.Arguments);
+            Assert.Contains(configPath, startInfo.Arguments);
+            Assert.EndsWith("-- [json] pack config.json", startInfo.Arguments);
 
             runner.NugetConfigFile = Path.Combine(directory, "explicit.config");
-            Assert.Contains(runner.NugetConfigFile, runner.CreateStartInfo([]).ArgumentList);
+            Assert.Contains(runner.NugetConfigFile, runner.CreateStartInfo([]).Arguments);
 
             var overrideRunner = new VpkToolRunner("1.3.68", directory, new TaskLoggingHelper(new PackTask())) {
                 ProjectDirectory = projectDirectory,
             };
-            var overrideArguments = overrideRunner.CreateStartInfo([]).ArgumentList;
+            var overrideArguments = overrideRunner.CreateStartInfo([]).Arguments;
             Assert.Contains("--source", overrideArguments);
             Assert.DoesNotContain("--add-source", overrideArguments);
         } finally {
