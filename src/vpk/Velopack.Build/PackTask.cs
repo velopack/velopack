@@ -36,8 +36,6 @@ public class PackTask : VpkTask
 
     public string? ReleaseNotes { get; set; }
 
-    public string? DeltaMode { get; set; }
-
     public string? Channel { get; set; }
 
     public string? Exclude { get; set; }
@@ -104,38 +102,6 @@ public class PackTask : VpkTask
 
     public string? MsiVersionOverride { get; set; }
 
-    public string? VelopackBaseUrl { get; set; }
-
-    public double Timeout { get; set; } = 30d;
-
-    protected override async Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
-    {
-        if (DeltaMode == nameof(Packaging.Compression.DeltaMode.None)) {
-            return true;
-        }
-
-        Log.LogMessage(MessageImportance.High, "DeltaMode is enabled, downloading latest release from Velopack Flow...");
-
-        var options = new Dictionary<string, object?> {
-            ["PackageId"] = PackId,
-            ["ReleaseDir"] = ReleaseDir,
-            ["Timeout"] = Timeout,
-        };
-        AddIfNotEmpty(options, "Channel", Channel);
-        AddIfNotEmpty(options, "VelopackBaseUrl", VelopackBaseUrl);
-
-        Log.LogMessage(MessageImportance.High, "Downloading latest release from Velopack Flow using JSON options...");
-
-        var exitCode = await toolRunner.RunVpkJson(
-            ["download", "flow"], options, [], cancellationToken).ConfigureAwait(false);
-
-        if (exitCode != 0) {
-            Log.LogWarning($"Failed to download latest release from Velopack Flow (exit code {exitCode}). Delta generation may not work correctly.");
-        }
-
-        return true;
-    }
-
     protected override string GetSuccesMessage()
         => $"{PackId} ({PackVersion}) created in {ReleaseDir}";
 
@@ -153,7 +119,6 @@ public class PackTask : VpkTask
         AddIfNotEmpty(options, "EntryExecutableName", EntryExecutableName);
         AddIfNotEmpty(options, "Icon", Icon);
         AddIfNotEmpty(options, "ReleaseNotes", ReleaseNotes);
-        AddIfNotEmpty(options, "DeltaMode", DeltaMode);
         AddIfNotEmpty(options, "Channel", Channel);
         AddIfNotEmpty(options, "Exclude", Exclude);
         AddIfNotEmpty(options, "TargetRuntime", TargetRuntime);

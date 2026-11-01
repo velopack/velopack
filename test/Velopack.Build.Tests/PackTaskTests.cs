@@ -15,7 +15,6 @@ public class PackTaskTests
             EntryExecutableName = "MyApp.exe",
             Icon = "app.ico",
             ReleaseNotes = "release-notes.md",
-            DeltaMode = "BestSize",
             Channel = "beta",
             Exclude = @".*\.pdb",
             TargetRuntime = "win-x64",
@@ -35,7 +34,6 @@ public class PackTaskTests
         Assert.Equal("MyApp.exe", options["EntryExecutableName"]);
         Assert.Equal("app.ico", options["Icon"]);
         Assert.Equal("release-notes.md", options["ReleaseNotes"]);
-        Assert.Equal("BestSize", options["DeltaMode"]);
         Assert.Equal("beta", options["Channel"]);
         Assert.Equal(@".*\.pdb", options["Exclude"]);
         Assert.Equal("win-x64", options["TargetRuntime"]);

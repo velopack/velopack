@@ -34,7 +34,7 @@
       <VelopackTargetRuntime Condition="'$(VelopackTargetRuntime)' == ''">$(RuntimeIdentifier)</VelopackTargetRuntime>
       <VelopackShortcuts Condition="'$(VelopackShortcuts)' == ''">Desktop,StartMenuRoot</VelopackShortcuts>
       <VelopackHttpTimeout Condition="'$(VelopackHttpTimeout)' == ''">30</VelopackHttpTimeout>
-      <VelopackWaitForLive Condition="'$(VelopackWaitForLive)' == ''">false</VelopackWaitForLive>
+      <VelopackWaitForLive Condition="'$(VelopackWaitForLive)' == ''">true</VelopackWaitForLive>
 
       <!-- Allows a cross platform app (eg. Avalonia) to specify all three via csproj and have them applied correctly -->
       <!-- TODO: this should probably switch based on the target RID and not the current OS, but we currently don't 
@@ -71,7 +71,6 @@
       Channel="$(VelopackChannel)"
       Compression="$(VelopackAppImageCompression)"
       BuildMsi="$(VelopackBuildMsi)"
-      DeltaMode="$(VelopackDeltaMode)"
       EntryExecutableName="$(VelopackEntryExecutableName)"
       Exclude="$(VelopackExclude)"
       Icon="$(VelopackIcon)"
@@ -109,7 +108,6 @@
       SplashImage="$(VelopackSplashImage)"
       TargetRuntime="$(VelopackTargetRuntime)"
       Timeout="$(VelopackHttpTimeout)"
-      VelopackBaseUrl="$(VelopackFlowServiceUrl)"
       VpkNugetSource="$(_VelopackVpkNugetSource)"
       VpkVersion="$(_VelopackVpkVersion)"
       ProjectDirectory="$(MSBuildProjectDirectory)"
