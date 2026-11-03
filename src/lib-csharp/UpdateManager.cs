@@ -347,6 +347,91 @@ namespace Velopack
         }
 
         /// <summary>
+        /// Starts checking for / downloading updates in the background, and returns an <see cref="ApplyOnExitHandle"/> which,
+        /// when disposed (eg. via <c>await using</c> around your application's lifetime), waits for that download to finish
+        /// and then calls <see cref="WaitExitThenApplyUpdates(VelopackAsset?, bool, bool, string[])"/> if an update was
+        /// downloaded. This is a convenience method for the common case of downloading updates opportunistically while the
+        /// app runs, and applying them automatically next time the app exits.
+        /// </summary>
+        /// <remarks>
+        /// If the download fails (eg. network error), the failure is logged and no update is applied - disposal will not throw.
+        /// </remarks>
+        /// <example>
+        /// Put this near the top of <c>Main</c>, after <see cref="VelopackApp.Run"/>. Any update found is downloaded
+        /// in the background while the rest of your app runs, and is applied automatically the next time the app exits
+        /// (including a normal, non-updater-initiated exit) - no explicit restart is forced:
+        /// <code>
+        /// static readonly IUpdateSource source = ...;
+        /// public static async Task Main(string[] args)
+        /// {
+        ///     VelopackApp.Build().Run();
+        ///     await using var _ = new UpdateManager(source).DownloadLatestUpdateAndApplyOnExit();
+        ///
+        ///     // ... run the rest of your application as normal.
+        ///
+        ///     // When Main returns, the `using` disposes `_`, which waits for the
+        ///     // download (if any) and then schedules the update to be applied on this exit.
+        /// }
+        /// </code>
+        /// </example>
+        /// <param name="progress">The progress callback. Will be called with values from 0-100.</param>
+        /// <param name="silent">Configure whether Velopack should show a progress window / dialogs while applying the update.</param>
+        /// <param name="restart">Configure whether Velopack should restart the app after the update has been applied.</param>
+        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        /// <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
+        public virtual ApplyOnExitHandle DownloadLatestUpdateAndApplyOnExit(
+            Action<int>? progress = null, bool silent = false, bool restart = true, string[]? restartArgs = null,
+            CancellationToken cancelToken = default)
+        {
+            var downloadTask = DownloadLatestUpdateAsync(progress, cancelToken);
+            return new ApplyOnExitHandle(this, downloadTask, silent, restart, restartArgs);
+        }
+
+        /// <summary>
+        /// Returned by <see cref="DownloadLatestUpdateAndApplyOnExit(Action{int}?, bool, bool, string[], CancellationToken)"/>.
+        /// Supports the <c>await using</c> pattern (via a pattern-based <see cref="DisposeAsync"/>) so that disposal waits
+        /// for the background download to complete without requiring the <c>Microsoft.Bcl.AsyncInterfaces</c> dependency
+        /// on older target frameworks.
+        /// </summary>
+        public sealed class ApplyOnExitHandle
+        {
+            private readonly UpdateManager _manager;
+            private readonly Task<UpdateInfo?> _downloadTask;
+            private readonly bool _silent;
+            private readonly bool _restart;
+            private readonly string[]? _restartArgs;
+
+            internal ApplyOnExitHandle(UpdateManager manager, Task<UpdateInfo?> downloadTask, bool silent, bool restart, string[]? restartArgs)
+            {
+                _manager = manager;
+                _downloadTask = downloadTask;
+                _silent = silent;
+                _restart = restart;
+                _restartArgs = restartArgs;
+            }
+
+            /// <summary>
+            /// Waits for the background update download to complete, and if an update was downloaded, schedules it to be
+            /// applied via <see cref="WaitExitThenApplyUpdates(VelopackAsset?, bool, bool, string[])"/>. Never throws -
+            /// download failures are logged instead.
+            /// </summary>
+            public async Task DisposeAsync()
+            {
+                UpdateInfo? updates;
+                try {
+                    updates = await _downloadTask.ConfigureAwait(false);
+                } catch (Exception ex) {
+                    _manager.Log.Error(ex, "Failed to download updates, so no update will be applied on exit.");
+                    return;
+                }
+
+                if (updates != null) {
+                    _manager.WaitExitThenApplyUpdates(updates.TargetFullRelease, _silent, _restart, _restartArgs);
+                }
+            }
+        }
+
+        /// <summary>
         /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified
         /// restart arguments. If you need to save state or clean up, you should do that before calling this method.
         /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
