@@ -47,6 +47,12 @@ namespace Velopack
         public static VelopackApp Build() => new();
 
         /// <summary>
+        /// Runs the Velopack application startup code using all the default options, and triggers
+        /// any configured hooks. Equivalent to calling <see cref="Build"/> and then <see cref="Run"/>.
+        /// </summary>
+        public static void RunWithDefaults() => Build().Run();
+
+        /// <summary>
         /// Override the command line arguments used to determine the Velopack hook to run.
         /// If this is not set, the command line arguments passed to the application will be used.
         /// </summary>
