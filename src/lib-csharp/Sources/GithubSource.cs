@@ -66,13 +66,15 @@ namespace Velopack.Sources
     public class GithubSource : GitBase<GithubRelease>
     {
         /// <inheritdoc cref="GithubSource" />
-        /// <param name="repoUrl">
-        /// The URL of the GitHub repository to download releases from 
-        /// (e.g. https://github.com/myuser/myrepo)
+        /// <param name="repoUrlOrSlug">
+        /// Either the URL of the GitHub repository to download releases from
+        /// (e.g. https://github.com/myuser/myrepo), or just the repository's
+        /// "owner/name" slug (e.g. myuser/myrepo), in which case https://github.com
+        /// is assumed.
         /// </param>
         /// <param name="accessToken">
-        /// The GitHub access token to use with the request to download releases. 
-        /// If left empty, the GitHub rate limit for unauthenticated requests allows 
+        /// The GitHub access token to use with the request to download releases.
+        /// If left empty, the GitHub rate limit for unauthenticated requests allows
         /// for up to 60 requests per hour, limited by IP address.
         /// </param>
         /// <param name="prerelease">
@@ -80,11 +82,25 @@ namespace Velopack.Sources
         /// stable releases will be considered.
         /// </param>
         /// <param name="downloader">
-        /// The file downloader used to perform HTTP requests. 
+        /// The file downloader used to perform HTTP requests.
         /// </param>
-        public GithubSource(string repoUrl, string? accessToken, bool prerelease, IFileDownloader? downloader = null)
-            : base(repoUrl, accessToken, prerelease, downloader)
+        public GithubSource(string repoUrlOrSlug, string? accessToken, bool prerelease, IFileDownloader? downloader = null)
+            : base(ResolveRepoUrl(repoUrlOrSlug), accessToken, prerelease, downloader)
         {
+        }
+
+        /// <summary>
+        /// If <paramref name="repoUrlOrSlug"/> is a GitHub "owner/name" slug (i.e. it contains
+        /// exactly one '/'), the equivalent https://github.com URL is used. Otherwise, it is
+        /// assumed to already be a URL, and is used as-is.
+        /// </summary>
+        private static string ResolveRepoUrl(string repoUrlOrSlug)
+        {
+            if (repoUrlOrSlug.Count(c => c == '/') == 1) {
+                return $"https://github.com/{repoUrlOrSlug}";
+            }
+
+            return repoUrlOrSlug;
         }
 
         /// <inheritdoc cref="Authorization"/>
