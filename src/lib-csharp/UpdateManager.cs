@@ -327,6 +327,26 @@ namespace Velopack
         }
 
         /// <summary>
+        /// Checks for updates, and if one is available, downloads it to the local app packages directory.
+        /// This is a convenience method combining <see cref="CheckForUpdatesAsync"/> and
+        /// <see cref="DownloadUpdatesAsync(UpdateInfo, Action{int}?, CancellationToken)"/> for the common case where
+        /// you don't need to inspect the available update before deciding whether to download it.
+        /// </summary>
+        /// <param name="progress">The progress callback. Will be called with values from 0-100.</param>
+        /// <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
+        /// <returns>Null if no updates were available, otherwise the <see cref="UpdateInfo"/> that was downloaded.</returns>
+        public virtual async Task<UpdateInfo?> DownloadLatestUpdateAsync(Action<int>? progress = null, CancellationToken cancelToken = default)
+        {
+            var updates = await CheckForUpdatesAsync().ConfigureAwait(false);
+            if (updates is null) {
+                return null;
+            }
+
+            await DownloadUpdatesAsync(updates, progress, cancelToken).ConfigureAwait(false);
+            return updates;
+        }
+
+        /// <summary>
         /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
         /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
         /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
