@@ -1,17 +1,14 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Microsoft.Build.Framework;
-using Microsoft.Extensions.Logging;
-using Velopack.Core;
-using Velopack.Flow;
 
 namespace Velopack.Build;
 
-public class PublishTask : MSBuildAsyncTask
+public class PublishTask : VpkTask
 {
     [Required]
-    public string ReleaseDirectory { get; set; } = "";
+    [NotNull]
+    public string? ReleaseDirectory { get; set; }
 
     public string? ServiceUrl { get; set; }
 
@@ -23,41 +20,35 @@ public class PublishTask : MSBuildAsyncTask
 
     public bool WaitForLive { get; set; }
 
-    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
+    protected override string CommandName => "publish";
+
+    protected override Dictionary<string, object?> BuildJsonOptions()
     {
-        double timeout;
-        if (double.TryParse(Timeout, out var parsedTimeout)) {
-            timeout = parsedTimeout;
-        } else {
-            timeout = 30d;
+        var options = new Dictionary<string, object?>();
+        AddIfNotEmpty(options, "ReleaseDirectory", ReleaseDirectory);
+        AddIfNotEmpty(options, "Channel", Channel);
+        AddIfNotEmpty(options, "VelopackBaseUrl", ServiceUrl);
+        AddIfNotEmpty(options, "ApiKey", ApiKey);
+        if (!string.IsNullOrWhiteSpace(Timeout)) {
+            if (!double.TryParse(Timeout, NumberStyles.Float, CultureInfo.InvariantCulture, out double timeout)) {
+                throw new FormatException($"Timeout must be a number of minutes, but was '{Timeout}'.");
+            }
+            options["Timeout"] = timeout;
+        }
+        if (WaitForLive) {
+            options["WaitForLive"] = true;
         }
 
-        //System.Diagnostics.Debugger.Launch();
-        var options = new VelopackFlowServiceOptions {
-            VelopackBaseUrl = ServiceUrl,
-            ApiKey = ApiKey,
-            Timeout = timeout,
-        };
-
-        var loginOptions = new VelopackFlowLoginOptions() {
-            AllowCacheCredentials = true,
-            AllowDeviceCodeFlow = false,
-            AllowInteractiveLogin = false,
-        };
-
-        var console = new LoggerConsole(Logger);
-        var client = new VelopackFlowServiceClient(options, Logger, console);
-        if (!await client.LoginAsync(loginOptions, false, cancellationToken).ConfigureAwait(false)) {
-            Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
-            return true;
-        }
-
-        // todo: currently it's not possible to cross-compile for different OSes using Velopack.Build
-        var targetOs = VelopackRuntimeInfo.SystemOs;
-
-        await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, targetOs, WaitForLive, 100, cancellationToken)
-            .ConfigureAwait(false);
-
-        return true;
+        return options;
     }
+
+    private static void AddIfNotEmpty(Dictionary<string, object?> options, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) {
+            options[name] = value;
+        }
+    }
+
+    protected override string GetSuccesMessage()
+        => "Successfully published release to Velopack Flow";
 }

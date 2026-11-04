@@ -28,4 +28,19 @@ public class OptionMapperTests
         Assert.Equal("mycontainer", options.Container);
         Assert.Equal(45, options.Timeout);
     }
+
+    [Fact]
+    public void MapFlowDownloadCommand()
+    {
+        FlowDownloadCommand command = new();
+        string cli = $"--packageId \"my-app\" --baseUrl \"https://custom.api.velopack.io\" --timeout 60 --channel stable";
+        ParseResult parseResult = command.ParseAndApply(cli);
+        var options = OptionMapper.Map<FlowDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.Equal("my-app", options.PackageId);
+        Assert.Equal("https://custom.api.velopack.io", options.VelopackBaseUrl);
+        Assert.Equal(60, options.Timeout);
+        Assert.Equal("stable", options.Channel);
+    }
 }
