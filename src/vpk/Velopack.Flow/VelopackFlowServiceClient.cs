@@ -130,8 +130,7 @@ public class VelopackFlowServiceClient(
         var fullAsset = (await assets.GetReleaseEntriesAsync().ConfigureAwait(false)).SingleOrDefault(a => a.Type == Velopack.VelopackAssetType.Full);
 
         if (fullAsset is null) {
-            Logger.LogError("No full asset found in release directory {ReleaseDirectory} (or it's missing from assets file)", releaseDirectory);
-            return;
+            throw new UserInfoException($"No full asset found in release directory {releaseDirectory} (or it's missing from assets file).");
         }
 
         var packageId = fullAsset.PackageId;
@@ -261,7 +260,7 @@ public class VelopackFlowServiceClient(
             await Task.Delay(1000, cancellationToken);
         }
 
-        Logger.LogWarning("Release did not go live within 5 minutes (timeout).");
+        throw new UserInfoException("Release did not go live within 5 minutes (timeout).");
     }
 
     private static async Task CreateChannelIfNotExists(FlowApi client, string packageId, string channel, CancellationToken cancellationToken)
