@@ -107,7 +107,6 @@
       SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
       SplashImage="$(VelopackSplashImage)"
       TargetRuntime="$(VelopackTargetRuntime)"
-      Timeout="$(VelopackHttpTimeout)"
       VpkNugetSource="$(_VelopackVpkNugetSource)"
       VpkVersion="$(_VelopackVpkVersion)"
       ProjectDirectory="$(MSBuildProjectDirectory)"
