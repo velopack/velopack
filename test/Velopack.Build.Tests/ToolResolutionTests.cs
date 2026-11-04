@@ -7,6 +7,21 @@ namespace Velopack.Build.Tests;
 public class ToolResolutionTests
 {
     [Theory]
+    [InlineData(typeof(PackTask))]
+    [InlineData(typeof(PublishTask))]
+    public void TargetsOnlyPassSupportedTaskParameters(Type taskType)
+    {
+        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Velopack.Build.targets"));
+        var task = Assert.Single(targets.Descendants(taskType.Name));
+
+        foreach (var attribute in task.Attributes()) {
+            var property = taskType.GetProperty(attribute.Name.LocalName);
+            Assert.True(property?.SetMethod?.IsPublic == true,
+                $"{taskType.Name} does not support the '{attribute.Name}' task parameter.");
+        }
+    }
+
+    [Theory]
     [InlineData("1.3.68-pr.755.run.123", "", "1.3.68-pr.755.run.123")]
     [InlineData("1.3.68", "1.3.69-beta", "1.3.69-beta")]
     [InlineData("", "1.3.69", "1.3.69")]
