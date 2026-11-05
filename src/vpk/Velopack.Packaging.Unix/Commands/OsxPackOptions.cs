@@ -33,6 +33,12 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
 
     public string NotaryProfile { get; set; }
 
+    public string NotaryKey { get; set; }
+
+    public string NotaryKeyId { get; set; }
+
+    public string NotaryIssuer { get; set; }
+
     public string Keychain { get; set; }
 
     public string Channel { get; set; }

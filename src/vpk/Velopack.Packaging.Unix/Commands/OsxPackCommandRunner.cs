@@ -134,12 +134,13 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
             }
         }
         
-        if (!string.IsNullOrEmpty(Options.SignAppIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
+        var notaryCredentials = GetNotaryCredentials();
+        if (!string.IsNullOrEmpty(Options.SignAppIdentity) && notaryCredentials != null) {
             var zipPath = Path.Combine(TempDir.FullName, "notarize.zip");
             InnerSign(CoreUtil.CreateProgressDelegate(progress, 0, 50));
             helper.CreateDittoZip(packDir, zipPath);
             progress(60);
-            helper.Notarize(zipPath, Options.NotaryProfile, keychainPath);
+            helper.Notarize(zipPath, notaryCredentials);
             progress(90);
             helper.Staple(packDir);
             progress(95);
@@ -147,11 +148,11 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
             File.Delete(zipPath);
             progress(100);
         } else if (!string.IsNullOrEmpty(Options.SignAppIdentity)) {
-            Log.Warn("Package will be signed but not notarized. Missing the --notaryProfile option.");
+            Log.Warn("Package will be signed but not notarized. Missing the --notaryProfile or --notaryKey option.");
             InnerSign(progress);
             progress(100);
         } else {
-            Log.Warn("Package will not be signed or notarized. Missing the --signAppIdentity and --notaryProfile options.");
+            Log.Warn("Package will not be signed or notarized. Missing the --signAppIdentity and --notaryProfile (or --notaryKey) options.");
         }
         return Task.CompletedTask;
     }
@@ -171,22 +172,36 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
             var packTitle = Options.PackTitle ?? Options.PackId;
             var packId = Options.PackId;
 
-            if (!string.IsNullOrEmpty(Options.SignInstallIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
+            var notaryCredentials = GetNotaryCredentials();
+            if (!string.IsNullOrEmpty(Options.SignInstallIdentity) && notaryCredentials != null) {
                 helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, Options.SignInstallIdentity, CoreUtil.CreateProgressDelegate(progress, 0, 60));
                 progress(-1); // indeterminate
-                helper.Notarize(pkgPath, Options.NotaryProfile, Options.Keychain);
+                helper.Notarize(pkgPath, notaryCredentials);
                 progress(80);
                 helper.Staple(pkgPath);
                 progress(90);
                 helper.SpctlAssessInstaller(pkgPath);
             } else {
                 Log.Warn("Package installer (.pkg) will not be Notarized. " +
-                         "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
+                         "This is supported with the --signInstallIdentity and --notaryProfile (or --notaryKey) arguments.");
                 helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, Options.SignInstallIdentity, progress);
             }
         }
         progress(100);
         return Task.CompletedTask;
+    }
+
+    private OsxNotaryCredentials GetNotaryCredentials()
+    {
+        if (!string.IsNullOrEmpty(Options.NotaryKey)) {
+            return OsxNotaryCredentials.FromApiKey(Options.NotaryKey, Options.NotaryKeyId, Options.NotaryIssuer);
+        }
+
+        if (!string.IsNullOrEmpty(Options.NotaryProfile)) {
+            return OsxNotaryCredentials.FromKeychainProfile(Options.NotaryProfile, Options.Keychain);
+        }
+
+        return null;
     }
 
     protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
