@@ -15,8 +15,8 @@ btn-open-log = Logboek openen
 btn-open-install-dir = Installatiemap openen
 btn-ok = OK
 # Elevation (dialogs_common.rs)
-elevate-header = Beheerdersrechten vereist
-elevate-body = { $app_title } heeft beheerdersrechten nodig om versie { $app_version } te installeren. Toestaan dat deze update wordt voortgezet?
+elevate-header = Adminstrator rechten vereist
+elevate-body = { $app_title } heeft adminstrator rechten nodig om versie { $app_version } te installeren. Toestaan dat deze update wordt voortgezet?
 
 # Restart required (prerequisite.rs)
 restart-header = Opnieuw opstarten vereist
@@ -49,7 +49,7 @@ uninstall-progress-header = { $app_title } wordt verwijderd
 uninstall-progress-body = Bestanden en snelkoppelingen worden verwijderd, even geduld...
 
 # Install hook failed (install.rs)
-install-hook-header = Installatie gedeeltelijk gelukt
+install-hook-header = Installatie is gedeeltelijk gelukt
 install-hook-body = De installatie is voltooid, maar sommige stappen kunnen zijn mislukt. Als de toepassing niet correct werkt, kunt u proberen deze opnieuw te installeren of contact opnemen met de auteur van de toepassing.
 
 # Splash fallback (splash.rs)
@@ -65,7 +65,7 @@ apply-header = Update wordt geïnstalleerd
 apply-body = Bijwerken naar versie { $app_version }, een ogenblik geduld...
 
 # Start error (start_windows_impl.rs)
-start-corrupt-header = Installatie beschadigd
+start-corrupt-header = Installatie is beschadigd
 start-corrupt-body = Deze toepassing kan niet worden gestart omdat sommige bestanden ontbreken of beschadigd zijn. Installeer de toepassing opnieuw om dit op te lossen.
 
 # Generic error
