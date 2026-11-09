@@ -15,8 +15,8 @@ btn-open-log = Logboek openen
 btn-open-install-dir = Installatiemap openen
 btn-ok = OK
 # Elevation (dialogs_common.rs)
-elevate-header = Adminstrator rechten vereist
-elevate-body = { $app_title } heeft adminstrator rechten nodig om versie { $app_version } te installeren. Toestaan dat deze update wordt voortgezet?
+elevate-header = Adminstratorrechten vereist
+elevate-body = { $app_title } heeft adminstratorrechten nodig om versie { $app_version } te installeren. Toestaan dat deze update wordt voortgezet?
 
 # Restart required (prerequisite.rs)
 restart-header = Opnieuw opstarten vereist
