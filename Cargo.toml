@@ -35,14 +35,14 @@ velopack_l18n = { path = "src/l18n" }
 velopack_win7_shims = { path = "src/win7-shims" }
 log = "0.4"
 log-derive = "0.4.1"
-ureq = "3.4"
+ureq = "3.5"
 url = "2.5"
 semver = "1.0"
 xml = "1.4"
 glob = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-zip = { version = "9.0.3", default-features = false, features = ["deflate"] }
+zip = { version = "9.2.2", default-features = false, features = ["deflate"] }
 thiserror = "2.0"
 lazy_static = "1.5"
 regex = "1.13"
@@ -51,7 +51,7 @@ bitflags = "2.13"
 rand = "0.10"
 zstd = "0.14"
 anyhow = "1.0"
-cfb = "0.15"
+cfb = "0.16"
 pretty-bytes-rust = "0.3"
 simplelog = "0.12"
 clap = "4.6"
@@ -70,7 +70,7 @@ tempfile = "3.27"
 ntest = "0.10"
 pretty_assertions = "1.4"
 waitpid-any = "0.3"
-xdialog = { version = "4.1.2", features = ["win32-direct"] }
+xdialog = { version = "4.1.4", features = ["win32-direct"] }
 fluent-bundle = "0.16"
 fluent = "0.17"
 fluent-langneg = { version = "0.14", features = ["cldr"] }
@@ -87,7 +87,7 @@ windows-sys = "0.61"
 webview2-com-sys = "0.39"
 cbindgen = "0.29"
 log-panics = "2.1.0"
-uuid = { version = "1.26", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.29", features = ["v4", "fast-rng", "macro-diagnostics"] }
 walkdir = "2.5"
 rayon = "1.12"
 progress-streams = "1.1"
