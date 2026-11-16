@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.Core.Abstractions;
 
 namespace Velopack.Flow.Commands;
@@ -16,7 +17,7 @@ public class PublishCommandRunner(ILogger logger, IFancyConsole console) : Valid
         var client = new VelopackFlowServiceClient(options, logger, console);
         CancellationToken token = CancellationToken.None;
         if (!await client.LoginAsync(loginOptions, false, token)) {
-            return;
+            throw new UserInfoException("Cannot publish to Velopack Flow without valid credentials. Set an API key or run 'vpk login'.");
         }
 
         await client.UploadLatestReleaseAssetsAsync(
@@ -25,6 +26,7 @@ public class PublishCommandRunner(ILogger logger, IFancyConsole console) : Valid
             options.TargetOs,
             options.WaitForLive,
             options.TieredRolloutPercentage,
+            options.SkipDuplicate,
             token);
     }
 }

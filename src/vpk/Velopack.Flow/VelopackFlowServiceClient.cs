@@ -8,11 +8,7 @@ using System.Text;
 using System.Net.Http.Headers;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
-using Velopack.NuGet;
-using Velopack.Packaging;
 using Velopack.Util;
-using System.Net;
-using Velopack.Packaging.Compression;
 
 #if !NET6_0_OR_GREATER
 using System.Net.Http;
@@ -125,7 +121,7 @@ public class VelopackFlowServiceClient(
     }
 
     public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory,
-        RuntimeOs os, bool waitForLive, int tieredRolloutPercentage, CancellationToken cancellationToken)
+        RuntimeOs os, bool waitForLive, int tieredRolloutPercentage, bool skipDuplicate, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
 
@@ -134,11 +130,9 @@ public class VelopackFlowServiceClient(
         var fullAsset = (await assets.GetReleaseEntriesAsync().ConfigureAwait(false)).SingleOrDefault(a => a.Type == Velopack.VelopackAssetType.Full);
 
         if (fullAsset is null) {
-            Logger.LogError("No full asset found in release directory {ReleaseDirectory} (or it's missing from assets file)", releaseDirectory);
-            return;
+            throw new UserInfoException($"No full asset found in release directory {releaseDirectory} (or it's missing from assets file).");
         }
 
-        var fullAssetPath = Path.Combine(releaseDirectory, fullAsset.FileName);
         var packageId = fullAsset.PackageId;
         var version = fullAsset.Version;
 
@@ -150,6 +144,15 @@ public class VelopackFlowServiceClient(
         Logger.LogInformation("Beginning upload to Velopack Flow");
 
         FlowApi client = GetFlowApi();
+
+        // Check if version already exists when skipDuplicate is enabled
+        if (skipDuplicate) {
+            var existingVersion = await CheckExistingVersionAsync(client, packageId, channel, version, cancellationToken);
+            if (existingVersion) {
+                Logger.LogInformation("Version {Version} already exists in channel {Channel}. Skipping publish due to --skip-duplicate flag.", version, channel);
+                return;
+            }
+        }
 
         try {
             await Console.ExecuteProgressAsync(
@@ -176,50 +179,6 @@ public class VelopackFlowServiceClient(
                                         filePath,
                                         releaseGroup.Id,
                                         fileType,
-                                        report,
-                                        cancellationToken);
-                                    report(100);
-                                })
-                        );
-                    }
-
-                    using var _1 = TempUtil.GetTempDirectory(out var deltaGenTempDir);
-                    var prevVersion = Path.Combine(deltaGenTempDir, "prev.nupkg");
-
-                    ZipPackage? prevZip = await progress.RunTask(
-                        $"Downloading delta base for {version}",
-                        async (report) => {
-                            return await DownloadLatestRelease(packageId, channel, prevVersion, report, cancellationToken);
-                        });
-
-                    if (prevZip is not null) {
-                        if (prevZip.Version! >= version) {
-                            throw new InvalidOperationException(
-                                $"Latest version in channel {channel} is greater than or equal to local (remote={prevZip.Version}, local={version})");
-                        }
-
-                        var suggestedDeltaName = DefaultName.GetSuggestedReleaseName(packageId, version.ToFullString(), channel, true, RuntimeOs.Unknown);
-                        var deltaPath = Path.Combine(releaseDirectory, suggestedDeltaName);
-
-                        await progress.RunTask(
-                            $"Building delta {prevZip.Version} -> {version}",
-                            (report) => {
-                                var delta = new DeltaPackageBuilder(Logger);
-                                var pOld = new ReleasePackage(prevVersion);
-                                var pNew = new ReleasePackage(fullAssetPath);
-                                delta.CreateDeltaPackage(pOld, pNew, deltaPath, DeltaMode.BestSpeed, report);
-                                report(100);
-                                return Task.CompletedTask;
-                            });
-
-                        backgroundTasks.Add(
-                            progress.RunTask(
-                                $"Uploading {Path.GetFileName(deltaPath)}",
-                                async (report) => {
-                                    await UploadReleaseAssetAsync(
-                                        deltaPath,
-                                        releaseGroup.Id,
-                                        FileType.Delta,
                                         report,
                                         cancellationToken);
                                     report(100);
@@ -258,26 +217,24 @@ public class VelopackFlowServiceClient(
         }
     }
 
+    private async Task<bool> CheckExistingVersionAsync(FlowApi client, string packageId, string channel, SemanticVersion version, CancellationToken cancellationToken)
+    {
+        try {
+            // Use a HEAD request to check if the version exists without downloading the file
+            var httpClient = GetHttpClient();
+            var url = $"{client.BaseUrl}v1/download/{Uri.EscapeDataString(packageId)}/{Uri.EscapeDataString(channel)}/{Uri.EscapeDataString(version.ToNormalizedString())}?assetType=Full";
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            return response.IsSuccessStatusCode;
+        } catch (HttpRequestException) {
+            return false;
+        }
+    }
+
     private async Task<Profile?> GetProfileAsync(FlowApi client, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
         return await client.GetUserProfileAsync(cancellationToken);
-    }
-
-    private async Task<ZipPackage?> DownloadLatestRelease(string packageId, string channel, string localPath, Action<int> progress,
-        CancellationToken cancellationToken)
-    {
-        try {
-            var client = GetFlowApi(progress);
-            using (var localFile = File.Create(localPath)) {
-                using var file = await client.DownloadInstallerLatestAsync(packageId, channel, DownloadAssetType.Full, cancellationToken);
-                await file.Stream.CopyToAsync(localFile, 81920, cancellationToken).ConfigureAwait(false);
-            }
-
-            return new ZipPackage(localPath);
-        } catch (ApiException e) when (e.StatusCode == (int) HttpStatusCode.NotFound) {
-            return null;
-        }
     }
 
     private async Task WaitUntilReleaseGroupLive(FlowApi client, Guid releaseGroupId, CancellationToken cancellationToken)
@@ -303,7 +260,7 @@ public class VelopackFlowServiceClient(
             await Task.Delay(1000, cancellationToken);
         }
 
-        Logger.LogWarning("Release did not go live within 5 minutes (timeout).");
+        throw new UserInfoException("Release did not go live within 5 minutes (timeout).");
     }
 
     private static async Task CreateChannelIfNotExists(FlowApi client, string packageId, string channel, CancellationToken cancellationToken)
@@ -431,13 +388,16 @@ public class VelopackFlowServiceClient(
         return null;
     }
 
-    private static async Task<AuthenticationResult?> AcquireInteractiveAsync(IPublicClientApplication pca, AuthConfiguration authConfiguration,
+    private async Task<AuthenticationResult?> AcquireInteractiveAsync(IPublicClientApplication pca, AuthConfiguration authConfiguration,
         CancellationToken cancellationToken)
     {
         try {
+            
             return await pca.AcquireTokenInteractive(Scopes)
                 .WithB2CAuthority(authConfiguration.B2CAuthority)
                 .ExecuteAsync(cancellationToken);
+        } catch(MsalException e) when (e.ErrorCode == "http_listener_error") {
+            Logger.LogError("An error occured listening for login: {Error}", e.Message);
         } catch (MsalException) {
         }
 
