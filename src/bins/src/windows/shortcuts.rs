@@ -121,35 +121,7 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
     for (flag, lnk) in current_shortcuts.iter_mut() {
         let flag = flag.to_owned();
         info!("Updating existing shortcut '{:?}' ({:?}).", lnk.get_link_path(), flag);
-
-        let target_option = lnk.get_target_path().ok();
-
-        // set the target path to the main exe if it is missing or incorrect
-        if !target_option.as_ref().is_some_and(|p| p.exists()) {
-            warn!(
-                "Shortcut {:?} target does not exist, updating to mainExe and setting workdir to current.",
-                lnk.get_link_path()
-            );
-            if let Err(e) = lnk.set_target_path(&app_main_exe) {
-                warn!("Failed to update shortcut target: {}", e);
-            }
-            if let Err(e) = lnk.set_working_directory(&app_work_dir) {
-                warn!("Failed to update shortcut working directory: {}", e);
-            }
-        }
-
-        // force icon refresh by resetting the icon location
-        if let Err(e) = lnk.set_icon_location(&app_main_exe, 0) {
-            warn!("Failed to update shortcut icon location: {}", e);
-        }
-
-        if let Err(e) = lnk.set_aumid(app_model_id.as_deref()) {
-            warn!("Failed to update shortcut app model ID: {}", e);
-        }
-
-        if let Err(e) = lnk.save() {
-            warn!("Failed to save shortcut: {}", e);
-        }
+        unsafe_refresh_existing_lnk(lnk, &app_main_exe, &app_work_dir, app_model_id.as_deref());
 
         // if there is a shortcut in start menu or root, we do not want to create a new one anywhere
         if flag == ShortcutLocationFlags::START_MENU_ROOT || flag == ShortcutLocationFlags::START_MENU {
@@ -238,6 +210,56 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
                 warn!("Failed to create shortcut: {}", e);
             }
         }
+    }
+}
+
+/// Refreshes a shortcut found under the app root. A missing target is pointed back at the main exe.
+/// The icon and AUMID belong to the main exe, so they are only reset on shortcuts that start it: a
+/// shortcut to another executable in the package keeps its own. Otherwise every such shortcut shares the
+/// main exe's AUMID, and the taskbar, which keeps one pin per AUMID, drops all but one of the pins.
+unsafe fn unsafe_refresh_existing_lnk(lnk: &mut Lnk, app_main_exe: &Path, app_work_dir: &Path, app_model_id: Option<&str>) {
+    let target_option = lnk.get_target_path().ok();
+
+    // set the target path to the main exe if it is missing or incorrect
+    let starts_main_exe = match target_option.as_ref().filter(|p| p.exists()) {
+        Some(target) => {
+            // if we cannot tell, keep treating it as the main exe's shortcut, as before
+            is_same_file(target, app_main_exe).unwrap_or(true)
+        }
+        None => {
+            warn!(
+                "Shortcut {:?} target does not exist, updating to mainExe and setting workdir to current.",
+                lnk.get_link_path()
+            );
+            if let Err(e) = lnk.set_target_path(app_main_exe) {
+                warn!("Failed to update shortcut target: {}", e);
+            }
+            if let Err(e) = lnk.set_working_directory(app_work_dir) {
+                warn!("Failed to update shortcut working directory: {}", e);
+            }
+            true
+        }
+    };
+
+    if starts_main_exe {
+        // force icon refresh by resetting the icon location
+        if let Err(e) = lnk.set_icon_location(app_main_exe, 0) {
+            warn!("Failed to update shortcut icon location: {}", e);
+        }
+
+        if let Err(e) = lnk.set_aumid(app_model_id) {
+            warn!("Failed to update shortcut app model ID: {}", e);
+        }
+    } else {
+        info!(
+            "Shortcut {:?} starts {:?}, not the main exe; keeping its icon and app model ID.",
+            lnk.get_link_path(),
+            target_option
+        );
+    }
+
+    if let Err(e) = lnk.save() {
+        warn!("Failed to save shortcut: {}", e);
     }
 }
 
@@ -479,6 +501,17 @@ impl Lnk {
         let target = wide_to_os_string(pszfile);
         let target = PathBuf::from(target);
         Ok(target)
+    }
+
+    pub unsafe fn get_aumid(&self) -> Result<Option<String>> {
+        let store: IPropertyStore = self.me.cast()?;
+        let value = store.GetValue(&PKEY_AppUserModel_ID)?;
+        let id = value.to_string();
+        Ok(if id.is_empty() {
+            None
+        } else {
+            Some(id)
+        })
     }
 
     pub unsafe fn get_working_directory(&self) -> Result<PathBuf> {
@@ -728,6 +761,45 @@ fn test_shortcut_full_integration() {
             assert!(!link2.exists());
             assert!(!link3.exists());
             assert!(!start_menu_subfolder.exists());
+            Ok(())
+        })
+        .unwrap();
+    }
+}
+
+#[test]
+fn test_refresh_only_restamps_shortcuts_to_the_main_exe() {
+    unsafe {
+        unsafe_run_delegate_in_com_context(move || {
+            let dir = tempfile::tempdir()?;
+            let main_exe = dir.path().join("MainApp.exe");
+            let helper_exe = dir.path().join("Helper.exe");
+            std::fs::write(&main_exe, b"main")?;
+            std::fs::write(&helper_exe, b"helper")?;
+            let main_lnk = dir.path().join("main.lnk");
+            let helper_lnk = dir.path().join("helper.lnk");
+
+            let mut l = Lnk::create_new()?;
+            l.set_target_path(&main_exe)?;
+            l.save_as(&main_lnk)?;
+            let mut l = Lnk::create_new()?;
+            l.set_target_path(&helper_exe)?;
+            l.set_icon_location(&helper_exe, 0)?;
+            l.save_as(&helper_lnk)?;
+
+            for path in [&main_lnk, &helper_lnk] {
+                let mut lnk = Lnk::open_write(path)?;
+                unsafe_refresh_existing_lnk(&mut lnk, &main_exe, dir.path(), Some("Test.Velopack.Aumid"));
+            }
+
+            let main = Lnk::open_write(&main_lnk)?;
+            assert_eq!(main.get_icon_location()?.0, main_exe);
+            assert_eq!(main.get_aumid()?.as_deref(), Some("Test.Velopack.Aumid"));
+
+            let helper = Lnk::open_write(&helper_lnk)?;
+            assert_eq!(helper.get_target_path()?, helper_exe);
+            assert_eq!(helper.get_icon_location()?.0, helper_exe);
+            assert_eq!(helper.get_aumid()?, None);
             Ok(())
         })
         .unwrap();
