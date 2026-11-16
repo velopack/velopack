@@ -26,7 +26,7 @@ $cacheDir = (Resolve-Path $cacheDir).Path
 $giteaAdminUser = "velopack"
 $giteaAdminPassword = "VelopackTest123!"
 $giteaAdminEmail = "velopack@example.com"
-$s3mockVersion = "5.1.0"
+$s3mockVersion = "5.2.3"
 
 function Test-Endpoint([string]$url) {
     # Any HTTP response (including 4xx, e.g. azurite's 403 on unauthenticated requests) proves a
