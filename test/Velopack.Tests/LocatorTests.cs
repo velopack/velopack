@@ -90,6 +90,21 @@ public class LocatorTests
         Assert.Null(locator.CurrentReleaseNotesHtml);
     }
 
+    [Fact]
+    public void StagedUserIdPersistsBeforePackagesDirExists()
+    {
+        using var logger = _output.BuildLoggerFor<LocatorTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var rootDir);
+        var packagesDir = Path.Combine(rootDir, "packages");
+
+        var locator = new TestVelopackLocator("MyCoolApp", "1.2.3", packagesDir, logger.ToVelopackLogger());
+
+        var id = locator.GetOrCreateStagedUserId();
+        Assert.NotNull(id);
+        Assert.True(File.Exists(Path.Combine(packagesDir, ".betaId")));
+        Assert.Equal(id, locator.GetOrCreateStagedUserId());
+    }
+
     /// <summary>Lays out {root}/Update.exe and {root}/current/sq.version, returning the path of the (fake) main exe.</summary>
     private static string WriteInstall(string rootDir, string manifest)
     {

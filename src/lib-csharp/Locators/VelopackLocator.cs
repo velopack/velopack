@@ -209,6 +209,8 @@ namespace Velopack.Locators
 
             ret = Guid.NewGuid();
             try {
+                // on macOS and Linux the packages dir only exists once something was downloaded
+                Directory.CreateDirectory(PackagesDir);
                 File.WriteAllText(stagedUserIdFile, ret.ToString("N"), Encoding.UTF8);
                 Log.Info($"Generated new staging userId: {ret}");
                 return ret;
