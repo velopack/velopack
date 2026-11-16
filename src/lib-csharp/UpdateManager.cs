@@ -322,7 +322,11 @@ namespace Velopack
                     }
                 }
 
-                CleanPackagesExcept(completeFile);
+                // only clean up once the new package is in place, otherwise a failed or cancelled download
+                // would delete an update that's already downloaded and waiting to be applied
+                if (File.Exists(completeFile)) {
+                    CleanPackagesExcept(completeFile);
+                }
             }
         }
 
