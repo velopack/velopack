@@ -127,6 +127,29 @@ public class CompatUtil
             return true;
         }
 
+        // an `async Task Main()` entry point compiles to a stub that just kicks off a compiler-generated state
+        // machine, and the actual body (where VelopackApp.Run() would be) lives in that state machine's
+        // MoveNext() method. For top-level statements using `await`, the "real" async method is itself a
+        // compiler-generated sibling (e.g. `<Main>$`) that the synchronous entry point merely calls into.
+        // The [AsyncStateMachine] attribute on whichever of those methods is actually async tells us which
+        // state machine type to look in.
+        var asyncCandidates = new[] { entryPoint }.Concat(
+            entryPoint.CilMethodBody.Instructions
+                .Where(i => i.OpCode.Code is CilCode.Call or CilCode.Callvirt)
+                .Select(i => i.Operand as IMethodDescriptor)
+                .OfType<MethodDefinition>()
+                .Where(m => m.DeclaringType == entryPoint.DeclaringType));
+
+        foreach (var candidate in asyncCandidates) {
+            if (TryGetAsyncStateMachineType(candidate, mainModule.RuntimeContext) is { } stateMachineType) {
+                var moveNext = stateMachineType.Methods.FirstOrDefault(m => m.Name == "MoveNext" && m.HasMethodBody);
+                if (moveNext != null && SearchMethod(moveNext) is { } asyncResult) {
+                    velopackAppLocation = asyncResult;
+                    return true;
+                }
+            }
+        }
+
         // then, iterate all methods in the main module
         foreach (var topType in mainModule.TopLevelTypes) {
             if (SearchType(topType) is { } topLevelTypeResult) {
@@ -137,6 +160,22 @@ public class CompatUtil
 
         velopackAppLocation = null;
         return false;
+    }
+
+    private static TypeDefinition TryGetAsyncStateMachineType(MethodDefinition method, RuntimeContext runtimeContext)
+    {
+        var attr = method.CustomAttributes.FirstOrDefault(a =>
+            a.Constructor?.DeclaringType?.FullName == "System.Runtime.CompilerServices.AsyncStateMachineAttribute");
+        if (attr?.Signature?.FixedArguments.Count != 1) {
+            return null;
+        }
+
+        return attr.Signature.FixedArguments[0].Element switch {
+            TypeDefinition typeDef => typeDef,
+            AsmResolver.DotNet.Signatures.TypeDefOrRefSignature typeSig => typeSig.Type?.Resolve(runtimeContext),
+            AsmResolver.DotNet.ITypeDefOrRef typeRef => typeRef.Resolve(runtimeContext),
+            _ => null,
+        };
     }
 
     public SemanticVersion GetVelopackVersion(string exeFile)
