@@ -80,6 +80,12 @@ public class PackTask : MSBuildAsyncTask
 
     public string? NotaryProfile { get; set; }
 
+    public string? NotaryKey { get; set; }
+
+    public string? NotaryKeyId { get; set; }
+
+    public string? NotaryIssuer { get; set; }
+
     public string? Keychain { get; set; }
 
     public string? BundleId { get; set; }
