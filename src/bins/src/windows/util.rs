@@ -256,7 +256,7 @@ const VER_BUILDNUMBER: VER_FLAGS = VER_FLAGS(0x0000004);
 const VER_SERVICEPACKMAJOR: VER_FLAGS = VER_FLAGS(0x0000020);
 
 fn is_os_version_or_greater_internal(major: u16, minor: u16, build: u16, service_pack: u16) -> bool {
-    let flags = VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR;
+    let flags = VER_MAJORVERSION | VER_MINORVERSION | VER_BUILDNUMBER | VER_SERVICEPACKMAJOR;
 
     unsafe {
         let mut mask: u64 = 0;
@@ -302,9 +302,9 @@ pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
 
     if major == 8 {
         return Ok(if minor >= 1 {
-            is_windows_8_or_greater()
-        } else {
             is_windows_8_1_or_greater()
+        } else {
+            is_windows_8_or_greater()
         });
     }
 
@@ -335,6 +335,7 @@ pub fn test_os_returns_true_for_everything_on_windows_11_and_below() {
     assert!(is_os_version_or_greater("10").unwrap());
     assert!(is_os_version_or_greater("10.0.20000").unwrap());
     assert!(is_os_version_or_greater("11").unwrap());
+    assert!(!is_os_version_or_greater("11.0.65535").unwrap());
     assert!(!is_os_version_or_greater("12").unwrap());
 }
 
