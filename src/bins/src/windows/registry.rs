@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
-use chrono::{Datelike, Local as DateTime};
 use std::ffi::OsString;
 use velopack::locator::VelopackLocator;
+use windows::Win32::System::SystemInformation::GetLocalTime;
 use winreg::{enums::*, RegKey};
 
 const UNINSTALL_REGISTRY_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
@@ -26,8 +26,9 @@ pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     // and build metadata) to match what the MSI writes and what the app reports.
     let display_version = locator.get_manifest_version_full_string();
 
-    let now = DateTime::now();
-    let formatted_date = format!("{}{:02}{:02}", now.year(), now.month(), now.day());
+    // InstallDate is the local date as YYYYMMDD
+    let now = unsafe { GetLocalTime() };
+    let formatted_date = format!("{}{:02}{:02}", now.wYear, now.wMonth, now.wDay);
 
     let mut uninstall_cmd = OsString::from("\"");
     uninstall_cmd.push(&updater_path);
