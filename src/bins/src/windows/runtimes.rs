@@ -511,7 +511,8 @@ fn test_dotnet_detects_installed_versions() {
     assert!(parse_dotnet_version("net8-runtime").unwrap().is_installed());
     assert!(parse_dotnet_version("net8-desktop").unwrap().is_installed());
     assert!(parse_dotnet_version("net8-asp").unwrap().is_installed());
-    assert!(!parse_dotnet_version("net11").unwrap().is_installed());
+    // a version far in the future, so it is never installed on a runner
+    assert!(!parse_dotnet_version("net99").unwrap().is_installed());
 }
 
 lazy_static! {
