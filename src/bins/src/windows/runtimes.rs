@@ -511,7 +511,8 @@ fn test_dotnet_detects_installed_versions() {
     assert!(parse_dotnet_version("net8-runtime").unwrap().is_installed());
     assert!(parse_dotnet_version("net8-desktop").unwrap().is_installed());
     assert!(parse_dotnet_version("net8-asp").unwrap().is_installed());
-    assert!(!parse_dotnet_version("net11").unwrap().is_installed());
+    // a version far in the future, so it is never installed on a runner
+    assert!(!parse_dotnet_version("net99").unwrap().is_installed());
 }
 
 lazy_static! {
@@ -758,6 +759,26 @@ fn test_parse_dotnet_version() {
 
     let info = parse_dotnet_version("net10-arm64-asp").unwrap();
     assert_eq!(info.version, "10.0.0");
+    assert_eq!(info.architecture, RuntimeArch::Arm64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::AspNetCore);
+
+    let info = parse_dotnet_version("net11").unwrap();
+    assert_eq!(info.version, "11.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
+
+    let info = parse_dotnet_version("net11.0-x64-desktop").unwrap();
+    assert_eq!(info.version, "11.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
+
+    let info = parse_dotnet_version("net11-x86-runtime").unwrap();
+    assert_eq!(info.version, "11.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X86);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::Runtime);
+
+    let info = parse_dotnet_version("net11.0-arm64-asp").unwrap();
+    assert_eq!(info.version, "11.0.0");
     assert_eq!(info.architecture, RuntimeArch::Arm64);
     assert_eq!(info.runtime_type, DotnetRuntimeType::AspNetCore);
 

@@ -23,6 +23,10 @@ public class RuntimeTests
     [InlineData("net7.0-x64-asp", "net7-x64-asp")]
     [InlineData("net7.0-desktop", "net7-x64-desktop")]
     [InlineData("net7.0-runtime", "net7-x64-runtime")]
+    [InlineData("net11", "net11-x64-desktop")]
+    [InlineData("net11.0-x64-desktop", "net11-x64-desktop")]
+    [InlineData("net11-x86-runtime", "net11-x86-runtime")]
+    [InlineData("net11.0-arm64-asp", "net11-arm64-asp")]
     public void DotnetParsesValidVersions(string input, string expected)
     {
         var p = Runtimes.DotnetInfo.Parse(input);
@@ -60,6 +64,8 @@ public class RuntimeTests
     [InlineData("net6-x64", true)]
     [InlineData("net6-x64-runtime", true)]
     [InlineData("net6-x64-desktop", true)]
+    [InlineData("net11.0", true)]
+    [InlineData("net11-x64-desktop", true)]
     public void GetRuntimeTests(string input, bool expected)
     {
         var dn = Runtimes.GetRuntimeByName(input);
