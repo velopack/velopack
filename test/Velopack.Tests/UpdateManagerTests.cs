@@ -178,6 +178,46 @@ public class UpdateManagerTests
     }
 
     [Fact]
+    public async Task FailedDownloadKeepsPendingUpdate()
+    {
+        var fixture = PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg");
+
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        // an update that's already downloaded and waiting to be applied
+        var pending = Path.Combine(tempPath, "AvaloniaCrossPlat-1.0.11-full.nupkg");
+        File.Copy(fixture, pending);
+        var dl = new FakeDownloader() {
+            MockedResponseBytes = Encoding.UTF8.GetBytes(
+                SimpleJson.SerializeObject(
+                    new VelopackAssetFeed {
+                        Assets = new VelopackAsset[] {
+                            new VelopackAsset() {
+                                PackageId = "AvaloniaCrossPlat",
+                                Version = new SemanticVersion(1, 0, 12),
+                                Type = VelopackAssetType.Full,
+                                FileName = "AvaloniaCrossPlat-1.0.12-full.nupkg",
+                                SHA1 = (await IoUtil.CalculateFileSHA1AndSHA256Async(fixture)).SHA1,
+                                Size = new FileInfo(fixture).Length,
+                            }
+                        }
+                    }))
+        };
+        var source = new SimpleWebSource("http://any.com", dl);
+        var locator = new TestVelopackLocator("AvaloniaCrossPlat", "1.0.0", tempPath, logger.ToVelopackLogger());
+        var um = new UpdateManager(source, null, locator);
+        var info = um.CheckForUpdates();
+        Assert.NotNull(info);
+
+        // the download doesn't match the feed's size and checksum, so it fails
+        dl.MockedResponseBytes = Encoding.UTF8.GetBytes("not a package");
+        dl.WriteMockLocalFile = true;
+        Assert.Throws<ChecksumFailedException>(() => um.DownloadUpdates(info));
+
+        Assert.True(File.Exists(pending));
+    }
+
+    [Fact]
     public async Task CanDownloadFilesFromSubfolder()
     {
         // the feed may point at packages in a sub-folder next to releases.{channel}.json (velopack/velopack#596)
