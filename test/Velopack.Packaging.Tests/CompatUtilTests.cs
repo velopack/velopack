@@ -132,6 +132,10 @@ public class CompatUtilTests
 
         var path = Path.Combine(dir, "TestApp.exe");
         Assert.NotNull(compat.Verify(path));
+        Assert.DoesNotContain(logger.Entries, logEntry =>
+            logEntry.LogLevel == LogLevel.Warning &&
+            logEntry.Message.Contains("VelopackApp.Run()")
+        );
 
         var newPath = Path.Combine(dir, "CSharpWpf-asd2.exe");
         File.Move(path, newPath);
