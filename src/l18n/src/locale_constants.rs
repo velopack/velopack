@@ -52,6 +52,7 @@ define_locales! {
     TH_FTL      = "th"       => "../../../locales/th.ftl",
     TR_FTL      = "tr"       => "../../../locales/tr.ftl",
     UK_FTL      = "uk"       => "../../../locales/uk.ftl",
+    VI_FTL      = "vi"       => "../../../locales/vi.ftl",
     ZH_CN_FTL   = "zh-CN"    => "../../../locales/zh-CN.ftl",
     ZH_TW_FTL   = "zh-TW"    => "../../../locales/zh-TW.ftl",
 }
