@@ -375,14 +375,12 @@ jobs:
           flags: vpk
 
   # Installs and updates the cross-compiled x64 and x86 rust testapp packages on Windows 7. GitHub cannot host a runner
-  # on Windows 7, so a prebuilt Win7 SP1 image (OpenSSH server, SHA-2 updates, user velo/velopack) boots
-  # under QEMU/KVM with -snapshot, so every run starts clean, and the tests drive it over SSH.
+  # on Windows 7, so a Win7 SP1 image (OpenSSH server, SHA-2 updates, user velo/velopack) built by velopack/win7-build
+  # boots under QEMU/KVM with -snapshot, so every run starts clean, and the tests drive it over SSH.
   win7:
     runs-on: ubuntu-latest
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-      WIN7_IMAGE_URL: https://pub-0302165a08f941e2b7c9bb0bcc15c438.r2.dev/fd5df5c4b6ac/win7-velopack.qcow2
-      WIN7_IMAGE_SHA256: 02dde94efa0283b9e7f6d2b7509f0d2f69539754c3c2ea88846d993a9d1dbf4a
     steps:
       - uses: actions/checkout@v7
         with:
@@ -396,10 +394,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils sshpass
+      # the latest release; the image is split into parts under GitHub's 2 GiB asset limit
       - name: Download Windows 7 Image
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/win7.qcow2" "$WIN7_IMAGE_URL"
-          echo "$WIN7_IMAGE_SHA256  $RUNNER_TEMP/win7.qcow2" | sha256sum -c
+          gh release download --repo velopack/win7-build --pattern 'win7.qcow2.part*' --pattern SHA256SUMS --dir "$RUNNER_TEMP/win7"
+          cd "$RUNNER_TEMP/win7"
+          cat win7.qcow2.part* > ../win7.qcow2 && rm win7.qcow2.part*
+          cd .. && sha256sum -c win7/SHA256SUMS
       # boots in the background while .NET builds and the cross-compile artifacts are produced
       - name: Boot Windows 7 VM
         run: >-
