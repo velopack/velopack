@@ -6,6 +6,7 @@ permissions:
   id-token: write
   actions: write
   contents: read
+  packages: read # win7 job pulls ghcr.io/velopack/win7-build
 
 env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -394,15 +395,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils sshpass
-      # the latest release; the image is split into parts under GitHub's 2 GiB asset limit
+      - uses: oras-project/setup-oras@v2
+      # the package is private; velopack/velopack has Read access to it under the package's "Manage Actions access"
       - name: Download Windows 7 Image
+        working-directory: ${{ runner.temp }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo velopack/win7-build --pattern 'win7.qcow2.part*' --pattern SHA256SUMS --dir "$RUNNER_TEMP/win7"
-          cd "$RUNNER_TEMP/win7"
-          cat win7.qcow2.part* > ../win7.qcow2 && rm win7.qcow2.part*
-          cd .. && sha256sum -c win7/SHA256SUMS
+          echo "$GH_TOKEN" | oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          oras pull ghcr.io/velopack/win7-build:latest
       # boots in the background while .NET builds and the cross-compile artifacts are produced
       - name: Boot Windows 7 VM
         run: >-
