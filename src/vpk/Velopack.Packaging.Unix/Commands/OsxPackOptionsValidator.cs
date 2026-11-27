@@ -20,5 +20,15 @@ public sealed class OsxPackOptionsValidator : OsxBundleOptionsValidator<OsxPackO
         RuleFor(x => x.InstConclusion).MustBeExistingFile();
         RuleFor(x => x.SignEntitlements).MustBeExistingFile().MustHaveExtension(".entitlements");
         RuleFor(x => x.Keychain).MustBeExistingFile();
+        RuleFor(x => x.NotaryKey).MustBeExistingFile();
+        RuleFor(x => x.NotaryKey)
+            .Must((opt, key) => string.IsNullOrEmpty(key) == string.IsNullOrEmpty(opt.NotaryKeyId))
+            .WithMessage("The 'notaryKey' and 'notaryKeyId' options must be used together.");
+        RuleFor(x => x.NotaryIssuer)
+            .Must((opt, issuer) => string.IsNullOrEmpty(issuer) || !string.IsNullOrEmpty(opt.NotaryKey))
+            .WithMessage("The 'notaryIssuer' option requires 'notaryKey' and 'notaryKeyId'.");
+        RuleFor(x => x.NotaryProfile)
+            .Must((opt, profile) => string.IsNullOrEmpty(profile) || (string.IsNullOrEmpty(opt.NotaryKey) && string.IsNullOrEmpty(opt.NotaryKeyId)))
+            .WithMessage("Cannot use 'notaryProfile' and 'notaryKey' options together, please choose one.");
     }
 }
