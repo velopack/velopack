@@ -365,7 +365,8 @@ impl VelopackLocator {
             }
         }
         let new_id = Uuid::new_v4();
-        if let Err(_e) = std::fs::write(&beta_id_path, new_id.to_string()) {
+        // on macOS and Linux the packages dir only exists once something was downloaded
+        if let Err(_e) = std::fs::create_dir_all(&packages_dir).and_then(|_| std::fs::write(&beta_id_path, new_id.to_string())) {
             warn!("Couldn't write out staging userId.");
         } else {
             info!("Generated new staging userId: {}", new_id);
@@ -729,6 +730,23 @@ fn test_locator_staged_id_for_existing_user() {
     let staged_user_id = locator.get_staged_user_id();
 
     assert_eq!(expected_user_id, staged_user_id);
+}
+
+#[test]
+fn test_locator_staged_id_before_packages_dir_exists() {
+    let tmp_dir = tempfile::TempDir::new().unwrap();
+
+    let mut paths = VelopackLocatorConfig::default();
+    paths.RootAppDir = tmp_dir.path().to_path_buf();
+    paths.PackagesDir = tmp_dir.path().join("packages");
+
+    let locator = VelopackLocator::new_with_manifest(paths, Manifest::default());
+
+    let staged_user_id = locator.get_staged_user_id();
+
+    assert_ne!(staged_user_id, "");
+    assert!(locator.get_packages_dir().join(".betaId").exists());
+    assert_eq!(staged_user_id, locator.get_staged_user_id());
 }
 
 #[test]
