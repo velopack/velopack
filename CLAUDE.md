@@ -164,9 +164,10 @@ shims that use the real function when present and a Win7 fallback otherwise. Do 
   can't run on Win7, so it uses the x64 and x86 rust testapp packages (`-rust` / `-rust-x86` artifact ids; the
   x86 testapp ships as `testapp_x86.exe`, and x86 runs under WOW64 on the x64 VM). Commands run through a scheduled
   task in the desktop session, since Win32-OpenSSH kills a session's child processes (e.g. Update.exe) on exit.
-- The image is built by the `velopack/win7-build` repo (unattended install from the stock ISO, see its README); every
-  push there publishes a new `release.N` and the `win7` job downloads the latest one. To change the VM (installed
-  updates, settings, OpenSSH), change that repo, not this one.
+- The image is built by the private `velopack/win7-build` repo (unattended install from the stock ISO, see its README);
+  every push there replaces `ghcr.io/velopack/win7-build:latest`, which the `win7` job pulls with ORAS using its own
+  `GITHUB_TOKEN` (`packages: read`; this repo has Read access under the package's "Manage Actions access"). To change
+  the VM (installed updates, settings, OpenSSH), change that repo, not this one.
 
 ## 32-bit ARM Linux
 

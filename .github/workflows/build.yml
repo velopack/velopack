@@ -30,6 +30,7 @@ jobs:
       contents: read
       actions: write
       id-token: write
+      packages: read
     secrets: inherit # tests need secrets to run
 
   build-samples:
